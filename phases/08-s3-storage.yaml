@@ -1,0 +1,12 @@
+Resources:
+  AdHocTestautodiscoverybucket1761257199:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: test-auto-discovery-bucket-1761257199
+    Metadata:
+      CreatedVia: auto-discovery
+      Timestamp: '2025-10-23T22:06:40.052388'
+      OriginalName: test-auto-discovery-bucket-1761257199
+description: Auto-generated phase for ad-hoc 08-s3-storage resources
+phase_name: Ad-hoc Resources - 08-s3-storage
+resource_count: 1
