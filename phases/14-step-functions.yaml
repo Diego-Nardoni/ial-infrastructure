@@ -1,0 +1,13 @@
+phase_name: Universal Stepfunctions Resources
+description: Auto-generated phase for stepfunctions resources
+resource_count: 1
+Resources:
+  UniversalTeststatemachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties: {}
+    Metadata:
+      CreatedVia: universal-tracker
+      Service: stepfunctions
+      Operation: create-state-machine
+      Timestamp: '2025-10-23T22:35:34.750548'
+      OriginalName: TestStateMachine
