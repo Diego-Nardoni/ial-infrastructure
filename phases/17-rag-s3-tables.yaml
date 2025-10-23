@@ -212,6 +212,12 @@ resources:
                     )
                     result = json.loads(response['body'].read())
                     return result['embedding']
+            VpcConfig:
+              SubnetIds:
+                - "[PRIVATE_SUBNET_1A_ID]"
+                - "[PRIVATE_SUBNET_1B_ID]"
+              SecurityGroupIds:
+                - "[SG_LAMBDA_ID]"
             Tags:
               - Key: "Project"
                 Value: "IaL"

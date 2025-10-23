@@ -1,6 +1,6 @@
 phase_name: Universal Dynamodb Resources
 description: Auto-generated phase for dynamodb resources
-resource_count: 1
+resource_count: 2
 Resources:
   UniversalTesttable:
     Type: AWS::DynamoDB::Table
@@ -11,3 +11,13 @@ Resources:
       Operation: create-table
       Timestamp: '2025-10-23T22:35:43.887361'
       OriginalName: TestTable
+  UniversalMcpprovisioningchecklist:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: mcp-provisioning-checklist
+    Metadata:
+      CreatedVia: universal-tracker
+      Service: dynamodb
+      Operation: create-table
+      Timestamp: '2025-10-23T22:36:29.184740'
+      OriginalName: mcp-provisioning-checklist

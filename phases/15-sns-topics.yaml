@@ -1,0 +1,14 @@
+phase_name: Universal Sns Resources
+description: Auto-generated phase for sns resources
+resource_count: 1
+Resources:
+  UniversalIalalertscritical:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ial-alerts-critical
+    Metadata:
+      CreatedVia: universal-tracker
+      Service: sns
+      Operation: create-topic
+      Timestamp: '2025-10-23T22:36:29.501323'
+      OriginalName: ial-alerts-critical

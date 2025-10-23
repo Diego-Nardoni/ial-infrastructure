@@ -1,0 +1,15 @@
+phase_name: Universal Lambda Resources
+description: Auto-generated phase for lambda resources
+resource_count: 1
+Resources:
+  UniversalDriftdetector:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: drift-detector
+      Runtime: python3.11
+    Metadata:
+      CreatedVia: universal-tracker
+      Service: lambda
+      Operation: create-function
+      Timestamp: '2025-10-23T22:36:29.345364'
+      OriginalName: drift-detector
