@@ -51,13 +51,23 @@ q chat "Configure IaL para minha conta AWS"
 ```
 
 **Isso cria automaticamente:**
-- ✅ IAM Role (IaL-LambdaExecutionRole)
+- ✅ OIDC Provider (GitHub Actions authentication)
+- ✅ IAM Role para GitHub Actions (trust policy específico para SEU repo)
+- ✅ IAM Role para Lambda (drift-detector)
 - ✅ DynamoDB Table (mcp-provisioning-checklist)
 - ✅ Lambda Function (drift-detector)
 - ✅ EventBridge Rule (drift-detection-scheduled)
 - ✅ SNS Topic (ial-alerts-critical)
 
+**Detecção Automática:**
+- ✅ AWS Account e Region
+- ✅ GitHub User
+- ✅ **GitHub Repository** (via git remote OU solicitação interativa)
+- ✅ Trust policy configurado para SEU repositório específico
+
 **Zero configuração manual!**
+
+**Funciona perfeitamente em forks!** Ver [Fork Guide](docs/fork-guide.md)
 
 ### 3. Usar (2-3 min por mudança)
 

@@ -125,13 +125,23 @@ q chat "Configure IaL para minha conta AWS"
 ### O Que Acontece Automaticamente:
 
 #### ✅ Detecção Automática
-- AWS Account ID
-- AWS Region
-- GitHub User (se configurado)
+- AWS Account ID via `aws sts get-caller-identity`
+- AWS Region via `aws configure get region`
+- GitHub User via `gh api user`
+- **GitHub Repository** via `git remote get-url origin` OU solicitação interativa
 
 #### ✅ Criação Automática de Recursos
 
-**1. IAM Role** (`IaL-LambdaExecutionRole`)
+**1. OIDC Provider**
+- URL: token.actions.githubusercontent.com
+- Para autenticação GitHub Actions
+
+**2. IAM Role para GitHub Actions** (`IaL-GitHubActionsRole`)
+- Trust policy **específico para seu repositório**
+- Exemplo: `repo:Diego-Nardoni/ial-infrastructure:*`
+- ✅ **Workflows funcionam imediatamente!**
+
+**3. IAM Role para Lambda** (`IaL-LambdaExecutionRole`)
 - Trust policy para Lambda
 - Managed policies:
   - AWSLambdaBasicExecutionRole
@@ -139,25 +149,115 @@ q chat "Configure IaL para minha conta AWS"
   - AmazonSNSFullAccess
 - Inline policy para Bedrock
 
-**2. DynamoDB Table** (`mcp-provisioning-checklist`)
+**4. DynamoDB Table** (`mcp-provisioning-checklist`)
 - Key schema: Project (HASH) + ResourceName (RANGE)
 - Billing: PAY_PER_REQUEST
 - TTL habilitado (AttributeName: TTL)
 
-**3. SNS Topic** (`ial-alerts-critical`)
+**5. SNS Topic** (`ial-alerts-critical`)
 - Para notificações de drift e deploy
 
-**4. Lambda Function** (`drift-detector`)
+**6. Lambda Function** (`drift-detector`)
 - Runtime: Python 3.11
 - Handler: index.lambda_handler
 - Timeout: 300s
 - Memory: 512MB
 - Role: IaL-LambdaExecutionRole
 
-**5. EventBridge Rule** (`drift-detection-scheduled`)
+**7. EventBridge Rule** (`drift-detection-scheduled`)
 - Schedule: rate(1 hour)
 - Target: Lambda drift-detector
 - Permissões configuradas
+
+---
+
+## 🔄 Cenários de Uso
+
+### Cenário 1: Primeiro Setup (Novo Projeto)
+
+```bash
+# 1. Clonar projeto
+git clone https://github.com/YOUR_ORG/ial-infrastructure.git /home/ial
+cd /home/ial
+
+# 2. Configurar GitHub
+gh auth login
+
+# 3. Setup IaL
+q chat "Configure IaL para minha conta AWS"
+
+# O script vai:
+# - Detectar seu usuário GitHub
+# - SOLICITAR nome do repositório (ex: seu-usuario/ial-infrastructure)
+# - Criar trust policy específico para esse repo
+# - ✅ GitHub Actions funcionará imediatamente!
+```
+
+### Cenário 2: Fork do Projeto
+
+```bash
+# 1. Fork no GitHub
+gh repo fork Diego-Nardoni/ial-infrastructure
+
+# 2. Clonar seu fork
+git clone https://github.com/SEU-USUARIO/ial-infrastructure.git /home/ial
+cd /home/ial
+
+# 3. Setup IaL
+q chat "Configure IaL para minha conta AWS"
+
+# O script vai:
+# - Detectar automaticamente: SEU-USUARIO/ial-infrastructure
+# - Criar trust policy específico para SEU fork
+# - ✅ Workflows funcionarão no SEU fork!
+```
+
+### Cenário 3: Repositório Já Existe
+
+```bash
+# 1. Clonar projeto existente
+git clone https://github.com/seu-usuario/ial-infrastructure.git /home/ial
+cd /home/ial
+
+# 2. Setup IaL
+q chat "Configure IaL para minha conta AWS"
+
+# O script vai:
+# - Detectar automaticamente o repo do git remote
+# - Criar/atualizar trust policy para esse repo
+# - ✅ Workflows funcionarão imediatamente!
+```
+
+---
+
+## 💡 Detecção Inteligente de Repositório
+
+O script detecta o repositório de 3 formas:
+
+### 1. Git Remote (Automático)
+```bash
+# Se git remote existe, detecta automaticamente
+git remote get-url origin
+# → https://github.com/usuario/repo.git
+# → Usa: usuario/repo
+```
+
+### 2. Solicitação Interativa
+```bash
+# Se não detectou, solicita:
+📝 Configuração do GitHub Actions:
+   Para que o GitHub Actions funcione, precisamos do nome do repositório.
+   Formato: usuario/repositorio (ex: Diego-Nardoni/ial-infrastructure)
+
+   Digite o nome completo do repositório: _
+```
+
+### 3. Atualização Posterior
+```bash
+# Se criou com trust policy genérico, pode atualizar depois:
+q chat "Configure IaL para minha conta AWS"
+# → Detecta repo e atualiza trust policy automaticamente
+```
 
 ---
 

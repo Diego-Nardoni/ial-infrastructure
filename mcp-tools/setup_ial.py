@@ -4,6 +4,7 @@ import subprocess
 import json
 import sys
 import time
+import re
 
 def get_aws_account():
     """Detecta AWS Account ID"""
@@ -22,6 +23,35 @@ def get_github_user():
     result = subprocess.run(['gh', 'api', 'user', '--jq', '.login'],
                           capture_output=True, text=True)
     return result.stdout.strip()
+
+def get_github_repo():
+    """Detecta ou solicita nome do repositório GitHub"""
+    # Tentar detectar do git remote
+    result = subprocess.run(
+        ['git', 'remote', 'get-url', 'origin'],
+        capture_output=True, text=True, cwd='/home/ial'
+    )
+    
+    if result.returncode == 0:
+        url = result.stdout.strip()
+        # Parse: https://github.com/user/repo.git ou git@github.com:user/repo.git
+        match = re.search(r'github\.com[:/](.+)/(.+?)(?:\.git)?$', url)
+        if match:
+            user = match.group(1)
+            repo = match.group(2)
+            print(f"✅ Repositório detectado: {user}/{repo}")
+            return f"{user}/{repo}"
+    
+    # Se não detectou, solicitar
+    print("\n📝 Configuração do GitHub Actions:")
+    print("   Para que o GitHub Actions funcione, precisamos do nome do repositório.")
+    print("   Formato: usuario/repositorio (ex: Diego-Nardoni/ial-infrastructure)")
+    
+    while True:
+        repo_full = input("\n   Digite o nome completo do repositório: ").strip()
+        if '/' in repo_full and len(repo_full.split('/')) == 2:
+            return repo_full
+        print("   ❌ Formato inválido. Use: usuario/repositorio")
 
 def wait_for_table(table_name, region, max_wait=60):
     """Aguarda tabela DynamoDB ficar ativa"""
@@ -61,7 +91,7 @@ def create_oidc_provider(account_id, region):
     
     return result.stdout.strip()
 
-def create_github_actions_role(account_id, region, github_user):
+def create_github_actions_role(account_id, region, github_repo):
     """Cria IAM Role para GitHub Actions"""
     role_name = "IaL-GitHubActionsRole"
     
@@ -73,12 +103,37 @@ def create_github_actions_role(account_id, region, github_user):
     
     if check.returncode == 0:
         print(f"✅ IAM role {role_name} já existe")
+        # Atualizar trust policy se repo foi fornecido
+        if github_repo:
+            print(f"📦 Atualizando trust policy para repo: {github_repo}")
+            trust_policy = {
+                "Version": "2012-10-17",
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Federated": f"arn:aws:iam::{account_id}:oidc-provider/token.actions.githubusercontent.com"
+                    },
+                    "Action": "sts:AssumeRoleWithWebIdentity",
+                    "Condition": {
+                        "StringEquals": {
+                            "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+                        },
+                        "StringLike": {
+                            "token.actions.githubusercontent.com:sub": f"repo:{github_repo}:*"
+                        }
+                    }
+                }]
+            }
+            subprocess.run(f"""aws iam update-assume-role-policy \
+                --role-name {role_name} \
+                --policy-document '{json.dumps(trust_policy)}'""",
+                shell=True, check=True)
         return role_name
     
     print(f"📦 Criando IAM role {role_name}...")
     
-    # Trust policy para GitHub Actions
-    if github_user and github_user != "not-configured":
+    # Trust policy específico para o repo
+    if github_repo:
         trust_policy = {
             "Version": "2012-10-17",
             "Statement": [{
@@ -92,13 +147,13 @@ def create_github_actions_role(account_id, region, github_user):
                         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
                     },
                     "StringLike": {
-                        "token.actions.githubusercontent.com:sub": f"repo:{github_user}/ial-infrastructure:*"
+                        "token.actions.githubusercontent.com:sub": f"repo:{github_repo}:*"
                     }
                 }
             }]
         }
     else:
-        # Trust policy genérico (aceita qualquer repo - usuário restringe depois)
+        # Trust policy genérico (temporário)
         trust_policy = {
             "Version": "2012-10-17",
             "Statement": [{
@@ -367,19 +422,25 @@ def setup_ial():
     # Detectar contexto
     account_id = get_aws_account()
     region = get_aws_region()
-    github_user = get_github_user() or "not-configured"
+    github_user = get_github_user() or None
     
     print(f"✅ AWS Account: {account_id}")
     print(f"✅ AWS Region: {region}")
-    print(f"✅ GitHub User: {github_user}\n")
+    if github_user:
+        print(f"✅ GitHub User: {github_user}")
+    else:
+        print(f"⚠️  GitHub User: não configurado (execute: gh auth login)")
+    
+    # Detectar ou solicitar repositório
+    github_repo = get_github_repo() if github_user else None
     
     # Criar recursos
     try:
         # 1. OIDC Provider (para GitHub Actions)
         oidc_arn = create_oidc_provider(account_id, region)
         
-        # 2. IAM Role para GitHub Actions
-        github_role = create_github_actions_role(account_id, region, github_user)
+        # 2. IAM Role para GitHub Actions (com repo específico)
+        github_role = create_github_actions_role(account_id, region, github_repo)
         
         # 3. IAM Role para Lambda
         lambda_role = create_lambda_execution_role(account_id, region)
@@ -405,17 +466,21 @@ def setup_ial():
         print(f"     --protocol email --notification-endpoint seu-email@example.com")
         print(f"2. Confirmar email (check inbox)")
         print(f"3. Habilitar Bedrock model access (console AWS)")
-        if github_user == "not-configured":
-            print(f"4. Configurar GitHub: gh auth login")
-            print(f"5. Atualizar trust policy do role {github_role} com seu repo")
-        print(f"\n🚀 GitHub Actions configurado!")
-        print(f"   Role ARN: arn:aws:iam::{account_id}:role/{github_role}")
+        if github_repo:
+            print(f"\n🚀 GitHub Actions configurado para: {github_repo}")
+            print(f"   Role ARN: arn:aws:iam::{account_id}:role/{github_role}")
+            print(f"   ✅ Workflows funcionarão automaticamente!")
+        else:
+            print(f"\n⚠️  Configure GitHub depois:")
+            print(f"   1. gh auth login")
+            print(f"   2. Execute setup novamente para atualizar trust policy")
         
         return {
             'status': 'success',
             'account_id': account_id,
             'region': region,
             'github_user': github_user,
+            'github_repo': github_repo,
             'lambda_role': lambda_role,
             'github_role': github_role,
             'oidc_arn': oidc_arn,
