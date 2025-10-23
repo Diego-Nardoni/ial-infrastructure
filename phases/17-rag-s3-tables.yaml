@@ -1,0 +1,361 @@
+# PHASE 17: RAG WITH S3 TABLES (Vector Store)
+# Dependências: KMS (Phase 01), IAM (Phase 05)
+# Custo: $5/mês
+
+phase: "17-rag-s3-tables"
+description: "RAG with S3 Tables for conversation memory and semantic search"
+depends_on: ["01-kms-security", "05-iam-roles"]
+estimated_cost_monthly: 5
+resource_count: 5
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONVERSATION MEMORY + RAG
+# ═══════════════════════════════════════════════════════════════════════════════
+
+resources:
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 1. S3 BUCKET (Tables Format)
+  # ═══════════════════════════════════════════════════════════════════════════════
+  s3_conversations_bucket:
+    name: "ial-conversations-{{AWS_ACCOUNT_ID}}"
+    resource_name: "17-s3-conversations"
+    type: "AWS::S3::Bucket"
+    priority: 1
+    
+    mcp_workflow:
+      generate_code:
+        tool: "generate_infrastructure_code"
+        parameters:
+          resource_type: "AWS::S3::Bucket"
+          region: "{{AWS_REGION}}"
+          properties:
+            BucketName: "ial-conversations-{{AWS_ACCOUNT_ID}}"
+            BucketEncryption:
+              ServerSideEncryptionConfiguration:
+                - ServerSideEncryptionByDefault:
+                    SSEAlgorithm: "aws:kms"
+                    KMSMasterKeyID: "[KMS_KEY_ID]"
+            VersioningConfiguration:
+              Status: "Enabled"
+            PublicAccessBlockConfiguration:
+              BlockPublicAcls: true
+              BlockPublicPolicy: true
+              IgnorePublicAcls: true
+              RestrictPublicBuckets: true
+            LifecycleConfiguration:
+              Rules:
+                - Id: "DeleteOldConversations"
+                  Status: "Enabled"
+                  ExpirationInDays: 90
+            Tags:
+              - Key: "Project"
+                Value: "IaL"
+              - Key: "Purpose"
+                Value: "ConversationMemory"
+              - Key: "CostCenter"
+                Value: "RAG"
+      
+      explain:
+        tool: "explain"
+        parameters:
+          generated_code_token: "{{generated_code_token}}"
+          context: "S3 bucket for storing Amazon Q conversations with vector embeddings"
+      
+      create:
+        tool: "create_resource"
+        parameters:
+          resource_type: "AWS::S3::Bucket"
+          explained_token: "{{explained_token}}"
+          credentials_token: "{{credentials_token}}"
+          region: "{{AWS_REGION}}"
+      
+      update_state:
+        tool: "update_dynamodb_state"
+        parameters:
+          resource_name: "17-s3-conversations"
+          status: "Active"
+          resource_id: "{{bucket_name}}"
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 2. DYNAMODB TABLE (Conversation Metadata)
+  # ═══════════════════════════════════════════════════════════════════════════════
+  conversations_metadata:
+    name: "ial-conversations-metadata"
+    resource_name: "17-conversations-metadata"
+    type: "AWS::DynamoDB::Table"
+    priority: 2
+    
+    mcp_workflow:
+      generate_code:
+        tool: "generate_infrastructure_code"
+        parameters:
+          resource_type: "AWS::DynamoDB::Table"
+          region: "{{AWS_REGION}}"
+          properties:
+            TableName: "ial-conversations-metadata"
+            BillingMode: "PAY_PER_REQUEST"
+            AttributeDefinitions:
+              - AttributeName: "ConversationId"
+                AttributeType: "S"
+              - AttributeName: "Timestamp"
+                AttributeType: "N"
+            KeySchema:
+              - AttributeName: "ConversationId"
+                KeyType: "HASH"
+              - AttributeName: "Timestamp"
+                KeyType: "RANGE"
+            StreamSpecification:
+              StreamViewType: "NEW_AND_OLD_IMAGES"
+            TimeToLiveSpecification:
+              Enabled: true
+              AttributeName: "TTL"
+            Tags:
+              - Key: "Project"
+                Value: "IaL"
+              - Key: "Purpose"
+                Value: "ConversationMetadata"
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 3. LAMBDA FUNCTION (Conversation Capture)
+  # ═══════════════════════════════════════════════════════════════════════════════
+  conversation_capture_lambda:
+    name: "ial-conversation-capture"
+    resource_name: "17-conversation-capture"
+    type: "AWS::Lambda::Function"
+    priority: 3
+    
+    mcp_workflow:
+      generate_code:
+        tool: "generate_infrastructure_code"
+        parameters:
+          resource_type: "AWS::Lambda::Function"
+          region: "{{AWS_REGION}}"
+          properties:
+            FunctionName: "ial-conversation-capture"
+            Runtime: "python3.11"
+            Handler: "index.lambda_handler"
+            Role: "arn:aws:iam::{{AWS_ACCOUNT_ID}}:role/IaL-LambdaExecutionRole"
+            Timeout: 60
+            MemorySize: 512
+            Environment:
+              Variables:
+                S3_BUCKET: "ial-conversations-{{AWS_ACCOUNT_ID}}"
+                DYNAMODB_TABLE: "ial-conversations-metadata"
+                BEDROCK_MODEL: "amazon.titan-embed-text-v2:0"
+            Code:
+              ZipFile: |
+                import json
+                import boto3
+                import os
+                from datetime import datetime
+                import uuid
+                
+                s3 = boto3.client('s3')
+                dynamodb = boto3.client('dynamodb')
+                bedrock = boto3.client('bedrock-runtime')
+                
+                def lambda_handler(event, context):
+                    """Capture and store Amazon Q conversation with embeddings"""
+                    
+                    # Parse conversation
+                    conversation = json.loads(event['body'])
+                    conversation_id = str(uuid.uuid4())
+                    timestamp = int(datetime.utcnow().timestamp())
+                    
+                    # Generate embedding
+                    embedding = generate_embedding(conversation['text'])
+                    
+                    # Store in S3 Tables
+                    s3_key = f"conversations/{datetime.utcnow().strftime('%Y/%m/%d')}/{conversation_id}.json"
+                    s3.put_object(
+                        Bucket=os.environ['S3_BUCKET'],
+                        Key=s3_key,
+                        Body=json.dumps({
+                            'conversation_id': conversation_id,
+                            'timestamp': timestamp,
+                            'user': conversation.get('user', 'unknown'),
+                            'text': conversation['text'],
+                            'embedding': embedding,
+                            'metadata': conversation.get('metadata', {})
+                        }),
+                        ContentType='application/json'
+                    )
+                    
+                    # Store metadata in DynamoDB
+                    dynamodb.put_item(
+                        TableName=os.environ['DYNAMODB_TABLE'],
+                        Item={
+                            'ConversationId': {'S': conversation_id},
+                            'Timestamp': {'N': str(timestamp)},
+                            'User': {'S': conversation.get('user', 'unknown')},
+                            'S3Key': {'S': s3_key},
+                            'TextPreview': {'S': conversation['text'][:200]},
+                            'TTL': {'N': str(timestamp + 7776000)}  # 90 days
+                        }
+                    )
+                    
+                    return {
+                        'statusCode': 200,
+                        'body': json.dumps({
+                            'conversation_id': conversation_id,
+                            'message': 'Conversation stored successfully'
+                        })
+                    }
+                
+                def generate_embedding(text):
+                    """Generate embedding using Bedrock Titan"""
+                    response = bedrock.invoke_model(
+                        modelId=os.environ['BEDROCK_MODEL'],
+                        body=json.dumps({
+                            'inputText': text
+                        })
+                    )
+                    result = json.loads(response['body'].read())
+                    return result['embedding']
+            Tags:
+              - Key: "Project"
+                Value: "IaL"
+              - Key: "Purpose"
+                Value: "ConversationCapture"
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 4. BEDROCK KNOWLEDGE BASE
+  # ═══════════════════════════════════════════════════════════════════════════════
+  bedrock_knowledge_base:
+    name: "ial-conversation-kb"
+    resource_name: "17-bedrock-kb"
+    type: "AWS::Bedrock::KnowledgeBase"
+    priority: 4
+    
+    mcp_workflow:
+      create:
+        tool: "aws_cli"
+        command: |
+          aws bedrock-agent create-knowledge-base \
+            --name ial-conversation-kb \
+            --description "Knowledge base for IaL conversation memory" \
+            --role-arn arn:aws:iam::{{AWS_ACCOUNT_ID}}:role/IaL-LambdaExecutionRole \
+            --knowledge-base-configuration '{
+              "type": "VECTOR",
+              "vectorKnowledgeBaseConfiguration": {
+                "embeddingModelArn": "arn:aws:bedrock:{{AWS_REGION}}::foundation-model/amazon.titan-embed-text-v2:0"
+              }
+            }' \
+            --storage-configuration '{
+              "type": "S3",
+              "s3Configuration": {
+                "bucketArn": "arn:aws:s3:::ial-conversations-{{AWS_ACCOUNT_ID}}"
+              }
+            }' \
+            --region {{AWS_REGION}}
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 5. API GATEWAY (Webhook)
+  # ═══════════════════════════════════════════════════════════════════════════════
+  api_gateway:
+    name: "ial-conversation-api"
+    resource_name: "17-api-gateway"
+    type: "AWS::ApiGatewayV2::Api"
+    priority: 5
+    
+    mcp_workflow:
+      generate_code:
+        tool: "generate_infrastructure_code"
+        parameters:
+          resource_type: "AWS::ApiGatewayV2::Api"
+          region: "{{AWS_REGION}}"
+          properties:
+            Name: "ial-conversation-api"
+            ProtocolType: "HTTP"
+            CorsConfiguration:
+              AllowOrigins:
+                - "*"
+              AllowMethods:
+                - "POST"
+              AllowHeaders:
+                - "Content-Type"
+            Tags:
+              Project: "IaL"
+              Purpose: "ConversationWebhook"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEPLOYMENT NOTES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+deployment:
+  order:
+    - s3_conversations_bucket
+    - conversations_metadata
+    - conversation_capture_lambda
+    - bedrock_knowledge_base
+    - api_gateway
+  
+  validation:
+    - "S3 bucket created and encrypted"
+    - "DynamoDB table active with TTL enabled"
+    - "Lambda function deployed"
+    - "Bedrock Knowledge Base created"
+    - "API Gateway endpoint available"
+  
+  rollback:
+    - "Delete API Gateway"
+    - "Delete Bedrock Knowledge Base"
+    - "Delete Lambda function"
+    - "Empty and delete S3 bucket"
+    - "Delete DynamoDB table"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COST BREAKDOWN
+# ═══════════════════════════════════════════════════════════════════════════════
+
+cost_analysis:
+  monthly:
+    s3_storage: "$0.50"  # 20 GB × $0.023/GB
+    s3_requests: "$0.40"  # 1M requests × $0.0004
+    s3_vector_search: "$1.00"  # 1M vector queries × $0.001
+    dynamodb: "$1.00"  # On-demand, low usage
+    lambda: "$0.50"  # 10k invocations
+    bedrock_embeddings: "$1.00"  # 1M tokens × $0.0001
+    api_gateway: "$0.50"  # 10k requests
+    total: "$4.90"
+  
+  notes:
+    - "S3 Tables vector search is 10x cheaper than OpenSearch"
+    - "Bedrock Titan embeddings are cost-effective"
+    - "DynamoDB on-demand scales with usage"
+    - "90-day retention keeps costs low"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# USAGE EXAMPLES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+usage:
+  capture_conversation:
+    description: "Capture Amazon Q conversation"
+    command: |
+      curl -X POST https://API_ENDPOINT/conversations \
+        -H "Content-Type: application/json" \
+        -d '{
+          "user": "diego",
+          "text": "How do I add port 8443 to ALB?",
+          "metadata": {
+            "project": "ial-infrastructure",
+            "phase": "10-alb"
+          }
+        }'
+  
+  search_conversations:
+    description: "Semantic search in conversation history"
+    command: |
+      aws bedrock-agent-runtime retrieve \
+        --knowledge-base-id KB_ID \
+        --retrieval-query '{"text": "ALB port configuration"}' \
+        --region us-east-1
+  
+  query_metadata:
+    description: "Query conversation metadata"
+    command: |
+      aws dynamodb query \
+        --table-name ial-conversations-metadata \
+        --key-condition-expression "ConversationId = :id" \
+        --expression-attribute-values '{":id": {"S": "CONVERSATION_ID"}}'
