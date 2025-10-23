@@ -1,0 +1,68 @@
+# PHASE 11: ELASTICACHE REDIS SERVERLESS (1 recurso)
+# Dependências: VPC, Subnets, Security Groups, KMS (Phases 01, 03)
+# Custo: $95/mês (1-5GB storage, multi-AZ)
+
+project:
+  name: "{{PROJECT_NAME}}"
+  phase: "11-redis"
+  executor: "{{EXECUTOR_NAME}}"
+  resources: 1
+
+# RECURSO 1: ElastiCache Redis Serverless
+redis_serverless:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-serverless-cache"
+        Status: "Pending"
+        Phase: "11-redis"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_create:
+      action: "aws_cli"
+      command: |
+        aws elasticache create-serverless-cache \
+          --serverless-cache-name {{PROJECT_NAME}}-serverless-cache \
+          --engine redis \
+          --major-engine-version 7 \
+          --cache-usage-limits DataStorage={Maximum=5,Minimum=1,Unit=GB},ECPUPerSecond={Maximum=5000,Minimum=1000} \
+          --security-group-ids {{sg_redis_id}} \
+          --subnet-ids {{private_subnet_1a_id}} {{private_subnet_1b_id}} {{private_subnet_1c_id}} \
+          --kms-key-id alias/poc-encryption-key \
+          --snapshot-retention-limit 7 \
+          --daily-snapshot-time "03:00-05:00" \
+          --tags Key=Project,Value={{PROJECT_NAME}} Key=ManagedBy,Value=MCP \
+          --region {{AWS_REGION}}
+    
+    step_3_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{redis_arn}}"
+    
+    step_4_verify:
+      action: "aws_cli"
+      command: "aws elasticache describe-serverless-caches --serverless-cache-name {{PROJECT_NAME}}-serverless-cache --region {{AWS_REGION}}"
+      validation:
+        - "ServerlessCaches[0].ServerlessCacheName == '{{PROJECT_NAME}}-serverless-cache'"
+        - "ServerlessCaches[0].Status == 'available'"
+        - "ServerlessCaches[0].Engine == 'redis'"
+    
+    step_5_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_6_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+      error_message: "{{error_details}}"
+
+  post_creation:
+    note: "Update Parameter Store with Redis endpoint after creation"
+    commands:
+      - "aws ssm put-parameter --name /{{PROJECT_NAME}}/redis/endpoint --value {{redis_endpoint}} --type SecureString --key-id alias/poc-encryption-key --overwrite --region {{AWS_REGION}}"
+      - "aws ssm put-parameter --name /{{PROJECT_NAME}}/redis/port --value 6379 --type SecureString --key-id alias/poc-encryption-key --overwrite --region {{AWS_REGION}}"
+      - "aws ssm put-parameter --name /{{PROJECT_NAME}}/redis/ssl --value true --type SecureString --key-id alias/poc-encryption-key --overwrite --region {{AWS_REGION}}"

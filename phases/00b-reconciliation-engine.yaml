@@ -1,0 +1,290 @@
+# PHASE 00b - RECONCILIATION ENGINE
+# Motor de reconciliação para idempotência e drift detection
+
+phase: "00b-reconciliation-engine"
+description: "Reconciliation engine for idempotency and drift detection"
+depends_on: ["00-dynamodb-state"]
+estimated_cost_monthly: 0  # Logic only, no resources
+resource_count: 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RECONCILIATION WORKFLOW
+# ═══════════════════════════════════════════════════════════════════════════════
+
+reconciliation_workflow:
+  description: |
+    Generic reconciliation workflow that can be applied to any resource.
+    Compares desired state (YAML) with current state (AWS) and takes action.
+  
+  step_1_read_desired_state:
+    action: "read_yaml"
+    description: "Read desired state from YAML file"
+    source: "phases/{phase}-{resource}.yaml"
+    output_variable: "desired_state"
+    
+    example: |
+      # Read from phases/03-networking.yaml
+      desired_state = yaml.load("phases/03-networking.yaml")
+      desired_state = desired_state['resources']['security_group_alb']
+  
+  step_2_read_current_state:
+    action: "aws_describe"
+    description: "Read current state from AWS"
+    resource_type: "{{resource_type}}"
+    resource_id: "{{resource_id}}"
+    output_variable: "current_state"
+    
+    example: |
+      # For Security Group
+      current_state = aws ec2 describe-security-groups --group-ids sg-abc123
+      
+      # For ALB
+      current_state = aws elbv2 describe-load-balancers --load-balancer-arns arn:...
+  
+  step_3_compare:
+    action: "bedrock_compare"
+    description: "Use Bedrock to compare desired vs current state"
+    
+    prompt_template: |
+      You are an AWS infrastructure reconciliation engine.
+      
+      Compare the desired state (from YAML) with the current state (from AWS)
+      and determine what action needs to be taken.
+      
+      DESIRED STATE (YAML):
+      {{desired_state}}
+      
+      CURRENT STATE (AWS):
+      {{current_state}}
+      
+      Analyze the differences and respond with JSON:
+      {
+        "action": "CREATE|UPDATE|SKIP|DELETE",
+        "has_drift": true|false,
+        "changes": [
+          {
+            "field": "ingress_rules",
+            "desired": [{"port": 443, "cidr": "0.0.0.0/0"}],
+            "current": [{"port": 443, "cidr": "0.0.0.0/0"}, {"port": 22, "cidr": "0.0.0.0/0"}],
+            "diff": "Port 22 should not exist (drift detected)"
+          }
+        ],
+        "aws_commands": [
+          "aws ec2 revoke-security-group-ingress --group-id sg-abc123 --protocol tcp --port 22 --cidr 0.0.0.0/0"
+        ],
+        "explanation": "Security Group has drift: SSH port 22 was added manually and needs to be removed"
+      }
+    
+    output_variable: "reconciliation_plan"
+  
+  step_4_execute:
+    action: "execute_aws_commands"
+    description: "Execute AWS CLI commands if action is not SKIP"
+    
+    condition: "reconciliation_plan.action in ['CREATE', 'UPDATE', 'DELETE']"
+    
+    commands: "{{reconciliation_plan.aws_commands}}"
+    
+    on_success:
+      message: "✅ {{reconciliation_plan.explanation}}"
+      update_dynamodb:
+        Status: "Created"
+        CurrentState: "{{current_state_after_execution}}"
+        LastReconciliation: "{{timestamp}}"
+        Version: "{{version + 1}}"
+    
+    on_error:
+      message: "❌ Failed to execute: {{error_message}}"
+      update_dynamodb:
+        Status: "Failed"
+        ErrorDetails: "{{error_message}}"
+  
+  step_5_update_state:
+    action: "update_dynamodb"
+    description: "Update DynamoDB with reconciliation results"
+    
+    table: "mcp-provisioning-checklist"
+    key:
+      Project: "{{PROJECT_NAME}}"
+      ResourceName: "{{resource_name}}"
+    
+    update_expression: |
+      SET DesiredState = :desired,
+          CurrentState = :current,
+          LastReconciliation = :timestamp,
+          Version = Version + :inc,
+          DriftDetected = :drift
+    
+    expression_attribute_values:
+      ":desired": "{{json.dumps(desired_state)}}"
+      ":current": "{{json.dumps(current_state)}}"
+      ":timestamp": "{{datetime.utcnow().isoformat()}}"
+      ":inc": 1
+      ":drift": "{{reconciliation_plan.has_drift}}"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STATE LOCKING MECHANISM
+# ═══════════════════════════════════════════════════════════════════════════════
+
+state_locking:
+  description: |
+    DynamoDB Conditional Writes provide native locking mechanism.
+    No additional scripts needed - AWS guarantees atomicity.
+  
+  acquire_lock:
+    description: "Acquire deployment lock using DynamoDB Conditional Write"
+    
+    command: |
+      aws dynamodb put-item \
+        --table-name mcp-provisioning-checklist \
+        --item '{
+          "Project": {"S": "{{PROJECT_NAME}}"},
+          "ResourceName": {"S": "DEPLOYMENT_LOCK"},
+          "Status": {"S": "LOCKED"},
+          "LockedBy": {"S": "{{EXECUTOR_NAME}}"},
+          "LockTimestamp": {"S": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"},
+          "TTL": {"N": "'$(($(date +%s) + 1800))'"}
+        }' \
+        --condition-expression 'attribute_not_exists(ResourceName)' \
+        --region {{AWS_REGION}}
+    
+    on_success:
+      message: "✅ Lock acquired by {{EXECUTOR_NAME}}"
+      action: "PROCEED"
+    
+    on_error_conditional_check_failed:
+      message: "❌ Deployment already in progress"
+      action: "ABORT"
+      details: |
+        Another deployment is currently running.
+        Check who holds the lock:
+        
+        aws dynamodb get-item \
+          --table-name mcp-provisioning-checklist \
+          --key '{"Project":{"S":"{{PROJECT_NAME}}"},"ResourceName":{"S":"DEPLOYMENT_LOCK"}}' \
+          --query 'Item.{LockedBy:LockedBy.S,Timestamp:LockTimestamp.S}'
+  
+  release_lock:
+    description: "Release deployment lock"
+    
+    command: |
+      aws dynamodb delete-item \
+        --table-name mcp-provisioning-checklist \
+        --key '{
+          "Project": {"S": "{{PROJECT_NAME}}"},
+          "ResourceName": {"S": "DEPLOYMENT_LOCK"}
+        }' \
+        --region {{AWS_REGION}}
+    
+    message: "✅ Lock released"
+  
+  auto_release:
+    description: "Locks auto-expire after 30 minutes via TTL"
+    mechanism: "DynamoDB TTL"
+    ttl_seconds: 1800  # 30 minutes
+    
+    note: |
+      If a deployment crashes or is interrupted, the lock will automatically
+      be released after 30 minutes. No manual intervention needed.
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# USAGE EXAMPLES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+usage_examples:
+  example_1_security_group:
+    description: "Reconcile Security Group"
+    
+    step_1_acquire_lock:
+      command: "# See state_locking.acquire_lock above"
+    
+    step_2_read_desired:
+      yaml_file: "phases/03-networking.yaml"
+      resource: "security_group_alb"
+      desired_state:
+        ingress:
+          - port: 443
+            cidr: "0.0.0.0/0"
+    
+    step_3_read_current:
+      command: "aws ec2 describe-security-groups --group-ids sg-abc123"
+      current_state:
+        ingress:
+          - port: 443
+            cidr: "0.0.0.0/0"
+          - port: 22
+            cidr: "0.0.0.0/0"  # DRIFT!
+    
+    step_4_bedrock_compare:
+      result:
+        action: "UPDATE"
+        has_drift: true
+        changes:
+          - field: "ingress_rules"
+            diff: "Port 22 should not exist"
+        aws_commands:
+          - "aws ec2 revoke-security-group-ingress --group-id sg-abc123 --port 22"
+    
+    step_5_execute:
+      command: "aws ec2 revoke-security-group-ingress --group-id sg-abc123 --port 22"
+      result: "✅ Drift corrected"
+    
+    step_6_release_lock:
+      command: "# See state_locking.release_lock above"
+  
+  example_2_idempotent_execution:
+    description: "Second execution should SKIP (idempotent)"
+    
+    first_execution:
+      desired_state: {"port": 443}
+      current_state: {}
+      action: "CREATE"
+      result: "✅ Created"
+    
+    second_execution:
+      desired_state: {"port": 443}
+      current_state: {"port": 443}
+      action: "SKIP"
+      result: "✅ Already matches desired state"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INTEGRATION WITH PHASES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+phase_integration:
+  description: |
+    Add this step_0_reconcile to the beginning of each phase (01-15)
+    to enable idempotency and drift detection.
+  
+  template: |
+    # Add to each phase YAML:
+    
+    pre_execution:
+      step_0_reconcile:
+        action: "invoke_reconciliation_engine"
+        resource: "{{resource_name}}"
+        
+        output:
+          action: "CREATE|UPDATE|SKIP"
+          changes: []
+          commands: []
+        
+        if_action_skip:
+          message: "✅ Resource already exists and matches desired state"
+          next_step: "SKIP_TO_VERIFICATION"
+        
+        if_action_create_or_update:
+          message: "🔄 Resource needs {{action}}"
+          next_step: "EXECUTE_COMMANDS"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NOTES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+notes:
+  - "This is a logical phase - no AWS resources are created"
+  - "Reconciliation logic is executed by MCP tools or GitHub Actions"
+  - "Bedrock is used for intelligent comparison and command generation"
+  - "DynamoDB Conditional Writes provide native locking (no scripts needed)"
+  - "TTL provides automatic lock release (no manual cleanup needed)"
+  - "This enables 100% idempotency across all phases"

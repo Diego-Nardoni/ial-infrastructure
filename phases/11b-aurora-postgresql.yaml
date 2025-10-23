@@ -1,0 +1,325 @@
+phase: "11b-aurora-postgresql"
+description: "Aurora PostgreSQL Serverless v2 - Banco relacional sob demanda (POC)"
+depends_on: ["03-networking", "01-kms-security"]
+estimated_cost_monthly: 35
+resource_count: 3
+
+# BANCO RELACIONAL OPCIONAL - Preparado para uso futuro
+# Configuração otimizada para POC com custo mínimo
+
+resources:
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 1. DB SUBNET GROUP
+  # ═══════════════════════════════════════════════════════════════════════════════
+  db_subnet_group:
+    name: "{{PROJECT_NAME}}-db-subnet-group"
+    resource_name: "11b-db-subnet-group"
+    type: "AWS::RDS::DBSubnetGroup"
+    priority: 1
+    
+    mcp_workflow:
+      generate_code:
+        tool: "generate_infrastructure_code"
+        parameters:
+          resource_type: "AWS::RDS::DBSubnetGroup"
+          region: "{{AWS_REGION}}"
+          properties:
+            DBSubnetGroupName: "{{PROJECT_NAME}}-db-subnet-group"
+            DBSubnetGroupDescription: "Subnet group for {{PROJECT_NAME}} Aurora PostgreSQL"
+            SubnetIds:
+              - "[PRIVATE_SUBNET_1A_ID]"
+              - "[PRIVATE_SUBNET_1B_ID]"
+              - "[PRIVATE_SUBNET_1C_ID]"
+            Tags:
+              - Key: "Name"
+                Value: "{{PROJECT_NAME}}-db-subnet-group"
+              - Key: "Project"
+                Value: "{{PROJECT_NAME}}"
+              - Key: "ManagedBy"
+                Value: "IaL"
+    
+    verification: |
+      aws rds describe-db-subnet-groups \
+        --db-subnet-group-name {{PROJECT_NAME}}-db-subnet-group \
+        --query 'DBSubnetGroups[0].{Name:DBSubnetGroupName,Status:SubnetGroupStatus,Subnets:length(Subnets)}' \
+        --region {{AWS_REGION}}
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 2. SECURITY GROUP - DATABASE
+  # ═══════════════════════════════════════════════════════════════════════════════
+  sg_database:
+    name: "{{PROJECT_NAME}}-sg-db"
+    resource_name: "11b-sg-db"
+    type: "AWS::EC2::SecurityGroup"
+    priority: 2
+    
+    mcp_workflow:
+      generate_code:
+        tool: "generate_infrastructure_code"
+        parameters:
+          resource_type: "AWS::EC2::SecurityGroup"
+          region: "{{AWS_REGION}}"
+          properties:
+            GroupName: "{{PROJECT_NAME}}-sg-db"
+            GroupDescription: "Security group for Aurora PostgreSQL - Access from ECS only"
+            VpcId: "[VPC_ID]"
+            SecurityGroupIngress:
+              - IpProtocol: "tcp"
+                FromPort: 5432
+                ToPort: 5432
+                SourceSecurityGroupId: "[SG_APP_ID]"
+                Description: "PostgreSQL from ECS tasks"
+            Tags:
+              - Key: "Name"
+                Value: "{{PROJECT_NAME}}-sg-db"
+              - Key: "Project"
+                Value: "{{PROJECT_NAME}}"
+              - Key: "ManagedBy"
+                Value: "IaL"
+    
+    verification: |
+      aws ec2 describe-security-groups \
+        --filters "Name=group-name,Values={{PROJECT_NAME}}-sg-db" \
+        --query 'SecurityGroups[0].{GroupId:GroupId,VpcId:VpcId,Rules:length(IpPermissions)}' \
+        --region {{AWS_REGION}}
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 3. AURORA POSTGRESQL SERVERLESS V2 CLUSTER
+  # ═══════════════════════════════════════════════════════════════════════════════
+  aurora_cluster:
+    name: "{{PROJECT_NAME}}-aurora-cluster"
+    resource_name: "11b-aurora-cluster"
+    type: "AWS::RDS::DBCluster"
+    priority: 3
+    
+    mcp_workflow:
+      generate_code:
+        tool: "generate_infrastructure_code"
+        parameters:
+          resource_type: "AWS::RDS::DBCluster"
+          region: "{{AWS_REGION}}"
+          properties:
+            DBClusterIdentifier: "{{PROJECT_NAME}}-aurora-cluster"
+            Engine: "aurora-postgresql"
+            EngineMode: "provisioned"
+            EngineVersion: "15.4"
+            DatabaseName: "appdb"
+            MasterUsername: "dbadmin"
+            MasterUserPassword: "CHANGE_ME_AFTER_CREATION"  # ⚠️ Alterar via console após criação
+            DBSubnetGroupName: "{{PROJECT_NAME}}-db-subnet-group"
+            VpcSecurityGroupIds:
+              - "[SG_DB_ID]"
+            StorageEncrypted: true
+            KmsKeyId: "[KMS_KEY_ARN]"
+            BackupRetentionPeriod: 1
+            PreferredBackupWindow: "03:00-04:00"
+            PreferredMaintenanceWindow: "sun:04:00-sun:05:00"
+            EnableCloudwatchLogsExports:
+              - "postgresql"
+            DeletionProtection: false
+            ServerlessV2ScalingConfiguration:
+              MinCapacity: 0.5
+              MaxCapacity: 1.0
+            Tags:
+              - Key: "Name"
+                Value: "{{PROJECT_NAME}}-aurora-cluster"
+              - Key: "Project"
+                Value: "{{PROJECT_NAME}}"
+              - Key: "ManagedBy"
+                Value: "IaL"
+              - Key: "Environment"
+                Value: "POC"
+    
+    verification: |
+      aws rds describe-db-clusters \
+        --db-cluster-identifier {{PROJECT_NAME}}-aurora-cluster \
+        --query 'DBClusters[0].{Status:Status,Engine:Engine,Endpoint:Endpoint,MinCapacity:ServerlessV2ScalingConfiguration.MinCapacity,MaxCapacity:ServerlessV2ScalingConfiguration.MaxCapacity}' \
+        --region {{AWS_REGION}}
+    
+    note: |
+      ⚠️ IMPORTANTE:
+      1. Alterar senha do MasterUserPassword via console após criação
+      2. Armazenar credenciais no Parameter Store (SecureString)
+      3. Cluster leva ~5-10 minutos para ficar disponível
+      4. Custo mínimo: 0.5 ACU = ~$35/mês (24/7)
+      5. Para economizar: pausar cluster quando não estiver em uso
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONFIGURAÇÃO PÓS-CRIAÇÃO
+# ═══════════════════════════════════════════════════════════════════════════════
+
+post_creation_steps:
+  step1_get_endpoint:
+    description: "Obter endpoint do Aurora"
+    command: |
+      aws rds describe-db-clusters \
+        --db-cluster-identifier {{PROJECT_NAME}}-aurora-cluster \
+        --query 'DBClusters[0].Endpoint' \
+        --output text \
+        --region {{AWS_REGION}}
+  
+  step2_store_credentials:
+    description: "Armazenar credenciais no Parameter Store"
+    commands:
+      - name: "DB Endpoint"
+        command: |
+          aws ssm put-parameter \
+            --name "/{{PROJECT_NAME}}/db/endpoint" \
+            --value "[AURORA_ENDPOINT]" \
+            --type "SecureString" \
+            --kms-key-id "[KMS_KEY_ID]" \
+            --description "Aurora PostgreSQL endpoint" \
+            --tags Key=Project,Value={{PROJECT_NAME}} \
+            --region {{AWS_REGION}}
+      
+      - name: "DB Port"
+        command: |
+          aws ssm put-parameter \
+            --name "/{{PROJECT_NAME}}/db/port" \
+            --value "5432" \
+            --type "String" \
+            --description "Aurora PostgreSQL port" \
+            --tags Key=Project,Value={{PROJECT_NAME}} \
+            --region {{AWS_REGION}}
+      
+      - name: "DB Name"
+        command: |
+          aws ssm put-parameter \
+            --name "/{{PROJECT_NAME}}/db/name" \
+            --value "appdb" \
+            --type "String" \
+            --description "Aurora PostgreSQL database name" \
+            --tags Key=Project,Value={{PROJECT_NAME}} \
+            --region {{AWS_REGION}}
+      
+      - name: "DB Username"
+        command: |
+          aws ssm put-parameter \
+            --name "/{{PROJECT_NAME}}/db/username" \
+            --value "dbadmin" \
+            --type "SecureString" \
+            --kms-key-id "[KMS_KEY_ID]" \
+            --description "Aurora PostgreSQL username" \
+            --tags Key=Project,Value={{PROJECT_NAME}} \
+            --region {{AWS_REGION}}
+      
+      - name: "DB Password"
+        command: |
+          aws ssm put-parameter \
+            --name "/{{PROJECT_NAME}}/db/password" \
+            --value "[NEW_SECURE_PASSWORD]" \
+            --type "SecureString" \
+            --kms-key-id "[KMS_KEY_ID]" \
+            --description "Aurora PostgreSQL password" \
+            --tags Key=Project,Value={{PROJECT_NAME}} \
+            --region {{AWS_REGION}}
+  
+  step3_update_ecs_task:
+    description: "Adicionar variáveis de ambiente no ECS Task Definition (futuro)"
+    note: |
+      Quando conectar a aplicação ao banco, adicionar estas variáveis:
+      - DB_ENDPOINT: valueFrom /{{PROJECT_NAME}}/db/endpoint
+      - DB_PORT: valueFrom /{{PROJECT_NAME}}/db/port
+      - DB_NAME: valueFrom /{{PROJECT_NAME}}/db/name
+      - DB_USERNAME: valueFrom /{{PROJECT_NAME}}/db/username
+      - DB_PASSWORD: valueFrom /{{PROJECT_NAME}}/db/password
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VALIDAÇÕES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+validation:
+  checks:
+    - name: "Verificar cluster disponível"
+      command: |
+        aws rds describe-db-clusters \
+          --db-cluster-identifier {{PROJECT_NAME}}-aurora-cluster \
+          --query 'DBClusters[0].Status' \
+          --output text \
+          --region {{AWS_REGION}}
+      expected: "available"
+    
+    - name: "Verificar encryption habilitado"
+      command: |
+        aws rds describe-db-clusters \
+          --db-cluster-identifier {{PROJECT_NAME}}-aurora-cluster \
+          --query 'DBClusters[0].StorageEncrypted' \
+          --output text \
+          --region {{AWS_REGION}}
+      expected: "True"
+    
+    - name: "Verificar Serverless v2 configurado"
+      command: |
+        aws rds describe-db-clusters \
+          --db-cluster-identifier {{PROJECT_NAME}}-aurora-cluster \
+          --query 'DBClusters[0].ServerlessV2ScalingConfiguration' \
+          --region {{AWS_REGION}}
+      expected: "MinCapacity: 0.5, MaxCapacity: 1.0"
+    
+    - name: "Verificar Security Group permite acesso de ECS"
+      command: |
+        aws ec2 describe-security-groups \
+          --filters "Name=group-name,Values={{PROJECT_NAME}}-sg-db" \
+          --query 'SecurityGroups[0].IpPermissions[?FromPort==`5432`]' \
+          --region {{AWS_REGION}}
+      expected: "Ingress na porta 5432 de sg-app"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONEXÃO DE TESTE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+connection_test:
+  description: "Testar conexão ao Aurora PostgreSQL"
+  from_ecs_task:
+    command: |
+      # Dentro do container ECS
+      psql -h [AURORA_ENDPOINT] -U dbadmin -d appdb -p 5432
+    
+    expected: "Conexão bem-sucedida"
+  
+  connection_string_examples:
+    jdbc: "jdbc:postgresql://[AURORA_ENDPOINT]:5432/appdb"
+    spring_boot: |
+      spring.datasource.url=jdbc:postgresql://${DB_ENDPOINT}:${DB_PORT}/${DB_NAME}
+      spring.datasource.username=${DB_USERNAME}
+      spring.datasource.password=${DB_PASSWORD}
+      spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NOTAS E CUSTOS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+notes:
+  - "Aurora Serverless v2 com 0.5 ACU mínimo = ~$35/mês (24/7)"
+  - "Cluster pode ser pausado manualmente para economizar custos"
+  - "Backup retention de 1 dia (mínimo para POC)"
+  - "Sem Multi-AZ para reduzir custos (POC)"
+  - "Performance Insights desabilitado (economia)"
+  - "Enhanced Monitoring desabilitado (economia)"
+  - "Encryption at rest com KMS habilitado"
+  - "CloudWatch Logs habilitado para PostgreSQL"
+  - "Acesso restrito apenas de ECS tasks (sg-app)"
+  - "Subnets privadas (sem acesso direto da internet)"
+
+cost_breakdown:
+  aurora_serverless_v2_min: 35  # 0.5 ACU * 730h * $0.096/ACU-hour
+  storage_gb: 1  # $0.10/GB-month (mínimo 1GB)
+  backup_storage: 0  # Dentro do free tier (1 dia)
+  data_transfer: 0  # Interno VPC
+  total_monthly: 36
+
+optimization_tips:
+  - "Pausar cluster quando não estiver em uso (economia de 100%)"
+  - "Monitorar ACU usage e ajustar MaxCapacity se necessário"
+  - "Considerar Aurora Serverless v1 se workload for muito intermitente"
+  - "Usar connection pooling na aplicação para reduzir conexões"
+  - "Avaliar migração para RDS PostgreSQL se uso for constante"
+
+security_best_practices:
+  - "✅ Encryption at rest com KMS"
+  - "✅ Subnets privadas (sem internet)"
+  - "✅ Security Group restrito (apenas ECS)"
+  - "✅ Credenciais no Parameter Store (SecureString)"
+  - "⚠️ Alterar senha padrão após criação"
+  - "⚠️ Habilitar IAM Database Authentication (futuro)"
+  - "⚠️ Configurar rotation de senha (Secrets Manager)"

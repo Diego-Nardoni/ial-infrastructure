@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "ial-tools": {
+      "command": "python3",
+      "args": ["/home/ial/mcp-tools/server.py"],
+      "tools": [
+        {
+          "name": "setup_ial",
+          "description": "Setup completo do IaL - detecta AWS account, cria recursos, configura GitHub",
+          "parameters": {}
+        },
+        {
+          "name": "update_yaml_file",
+          "description": "Update YAML infrastructure files",
+          "parameters": {
+            "file_path": "Path to YAML file",
+            "yaml_path": "Dot-notation path",
+            "action": "append|remove|replace",
+            "value": "Value to apply"
+          }
+        },
+        {
+          "name": "git_commit",
+          "description": "Commit changes to Git",
+          "parameters": {
+            "files": "List of files",
+            "message": "Commit message"
+          }
+        },
+        {
+          "name": "git_push",
+          "description": "Push commits to remote",
+          "parameters": {
+            "remote": "Remote name (default: origin)",
+            "branch": "Branch name (default: main)"
+          }
+        }
+      ]
+    }
+  }
+}

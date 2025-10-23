@@ -1,0 +1,193 @@
+# Validation Checklist - AWS Reference Pattern
+# Use this checklist to validate each phase deployment
+
+metadata:
+  pattern_name: "Spring Boot + Redis Serverless"
+  total_phases: 17
+  total_resources: 61
+  validation_type: "Manual"
+
+# ============================================
+# PHASE 00: DynamoDB State Tracking
+# ============================================
+phase_00:
+  name: "DynamoDB State Tracking"
+  resources: 2
+  
+  checklist:
+    - step: "Verify DynamoDB table exists"
+      command: "aws dynamodb describe-table --table-name mcp-provisioning-checklist --region {{AWS_REGION}}"
+      expected: "Table status: ACTIVE"
+      
+    - step: "Verify initial item created"
+      command: "aws dynamodb get-item --table-name mcp-provisioning-checklist --key '{\"Project\":{\"S\":\"{{PROJECT_NAME}}\"},\"ResourceName\":{\"S\":\"00-dynamodb-table\"}}' --region {{AWS_REGION}}"
+      expected: "Item with Status: Created"
+      
+    - step: "Test query by project"
+      command: "aws dynamodb query --table-name mcp-provisioning-checklist --key-condition-expression 'Project = :p' --expression-attribute-values '{\":p\":{\"S\":\"{{PROJECT_NAME}}\"}}' --region {{AWS_REGION}}"
+      expected: "Returns items for your project"
+
+# ============================================
+# PHASE 01: KMS Encryption Key
+# ============================================
+phase_01:
+  name: "KMS Encryption Key"
+  resources: 1
+  
+  checklist:
+    - step: "Verify KMS key exists"
+      command: "aws kms describe-key --key-id alias/{{PROJECT_NAME}}-key --region {{AWS_REGION}}"
+      expected: "KeyState: Enabled"
+      
+    - step: "Verify key rotation enabled"
+      command: "aws kms get-key-rotation-status --key-id alias/{{PROJECT_NAME}}-key --region {{AWS_REGION}}"
+      expected: "KeyRotationEnabled: true"
+      
+    - step: "Verify tags"
+      command: "aws kms list-resource-tags --key-id alias/{{PROJECT_NAME}}-key --region {{AWS_REGION}}"
+      expected: "Tags include Project and Executor"
+
+# ============================================
+# PHASE 02: Security Services
+# ============================================
+phase_02:
+  name: "Security Services"
+  resources: 6
+  
+  checklist:
+    - step: "Verify GuardDuty enabled"
+      command: "aws guardduty list-detectors --region {{AWS_REGION}}"
+      expected: "Returns detector ID"
+      
+    - step: "Verify Security Hub enabled"
+      command: "aws securityhub describe-hub --region {{AWS_REGION}}"
+      expected: "HubArn present"
+      
+    - step: "Verify IAM Access Analyzer"
+      command: "aws accessanalyzer list-analyzers --region {{AWS_REGION}}"
+      expected: "Returns analyzer with status ACTIVE"
+
+# ============================================
+# PHASE 03: Networking
+# ============================================
+phase_03:
+  name: "VPC and Networking"
+  resources: 19
+  
+  checklist:
+    - step: "Verify VPC created"
+      command: "aws ec2 describe-vpcs --filters Name=tag:Name,Values={{PROJECT_NAME}}-vpc --region {{AWS_REGION}}"
+      expected: "VPC with CIDR 10.0.0.0/16"
+      
+    - step: "Verify 6 subnets created"
+      command: "aws ec2 describe-subnets --filters Name=vpc-id,Values=<VPC_ID> --region {{AWS_REGION}} --query 'length(Subnets)'"
+      expected: "6"
+      
+    - step: "Verify VPC endpoints"
+      command: "aws ec2 describe-vpc-endpoints --filters Name=vpc-id,Values=<VPC_ID> --region {{AWS_REGION}}"
+      expected: "5 endpoints (S3, ECR-API, ECR-DKR, Logs, SSM)"
+      
+    - step: "Verify security groups"
+      command: "aws ec2 describe-security-groups --filters Name=vpc-id,Values=<VPC_ID> --region {{AWS_REGION}}"
+      expected: "3 security groups (ALB, ECS, Redis)"
+
+# ============================================
+# PHASE 05b: IAM Bedrock Policy
+# ============================================
+phase_05b:
+  name: "IAM Bedrock Policy for GitHub Actions"
+  resources: 1
+  
+  checklist:
+    - step: "Verify inline policy exists"
+      command: "aws iam get-role-policy --role-name GitHubActionsECRDeployRole --policy-name BedrockInvokeModel --region {{AWS_REGION}}"
+      expected: "Policy with bedrock:InvokeModel permission"
+      
+    - step: "Test Bedrock access"
+      command: "aws bedrock-runtime invoke-model --model-id anthropic.claude-3-sonnet-20240229-v1:0 --body '{\"anthropic_version\":\"bedrock-2023-05-31\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"Test\"}]}' --region {{AWS_REGION}} /tmp/test.json"
+      expected: "Response with content"
+
+# ============================================
+# PHASE 11: Redis Serverless
+# ============================================
+phase_11:
+  name: "Redis Serverless"
+  resources: 1
+  
+  checklist:
+    - step: "Verify cache exists"
+      command: "aws elasticache describe-serverless-caches --serverless-cache-name {{PROJECT_NAME}}-redis --region {{AWS_REGION}}"
+      expected: "Status: available"
+      
+    - step: "Verify endpoint"
+      command: "aws elasticache describe-serverless-caches --serverless-cache-name {{PROJECT_NAME}}-redis --query 'ServerlessCaches[0].Endpoint.Address' --output text --region {{AWS_REGION}}"
+      expected: "Returns endpoint address"
+      
+    - step: "Verify encryption"
+      command: "aws elasticache describe-serverless-caches --serverless-cache-name {{PROJECT_NAME}}-redis --query 'ServerlessCaches[0].[AtRestEncryptionEnabled,TransitEncryptionEnabled]' --output text --region {{AWS_REGION}}"
+      expected: "True True"
+
+# ============================================
+# PHASE 14: Observability
+# ============================================
+phase_14:
+  name: "Observability"
+  resources: 6
+  
+  checklist:
+    - step: "Verify CloudWatch alarms"
+      command: "aws cloudwatch describe-alarms --alarm-name-prefix {{PROJECT_NAME}} --region {{AWS_REGION}} --query 'length(MetricAlarms)'"
+      expected: "12 alarms"
+      
+    - step: "Verify SNS topics"
+      command: "aws sns list-topics --region {{AWS_REGION}} | grep {{PROJECT_NAME}}"
+      expected: "3 topics (critical, warning, info)"
+      
+    - step: "Verify X-Ray sampling rule"
+      command: "aws xray get-sampling-rules --region {{AWS_REGION}} | grep {{PROJECT_NAME}}"
+      expected: "Sampling rule exists"
+
+# ============================================
+# FINAL VALIDATION
+# ============================================
+final_validation:
+  name: "Complete System Validation"
+  
+  checklist:
+    - step: "Count total resources"
+      command: "aws resourcegroupstaggingapi get-resources --tag-filters Key=Project,Values={{PROJECT_NAME}} --region {{AWS_REGION}} --query 'length(ResourceTagMappingList)'"
+      expected: "61 resources"
+      
+    - step: "Verify all resources tagged"
+      command: "aws resourcegroupstaggingapi get-resources --tag-filters Key=Project,Values={{PROJECT_NAME}} Key=Executor,Values={{EXECUTOR_NAME}} --region {{AWS_REGION}}"
+      expected: "All resources have both tags"
+      
+    - step: "Check CloudFront distribution"
+      command: "aws cloudfront list-distributions --query 'DistributionList.Items[?Comment==`{{PROJECT_NAME}}-distribution`].DomainName' --output text"
+      expected: "Returns CloudFront domain"
+      
+    - step: "Test application endpoint"
+      command: "curl -I https://<CLOUDFRONT_DOMAIN>/"
+      expected: "HTTP 200 OK"
+      
+    - step: "Verify DynamoDB state"
+      command: "aws dynamodb query --table-name mcp-provisioning-checklist --key-condition-expression 'Project = :p' --expression-attribute-values '{\":p\":{\"S\":\"{{PROJECT_NAME}}\"}}' --region {{AWS_REGION}} --query 'length(Items)'"
+      expected: "61 items (one per resource)"
+
+# ============================================
+# NOTES
+# ============================================
+notes:
+  validation_time: "~30 minutes for complete validation"
+  
+  automation:
+    - "This checklist is YAML-based (IaL compliant)"
+    - "Execute commands manually"
+    - "No scripts required"
+    - "Optional: Use Bedrock to validate YAML syntax"
+  
+  troubleshooting:
+    - "If validation fails, check phase dependencies"
+    - "Verify parameters are correct"
+    - "Check AWS CLI credentials"
+    - "See docs/troubleshooting.md for common issues"

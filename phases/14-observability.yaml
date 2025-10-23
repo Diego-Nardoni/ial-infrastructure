@@ -1,0 +1,343 @@
+# PHASE 14: OBSERVABILITY (6 recursos)
+# Dependências: All previous phases
+# Custo: $35/mês
+
+project:
+  name: "{{PROJECT_NAME}}"
+  phase: "14-observability"
+  executor: "{{EXECUTOR_NAME}}"
+  resources: 6
+
+# RECURSO 1: SNS Topic - Critical Alerts
+sns_critical:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-alerts-critical"
+        Status: "Pending"
+        Phase: "14-observability"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::SNS::Topic"
+      properties:
+        TopicName: "{{PROJECT_NAME}}-alerts-critical"
+        DisplayName: "Critical Alerts"
+        KmsMasterKeyId: "alias/poc-encryption-key"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{sns_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws sns get-topic-attributes --topic-arn {{sns_arn}} --region {{AWS_REGION}}"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 2: SNS Topic - Warning Alerts
+sns_warning:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-alerts-warning"
+        Status: "Pending"
+        Phase: "14-observability"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::SNS::Topic"
+      properties:
+        TopicName: "{{PROJECT_NAME}}-alerts-warning"
+        DisplayName: "Warning Alerts"
+        KmsMasterKeyId: "alias/poc-encryption-key"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws sns get-topic-attributes --topic-arn {{sns_arn}} --region {{AWS_REGION}}"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 3: SNS Topic - Info Alerts
+sns_info:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-alerts-info"
+        Status: "Pending"
+        Phase: "14-observability"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::SNS::Topic"
+      properties:
+        TopicName: "{{PROJECT_NAME}}-alerts-info"
+        DisplayName: "Info Alerts"
+        KmsMasterKeyId: "alias/poc-encryption-key"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws sns get-topic-attributes --topic-arn {{sns_arn}} --region {{AWS_REGION}}"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 4: CloudWatch Dashboards (9 dashboards)
+cloudwatch_dashboards:
+  note: "9 dashboards covering Four Golden Signals, RED, USE, X-Ray, Redis, Security, Application, Infrastructure, Overview"
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "cloudwatch-dashboards"
+        Status: "Pending"
+        Phase: "14-observability"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_create:
+      action: "aws_cli"
+      dashboards:
+        - name: "{{PROJECT_NAME}}-four-golden-signals"
+          metrics: ["Latency", "Traffic", "Errors", "Saturation"]
+        - name: "{{PROJECT_NAME}}-red"
+          metrics: ["Rate", "Errors", "Duration"]
+        - name: "{{PROJECT_NAME}}-use"
+          metrics: ["Utilization", "Saturation", "Errors"]
+        - name: "{{PROJECT_NAME}}-xray"
+          metrics: ["Traces", "Segments", "Annotations"]
+        - name: "{{PROJECT_NAME}}-redis"
+          metrics: ["CacheHits", "CacheMisses", "Connections"]
+        - name: "{{PROJECT_NAME}}-security"
+          metrics: ["WAF", "GuardDuty", "Inspector"]
+        - name: "{{PROJECT_NAME}}-application"
+          metrics: ["ECS", "ALB", "CloudFront"]
+        - name: "{{PROJECT_NAME}}-infrastructure"
+          metrics: ["VPC", "Subnets", "Endpoints"]
+        - name: "{{PROJECT_NAME}}-overview"
+          metrics: ["All key metrics"]
+    
+    step_3_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+    
+    step_4_verify:
+      action: "aws_cli"
+      command: "aws cloudwatch list-dashboards --region {{AWS_REGION}} | grep {{PROJECT_NAME}}"
+    
+    step_5_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_6_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 5: CloudWatch Alarms (12 alarms)
+cloudwatch_alarms:
+  note: "12 alarms: 5 critical, 4 warning, 3 info"
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "cloudwatch-alarms"
+        Status: "Pending"
+        Phase: "14-observability"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_create:
+      action: "aws_cli"
+      alarms:
+        critical:
+          - name: "ECS-Service-Unhealthy"
+            metric: "HealthyHostCount"
+            threshold: 1
+            comparison: "LessThanThreshold"
+          - name: "ALB-5xx-Errors"
+            metric: "HTTPCode_Target_5XX_Count"
+            threshold: 10
+            comparison: "GreaterThanThreshold"
+          - name: "Redis-Connection-Failed"
+            metric: "CurrConnections"
+            threshold: 0
+            comparison: "LessThanOrEqualToThreshold"
+          - name: "ECS-CPU-Critical"
+            metric: "CPUUtilization"
+            threshold: 90
+            comparison: "GreaterThanThreshold"
+          - name: "ECS-Memory-Critical"
+            metric: "MemoryUtilization"
+            threshold: 90
+            comparison: "GreaterThanThreshold"
+        warning:
+          - name: "ALB-4xx-Errors"
+            metric: "HTTPCode_Target_4XX_Count"
+            threshold: 50
+            comparison: "GreaterThanThreshold"
+          - name: "ECS-CPU-Warning"
+            metric: "CPUUtilization"
+            threshold: 75
+            comparison: "GreaterThanThreshold"
+          - name: "ECS-Memory-Warning"
+            metric: "MemoryUtilization"
+            threshold: 75
+            comparison: "GreaterThanThreshold"
+          - name: "Redis-Evictions"
+            metric: "Evictions"
+            threshold: 100
+            comparison: "GreaterThanThreshold"
+        info:
+          - name: "CloudFront-Cache-Hit-Rate"
+            metric: "CacheHitRate"
+            threshold: 80
+            comparison: "LessThanThreshold"
+          - name: "WAF-Blocked-Requests"
+            metric: "BlockedRequests"
+            threshold: 100
+            comparison: "GreaterThanThreshold"
+          - name: "VPC-Flow-Logs-Rejected"
+            metric: "PacketsRejected"
+            threshold: 1000
+            comparison: "GreaterThanThreshold"
+    
+    step_3_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+    
+    step_4_verify:
+      action: "aws_cli"
+      command: "aws cloudwatch describe-alarms --region {{AWS_REGION}} | grep {{PROJECT_NAME}}"
+    
+    step_5_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_6_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 6: X-Ray Sampling Rule
+xray_sampling:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "xray-sampling-rule"
+        Status: "Pending"
+        Phase: "14-observability"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_create:
+      action: "aws_cli"
+      command: |
+        aws xray create-sampling-rule --sampling-rule '{
+          "RuleName": "{{PROJECT_NAME}}-sampling",
+          "Priority": 1000,
+          "FixedRate": 0.1,
+          "ReservoirSize": 1,
+          "ServiceName": "{{PROJECT_NAME}}",
+          "ServiceType": "*",
+          "Host": "*",
+          "HTTPMethod": "*",
+          "URLPath": "*",
+          "Version": 1,
+          "ResourceARN": "*"
+        }' --region {{AWS_REGION}}
+    
+    step_3_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+    
+    step_4_verify:
+      action: "aws_cli"
+      command: "aws xray get-sampling-rules --region {{AWS_REGION}} | grep {{PROJECT_NAME}}-sampling"
+    
+    step_5_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_6_on_error:
+      action: "update_dynamodb"
+      status: "Failed"

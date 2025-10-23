@@ -1,0 +1,45 @@
+phase: "04-parameter-store"
+description: "Parameter Store with KMS encryption for Redis configuration"
+depends_on: ["01-kms-security"]
+estimated_cost_monthly: 0
+resource_count: 3
+
+resources:
+  - name: "redis-endpoint"
+    resource_name: "04-param-redis-endpoint"
+    type: "AWS::SSM::Parameter"
+    dynamodb_tracking: true
+    properties:
+      Name: "/{{PROJECT_NAME}}/redis/endpoint"
+      Type: "String"
+      Value: "DYNAMIC_FROM_ELASTICACHE"
+      Description: "Redis Serverless endpoint"
+      KmsKeyId: "[KMS_KEY_ARN]"
+    verification: "aws ssm get-parameter --name '/{{PROJECT_NAME}}/redis/endpoint' --query 'Parameter.Name'"
+
+  - name: "redis-port"
+    resource_name: "04-param-redis-port"
+    type: "AWS::SSM::Parameter"
+    dynamodb_tracking: true
+    properties:
+      Name: "/{{PROJECT_NAME}}/redis/port"
+      Type: "String"
+      Value: "6379"
+      Description: "Redis port"
+      KmsKeyId: "[KMS_KEY_ARN]"
+    verification: "aws ssm get-parameter --name '/{{PROJECT_NAME}}/redis/port' --query 'Parameter.Name'"
+
+  - name: "redis-ssl"
+    resource_name: "04-param-redis-ssl"
+    type: "AWS::SSM::Parameter"
+    dynamodb_tracking: true
+    properties:
+      Name: "/{{PROJECT_NAME}}/redis/ssl"
+      Type: "String"
+      Value: "true"
+      Description: "Redis SSL enabled"
+      KmsKeyId: "[KMS_KEY_ARN]"
+    verification: "aws ssm get-parameter --name '/{{PROJECT_NAME}}/redis/ssl' --query 'Parameter.Name'"
+
+outputs:
+  parameter_paths: ["/{{PROJECT_NAME}}/redis/endpoint", "/{{PROJECT_NAME}}/redis/port", "/{{PROJECT_NAME}}/redis/ssl"]

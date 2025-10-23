@@ -1,0 +1,207 @@
+# PHASE 09: ECS AUTO SCALING (4 recursos)
+# Dependências: ECS Service (Phase 08)
+# Custo: $0/mês (scaling-based)
+
+project:
+  name: "{{PROJECT_NAME}}"
+  phase: "09-ecs-autoscaling"
+  executor: "{{EXECUTOR_NAME}}"
+  resources: 4
+
+# RECURSO 1: Auto Scaling Target
+autoscaling_target:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "ecs-autoscaling-target"
+        Status: "Pending"
+        Phase: "09-ecs-autoscaling"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_create:
+      action: "aws_cli"
+      command: |
+        aws application-autoscaling register-scalable-target \
+          --service-namespace ecs \
+          --resource-id service/{{PROJECT_NAME}}-cluster/{{PROJECT_NAME}}-service \
+          --scalable-dimension ecs:service:DesiredCount \
+          --min-capacity 2 \
+          --max-capacity 15 \
+          --region {{AWS_REGION}}
+    
+    step_3_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+    
+    step_4_verify:
+      action: "aws_cli"
+      command: "aws application-autoscaling describe-scalable-targets --service-namespace ecs --resource-ids service/{{PROJECT_NAME}}-cluster/{{PROJECT_NAME}}-service --region {{AWS_REGION}}"
+      validation:
+        - "ScalableTargets[0].MinCapacity == 2"
+        - "ScalableTargets[0].MaxCapacity == 15"
+    
+    step_5_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_6_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 2: CPU Scaling Policy
+cpu_scaling_policy:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "ecs-cpu-scaling-policy"
+        Status: "Pending"
+        Phase: "09-ecs-autoscaling"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_create:
+      action: "aws_cli"
+      command: |
+        aws application-autoscaling put-scaling-policy \
+          --service-namespace ecs \
+          --resource-id service/{{PROJECT_NAME}}-cluster/{{PROJECT_NAME}}-service \
+          --scalable-dimension ecs:service:DesiredCount \
+          --policy-name {{PROJECT_NAME}}-cpu-scaling \
+          --policy-type TargetTrackingScaling \
+          --target-tracking-scaling-policy-configuration '{
+            "TargetValue": 75.0,
+            "PredefinedMetricSpecification": {
+              "PredefinedMetricType": "ECSServiceAverageCPUUtilization"
+            },
+            "ScaleInCooldown": 300,
+            "ScaleOutCooldown": 60
+          }' \
+          --region {{AWS_REGION}}
+    
+    step_3_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+    
+    step_4_verify:
+      action: "aws_cli"
+      command: "aws application-autoscaling describe-scaling-policies --service-namespace ecs --resource-id service/{{PROJECT_NAME}}-cluster/{{PROJECT_NAME}}-service --region {{AWS_REGION}}"
+      validation:
+        - "ScalingPolicies contains policy with PolicyName '{{PROJECT_NAME}}-cpu-scaling'"
+    
+    step_5_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_6_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 3: ALB Request Count Scaling Policy
+alb_scaling_policy:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "ecs-alb-scaling-policy"
+        Status: "Pending"
+        Phase: "09-ecs-autoscaling"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_create:
+      action: "aws_cli"
+      command: |
+        aws application-autoscaling put-scaling-policy \
+          --service-namespace ecs \
+          --resource-id service/{{PROJECT_NAME}}-cluster/{{PROJECT_NAME}}-service \
+          --scalable-dimension ecs:service:DesiredCount \
+          --policy-name {{PROJECT_NAME}}-alb-scaling \
+          --policy-type TargetTrackingScaling \
+          --target-tracking-scaling-policy-configuration '{
+            "TargetValue": 1000.0,
+            "PredefinedMetricSpecification": {
+              "PredefinedMetricType": "ALBRequestCountPerTarget",
+              "ResourceLabel": "{{alb_resource_label}}"
+            },
+            "ScaleInCooldown": 300,
+            "ScaleOutCooldown": 60
+          }' \
+          --region {{AWS_REGION}}
+    
+    step_3_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+    
+    step_4_verify:
+      action: "aws_cli"
+      command: "aws application-autoscaling describe-scaling-policies --service-namespace ecs --resource-id service/{{PROJECT_NAME}}-cluster/{{PROJECT_NAME}}-service --region {{AWS_REGION}}"
+      validation:
+        - "ScalingPolicies contains policy with PolicyName '{{PROJECT_NAME}}-alb-scaling'"
+    
+    step_5_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_6_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 4: Memory Scaling Policy
+memory_scaling_policy:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "ecs-memory-scaling-policy"
+        Status: "Pending"
+        Phase: "09-ecs-autoscaling"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_create:
+      action: "aws_cli"
+      command: |
+        aws application-autoscaling put-scaling-policy \
+          --service-namespace ecs \
+          --resource-id service/{{PROJECT_NAME}}-cluster/{{PROJECT_NAME}}-service \
+          --scalable-dimension ecs:service:DesiredCount \
+          --policy-name {{PROJECT_NAME}}-memory-scaling \
+          --policy-type TargetTrackingScaling \
+          --target-tracking-scaling-policy-configuration '{
+            "TargetValue": 80.0,
+            "PredefinedMetricSpecification": {
+              "PredefinedMetricType": "ECSServiceAverageMemoryUtilization"
+            },
+            "ScaleInCooldown": 300,
+            "ScaleOutCooldown": 60
+          }' \
+          --region {{AWS_REGION}}
+    
+    step_3_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+    
+    step_4_verify:
+      action: "aws_cli"
+      command: "aws application-autoscaling describe-scaling-policies --service-namespace ecs --resource-id service/{{PROJECT_NAME}}-cluster/{{PROJECT_NAME}}-service --region {{AWS_REGION}}"
+      validation:
+        - "ScalingPolicies contains policy with PolicyName '{{PROJECT_NAME}}-memory-scaling'"
+    
+    step_5_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_6_on_error:
+      action: "update_dynamodb"
+      status: "Failed"

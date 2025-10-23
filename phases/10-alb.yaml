@@ -1,0 +1,226 @@
+# PHASE 10: APPLICATION LOAD BALANCER (3 recursos)
+# Dependências: VPC, Subnets, Security Groups (Phase 03)
+# Custo: $30/mês
+
+project:
+  name: "{{PROJECT_NAME}}"
+  phase: "10-alb"
+  executor: "{{EXECUTOR_NAME}}"
+  resources: 3
+
+# RECURSO 1: Target Group
+target_group:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-tg"
+        Status: "Pending"
+        Phase: "10-alb"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+      properties:
+        Name: "{{PROJECT_NAME}}-tg"
+        Port: 8080
+        Protocol: "HTTP"
+        VpcId: "{{vpc_id}}"
+        TargetType: "ip"
+        HealthCheckEnabled: true
+        HealthCheckPath: "/actuator/health/readiness"
+        HealthCheckProtocol: "HTTP"
+        HealthCheckIntervalSeconds: 30
+        HealthCheckTimeoutSeconds: 5
+        HealthyThresholdCount: 2
+        UnhealthyThresholdCount: 3
+        Matcher:
+          HttpCode: "200"
+        TargetGroupAttributes:
+          - Key: "deregistration_delay.timeout_seconds"
+            Value: "30"
+          - Key: "stickiness.enabled"
+            Value: "true"
+          - Key: "stickiness.type"
+            Value: "lb_cookie"
+          - Key: "stickiness.lb_cookie.duration_seconds"
+            Value: "86400"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{target_group_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws elbv2 describe-target-groups --names {{PROJECT_NAME}}-tg --region {{AWS_REGION}}"
+      validation:
+        - "TargetGroups[0].TargetGroupName == '{{PROJECT_NAME}}-tg'"
+        - "TargetGroups[0].HealthCheckPath == '/actuator/health/readiness'"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 2: Application Load Balancer
+alb:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-alb"
+        Status: "Pending"
+        Phase: "10-alb"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+      properties:
+        Name: "{{PROJECT_NAME}}-alb"
+        Type: "application"
+        Scheme: "internet-facing"
+        IpAddressType: "ipv4"
+        Subnets:
+          - "{{public_subnet_1a_id}}"
+          - "{{public_subnet_1b_id}}"
+          - "{{public_subnet_1c_id}}"
+        SecurityGroups:
+          - "{{sg_alb_cloudfront_only_id}}"
+        LoadBalancerAttributes:
+          - Key: "deletion_protection.enabled"
+            Value: "false"
+          - Key: "idle_timeout.timeout_seconds"
+            Value: "60"
+          - Key: "access_logs.s3.enabled"
+            Value: "false"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{alb_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws elbv2 describe-load-balancers --names {{PROJECT_NAME}}-alb --region {{AWS_REGION}}"
+      validation:
+        - "LoadBalancers[0].LoadBalancerName == '{{PROJECT_NAME}}-alb'"
+        - "LoadBalancers[0].State.Code == 'active'"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 3: ALB Listener with Header Validation
+alb_listener:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-alb-listener"
+        Status: "Pending"
+        Phase: "10-alb"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::ElasticLoadBalancingV2::Listener"
+      properties:
+        LoadBalancerArn: "{{alb_arn}}"
+        Port: 80
+        Protocol: "HTTP"
+        DefaultActions:
+          - Type: "fixed-response"
+            FixedResponseConfig:
+              StatusCode: "403"
+              ContentType: "text/plain"
+              MessageBody: "Access denied - invalid origin"
+        Rules:
+          - Priority: 1
+            Conditions:
+              - Field: "http-header"
+                HttpHeaderConfig:
+                  HttpHeaderName: "X-Origin-Verify"
+                  Values:
+                    - "{{cloudfront_secret_header}}"
+            Actions:
+              - Type: "forward"
+                TargetGroupArn: "{{target_group_arn}}"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{listener_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws elbv2 describe-listeners --load-balancer-arn {{alb_arn}} --region {{AWS_REGION}}"
+      validation:
+        - "Listeners[0].Port == 80"
+        - "Listeners[0].Protocol == 'HTTP'"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+  defense_in_depth:
+    note: "ALB listener validates X-Origin-Verify header from CloudFront"
+    layers:
+      - "Layer 1: CloudFront adds custom header X-Origin-Verify"
+      - "Layer 2: ALB listener rule validates header value"
+      - "Layer 3: Security Group allows only CloudFront prefix list"

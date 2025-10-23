@@ -1,0 +1,241 @@
+# PHASE 12: WAF + CLOUDFRONT (2 recursos)
+# Dependências: ALB (Phase 10)
+# Custo: $40/mês
+
+project:
+  name: "{{PROJECT_NAME}}"
+  phase: "12-waf-cloudfront"
+  executor: "{{EXECUTOR_NAME}}"
+  resources: 2
+
+# RECURSO 1: WAF Web ACL
+waf_web_acl:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-cloudfront-web-acl"
+        Status: "Pending"
+        Phase: "12-waf-cloudfront"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::WAFv2::WebACL"
+      properties:
+        Name: "{{PROJECT_NAME}}-cloudfront-web-acl"
+        Scope: "CLOUDFRONT"
+        DefaultAction:
+          Allow: {}
+        Rules:
+          - Name: "AWSManagedRulesCommonRuleSet"
+            Priority: 1
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: "AWS"
+                Name: "AWSManagedRulesCommonRuleSet"
+            OverrideAction:
+              None: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: "AWSManagedRulesCommonRuleSetMetric"
+          - Name: "AWSManagedRulesKnownBadInputsRuleSet"
+            Priority: 2
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: "AWS"
+                Name: "AWSManagedRulesKnownBadInputsRuleSet"
+            OverrideAction:
+              None: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: "AWSManagedRulesKnownBadInputsRuleSetMetric"
+          - Name: "RateLimitRule"
+            Priority: 3
+            Statement:
+              RateBasedStatement:
+                Limit: 2000
+                AggregateKeyType: "IP"
+            Action:
+              Block: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: "RateLimitRuleMetric"
+          - Name: "GeoBlockRule"
+            Priority: 4
+            Statement:
+              NotStatement:
+                Statement:
+                  GeoMatchStatement:
+                    CountryCodes:
+                      - "BR"
+                      - "US"
+            Action:
+              Block: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: "GeoBlockRuleMetric"
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          CloudWatchMetricsEnabled: true
+          MetricName: "{{PROJECT_NAME}}-cloudfront-web-acl"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{waf_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws wafv2 get-web-acl --name {{PROJECT_NAME}}-cloudfront-web-acl --scope CLOUDFRONT --id {{waf_id}} --region {{AWS_REGION}}"
+      validation:
+        - "WebACL.Name == '{{PROJECT_NAME}}-cloudfront-web-acl'"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 2: CloudFront Distribution
+cloudfront_distribution:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-cloudfront"
+        Status: "Pending"
+        Phase: "12-waf-cloudfront"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::CloudFront::Distribution"
+      properties:
+        DistributionConfig:
+          Enabled: true
+          Comment: "{{PROJECT_NAME}} CloudFront distribution"
+          Origins:
+            - Id: "alb-origin"
+              DomainName: "{{alb_dns_name}}"
+              CustomOriginConfig:
+                HTTPPort: 80
+                OriginProtocolPolicy: "http-only"
+                OriginSSLProtocols:
+                  - "TLSv1.2"
+              OriginCustomHeaders:
+                - HeaderName: "X-Origin-Verify"
+                  HeaderValue: "{{cloudfront_secret_header}}"
+          DefaultCacheBehavior:
+            TargetOriginId: "alb-origin"
+            ViewerProtocolPolicy: "redirect-to-https"
+            AllowedMethods:
+              - "GET"
+              - "HEAD"
+              - "OPTIONS"
+              - "PUT"
+              - "POST"
+              - "PATCH"
+              - "DELETE"
+            CachedMethods:
+              - "GET"
+              - "HEAD"
+              - "OPTIONS"
+            Compress: true
+            CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
+            OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          CacheBehaviors:
+            - PathPattern: "/actuator/*"
+              TargetOriginId: "alb-origin"
+              ViewerProtocolPolicy: "redirect-to-https"
+              AllowedMethods:
+                - "GET"
+                - "HEAD"
+              CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+              OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
+            - PathPattern: "/api/*"
+              TargetOriginId: "alb-origin"
+              ViewerProtocolPolicy: "redirect-to-https"
+              AllowedMethods:
+                - "GET"
+                - "HEAD"
+                - "OPTIONS"
+                - "PUT"
+                - "POST"
+                - "PATCH"
+                - "DELETE"
+              CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+              OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
+            - PathPattern: "/static/*"
+              TargetOriginId: "alb-origin"
+              ViewerProtocolPolicy: "redirect-to-https"
+              AllowedMethods:
+                - "GET"
+                - "HEAD"
+              CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
+              OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          PriceClass: "PriceClass_100"
+          ViewerCertificate:
+            CloudFrontDefaultCertificate: true
+          WebACLId: "{{waf_arn}}"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{cloudfront_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws cloudfront get-distribution --id {{distribution_id}} --region {{AWS_REGION}}"
+      validation:
+        - "Distribution.Status == 'Deployed'"
+        - "Distribution.DistributionConfig.Enabled == true"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+  defense_in_depth:
+    layers:
+      - "Layer 1: WAF with 4 rules (Common, BadInputs, RateLimit, GeoBlock)"
+      - "Layer 2: CloudFront adds X-Origin-Verify custom header"
+      - "Layer 3: ALB validates header before forwarding"
+      - "Layer 4: Security Group restricts to CloudFront prefix list"

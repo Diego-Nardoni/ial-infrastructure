@@ -1,0 +1,46 @@
+name: Rollback Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_commit:
+        description: 'Commit SHA to rollback to'
+        required: true
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Dependencies
+        run: pip install boto3 pyyaml
+      
+      - name: Execute Rollback
+        run: python scripts/rollback.py --target-commit ${{ inputs.target_commit }}
+      
+      - name: Git Revert
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git revert --no-commit ${{ github.sha }}..${{ inputs.target_commit }}
+          git commit -m "Rollback to ${{ inputs.target_commit }}"
+          git push

@@ -1,0 +1,266 @@
+# PHASE 05: IAM ROLES (3 recursos)
+# Dependências: KMS key (Phase 01)
+# Custo: $0/mês
+
+project:
+  name: "{{PROJECT_NAME}}"
+  phase: "05-iam-roles"
+  executor: "{{EXECUTOR_NAME}}"
+  resources: 3
+
+# RECURSO 1: ECS Task Execution Role
+ecs_task_execution_role:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-ecsTaskExecutionRole"
+        Status: "Pending"
+        Phase: "05-iam-roles"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::IAM::Role"
+      properties:
+        RoleName: "{{PROJECT_NAME}}-ecsTaskExecutionRole"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Service: "ecs-tasks.amazonaws.com"
+              Action: "sts:AssumeRole"
+        ManagedPolicyArns:
+          - "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        Policies:
+          - PolicyName: "KMSDecryptPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "kms:Decrypt"
+                    - "kms:DescribeKey"
+                  Resource: "arn:aws:kms:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:key/*"
+          - PolicyName: "ECRPullPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "ecr:GetAuthorizationToken"
+                    - "ecr:BatchCheckLayerAvailability"
+                    - "ecr:GetDownloadUrlForLayer"
+                    - "ecr:BatchGetImage"
+                  Resource: "*"
+          - PolicyName: "CloudWatchLogsPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                  Resource: "arn:aws:logs:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:log-group:/ecs/{{PROJECT_NAME}}-task:*"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+      note: "MANDATORY - User must confirm before proceeding"
+    
+    step_4_create:
+      action: "create_resource"
+      note: "Execute only after user confirmation"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{role_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws iam get-role --role-name {{PROJECT_NAME}}-ecsTaskExecutionRole --region {{AWS_REGION}}"
+      validation:
+        - "Role.RoleName == '{{PROJECT_NAME}}-ecsTaskExecutionRole'"
+        - "Role.AssumeRolePolicyDocument contains 'ecs-tasks.amazonaws.com'"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+      error_message: "{{error_details}}"
+
+# RECURSO 2: ECS Task Role
+ecs_task_role:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-ecsTaskRole"
+        Status: "Pending"
+        Phase: "05-iam-roles"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::IAM::Role"
+      properties:
+        RoleName: "{{PROJECT_NAME}}-ecsTaskRole"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Service: "ecs-tasks.amazonaws.com"
+              Action: "sts:AssumeRole"
+        Policies:
+          - PolicyName: "ParameterStoreReadPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "ssm:GetParameter"
+                    - "ssm:GetParameters"
+                  Resource: "arn:aws:ssm:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:parameter/{{PROJECT_NAME}}/*"
+          - PolicyName: "KMSDecryptPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "kms:Decrypt"
+                    - "kms:DescribeKey"
+                  Resource: "arn:aws:kms:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:key/*"
+          - PolicyName: "XRayPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "xray:PutTraceSegments"
+                    - "xray:PutTelemetryRecords"
+                  Resource: "*"
+          - PolicyName: "CloudWatchMetricsPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "cloudwatch:PutMetricData"
+                  Resource: "*"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{role_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws iam get-role --role-name {{PROJECT_NAME}}-ecsTaskRole --region {{AWS_REGION}}"
+      validation:
+        - "Role.RoleName == '{{PROJECT_NAME}}-ecsTaskRole'"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 3: VPC Flow Logs Role
+vpc_flowlogs_role:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-flowlogs-role"
+        Status: "Pending"
+        Phase: "05-iam-roles"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::IAM::Role"
+      properties:
+        RoleName: "{{PROJECT_NAME}}-flowlogs-role"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Service: "vpc-flow-logs.amazonaws.com"
+              Action: "sts:AssumeRole"
+        Policies:
+          - PolicyName: "CloudWatchLogsPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "logs:CreateLogGroup"
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                    - "logs:DescribeLogGroups"
+                    - "logs:DescribeLogStreams"
+                  Resource: "*"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{role_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws iam get-role --role-name {{PROJECT_NAME}}-flowlogs-role --region {{AWS_REGION}}"
+      validation:
+        - "Role.RoleName == '{{PROJECT_NAME}}-flowlogs-role'"
+        - "Role.AssumeRolePolicyDocument contains 'vpc-flow-logs.amazonaws.com'"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"

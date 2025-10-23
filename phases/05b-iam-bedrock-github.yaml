@@ -1,0 +1,249 @@
+# Phase 05b: IAM Policies for Bedrock (GitHub Actions)
+# Dependencies: Phase 00 (DynamoDB state)
+# Purpose: Add Bedrock permissions to GitHub Actions role for Docker build validation
+
+metadata:
+  phase: "05b"
+  name: "IAM Bedrock Policies for GitHub Actions"
+  description: "Add Bedrock InvokeModel permission to GitHubActionsECRDeployRole"
+  dependencies:
+    - "00-dynamodb-state"
+  resources_count: 1
+  estimated_time: "5 minutes"
+
+# ============================================
+# RESOURCE 1: Bedrock Inline Policy
+# ============================================
+resource_01_bedrock_policy:
+  type: "AWS::IAM::RolePolicy"
+  purpose: "Allow GitHub Actions to invoke Bedrock models for validation"
+  
+  # DynamoDB state tracking
+  state_tracking:
+    table: "mcp-provisioning-checklist"
+    item:
+      Project: {S: "{{PROJECT_NAME}}"}
+      ResourceName: {S: "05b-bedrock-github-policy"}
+      Phase: {S: "05b"}
+      ResourceType: {S: "AWS::IAM::RolePolicy"}
+      Status: {S: "Pending"}
+      Executor: {S: "{{EXECUTOR_NAME}}"}
+      Timestamp: {S: "2025-10-23T10:20:00Z"}
+      Region: {S: "{{AWS_REGION}}"}
+  
+  # AWS CLI command
+  provisioning:
+    command: |
+      aws iam put-role-policy \
+        --role-name GitHubActionsECRDeployRole \
+        --policy-name BedrockInvokeModel \
+        --policy-document '{
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "BedrockInvokeModelForValidation",
+              "Effect": "Allow",
+              "Action": [
+                "bedrock:InvokeModel"
+              ],
+              "Resource": [
+                "arn:aws:bedrock:{{AWS_REGION}}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
+              ]
+            }
+          ]
+        }' \
+        --region {{AWS_REGION}}
+  
+  # Validation
+  validation:
+    command: |
+      aws iam get-role-policy \
+        --role-name GitHubActionsECRDeployRole \
+        --policy-name BedrockInvokeModel \
+        --region {{AWS_REGION}}
+    
+    expected_output: |
+      {
+        "RoleName": "GitHubActionsECRDeployRole",
+        "PolicyName": "BedrockInvokeModel",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [...]
+        }
+      }
+  
+  # Update state to Created
+  state_update:
+    command: |
+      aws dynamodb update-item \
+        --table-name mcp-provisioning-checklist \
+        --key '{"Project":{"S":"{{PROJECT_NAME}}"},"ResourceName":{"S":"05b-bedrock-github-policy"}}' \
+        --update-expression "SET #status = :status, #timestamp = :timestamp" \
+        --expression-attribute-names '{"#status":"Status","#timestamp":"Timestamp"}' \
+        --expression-attribute-values '{":status":{"S":"Created"},":timestamp":{"S":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}}' \
+        --region {{AWS_REGION}}
+
+# ============================================
+# RESOURCE 2: Infrastructure Deployment Policy
+# ============================================
+resource_02_infrastructure_policy:
+  type: "AWS::IAM::RolePolicy"
+  purpose: "Allow GitHub Actions to deploy infrastructure resources"
+  
+  state_tracking:
+    table: "mcp-provisioning-checklist"
+    item:
+      Project: {S: "{{PROJECT_NAME}}"}
+      ResourceName: {S: "05b-infrastructure-policy"}
+      Phase: {S: "05b"}
+      ResourceType: {S: "AWS::IAM::RolePolicy"}
+      Status: {S: "Pending"}
+  
+  provisioning:
+    command: |
+      aws iam put-role-policy \
+        --role-name GitHubActionsECRDeployRole \
+        --policy-name InfrastructureDeployment \
+        --policy-document '{
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "InfrastructureManagement",
+              "Effect": "Allow",
+              "Action": [
+                "ec2:*",
+                "ecs:*",
+                "elasticloadbalancing:*",
+                "elasticache:*",
+                "cloudfront:*",
+                "wafv2:*",
+                "rds:*",
+                "kms:*",
+                "logs:*",
+                "cloudwatch:*"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }' \
+        --region {{AWS_REGION}}
+
+# ============================================
+# RESOURCE 3: DynamoDB State Access Policy
+# ============================================
+resource_03_dynamodb_policy:
+  type: "AWS::IAM::RolePolicy"
+  purpose: "Allow GitHub Actions to manage DynamoDB state"
+  
+  state_tracking:
+    table: "mcp-provisioning-checklist"
+    item:
+      Project: {S: "{{PROJECT_NAME}}"}
+      ResourceName: {S: "05b-dynamodb-policy"}
+      Phase: {S: "05b"}
+      ResourceType: {S: "AWS::IAM::RolePolicy"}
+      Status: {S: "Pending"}
+  
+  provisioning:
+    command: |
+      aws iam put-role-policy \
+        --role-name GitHubActionsECRDeployRole \
+        --policy-name DynamoDBStateAccess \
+        --policy-document '{
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "DynamoDBStateManagement",
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:PutItem",
+                "dynamodb:GetItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:Query",
+                "dynamodb:DeleteItem"
+              ],
+              "Resource": "arn:aws:dynamodb:*:*:table/mcp-provisioning-checklist"
+            }
+          ]
+        }' \
+        --region {{AWS_REGION}}
+
+# ============================================
+# NOTES
+# ============================================
+notes:
+  cost: "Free (IAM policies have no cost)"
+  
+  security:
+    - "Policy scoped to specific Bedrock model (Claude 3 Sonnet)"
+    - "Only InvokeModel permission (read-only)"
+    - "No access to model training or fine-tuning"
+  
+  bedrock_model:
+    model_id: "anthropic.claude-3-sonnet-20240229-v1:0"
+    cost_per_1k_input_tokens: "$0.003"
+    cost_per_1k_output_tokens: "$0.015"
+    estimated_cost_per_build: "$0.04"
+    estimated_monthly_cost: "$2-4 (50-100 builds)"
+  
+  prerequisites:
+    - "GitHubActionsECRDeployRole must exist"
+    - "Bedrock model access must be enabled in AWS account"
+    - "Region must support Bedrock (us-east-1, us-west-2, etc)"
+  
+  enable_bedrock_access: |
+    # Enable Bedrock model access (one-time setup)
+    # AWS Console → Bedrock → Model access → Manage model access
+    # Select: Anthropic Claude 3 Sonnet → Request access (instant approval)
+    
+    # Or via AWS CLI (if available in your region)
+    aws bedrock list-foundation-models \
+      --region {{AWS_REGION}} \
+      --query 'modelSummaries[?contains(modelId, `claude-3-sonnet`)].modelId'
+
+# ============================================
+# ROLLBACK
+# ============================================
+rollback:
+  command: |
+    # Remove inline policy
+    aws iam delete-role-policy \
+      --role-name GitHubActionsECRDeployRole \
+      --policy-name BedrockInvokeModel \
+      --region {{AWS_REGION}}
+    
+    # Update state
+    aws dynamodb update-item \
+      --table-name mcp-provisioning-checklist \
+      --key '{"Project":{"S":"{{PROJECT_NAME}}"},"ResourceName":{"S":"05b-bedrock-github-policy"}}' \
+      --update-expression "SET #status = :status" \
+      --expression-attribute-names '{"#status":"Status"}' \
+      --expression-attribute-values '{":status":{"S":"Deleted"}}' \
+      --region {{AWS_REGION}}
+
+# ============================================
+# CHECKLIST
+# ============================================
+checklist:
+  - step: "Verify GitHubActionsECRDeployRole exists"
+    command: "aws iam get-role --role-name GitHubActionsECRDeployRole --region {{AWS_REGION}}"
+  
+  - step: "Enable Bedrock model access (if not done)"
+    action: "AWS Console → Bedrock → Model access → Enable Claude 3 Sonnet"
+  
+  - step: "Create inline policy"
+    command: "Execute provisioning command above"
+  
+  - step: "Validate policy created"
+    command: "Execute validation command above"
+  
+  - step: "Update DynamoDB state"
+    command: "Execute state_update command above"
+  
+  - step: "Test Bedrock access"
+    command: |
+      aws bedrock-runtime invoke-model \
+        --model-id anthropic.claude-3-sonnet-20240229-v1:0 \
+        --body '{"anthropic_version":"bedrock-2023-05-31","max_tokens":100,"messages":[{"role":"user","content":"Hello"}]}' \
+        --region {{AWS_REGION}} \
+        /tmp/test-output.json

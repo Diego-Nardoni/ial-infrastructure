@@ -1,0 +1,121 @@
+# PHASE 07: ECS CLUSTER + LOG GROUP (2 recursos)
+# Dependências: KMS key (Phase 01)
+# Custo: $0/mês (task-based)
+
+project:
+  name: "{{PROJECT_NAME}}"
+  phase: "07-ecs-cluster"
+  executor: "{{EXECUTOR_NAME}}"
+  resources: 2
+
+# RECURSO 1: CloudWatch Log Group
+cloudwatch_log_group:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "/ecs/{{PROJECT_NAME}}-task"
+        Status: "Pending"
+        Phase: "07-ecs-cluster"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::Logs::LogGroup"
+      properties:
+        LogGroupName: "/ecs/{{PROJECT_NAME}}-task"
+        RetentionInDays: 30
+        KmsKeyId: "arn:aws:kms:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:key/{{kms_key_id}}"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{log_group_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws logs describe-log-groups --log-group-name-prefix /ecs/{{PROJECT_NAME}}-task --region {{AWS_REGION}}"
+      validation:
+        - "logGroups[0].logGroupName == '/ecs/{{PROJECT_NAME}}-task'"
+        - "logGroups[0].retentionInDays == 30"
+        - "logGroups[0].kmsKeyId is not null"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"
+
+# RECURSO 2: ECS Cluster
+ecs_cluster:
+  workflow:
+    step_1_register_pending:
+      action: "update_dynamodb"
+      table: "mcp-provisioning-checklist"
+      item:
+        Project: "{{PROJECT_NAME}}"
+        ResourceName: "{{PROJECT_NAME}}-cluster"
+        Status: "Pending"
+        Phase: "07-ecs-cluster"
+        Executor: "{{EXECUTOR_NAME}}"
+        Timestamp: "{{current_timestamp}}"
+    
+    step_2_generate:
+      action: "generate_infrastructure_code"
+      resource_type: "AWS::ECS::Cluster"
+      properties:
+        ClusterName: "{{PROJECT_NAME}}-cluster"
+        ClusterSettings:
+          - Name: "containerInsights"
+            Value: "enabled"
+        Configuration:
+          ExecuteCommandConfiguration:
+            Logging: "DEFAULT"
+        Tags:
+          - Key: "Project"
+            Value: "{{PROJECT_NAME}}"
+          - Key: "ManagedBy"
+            Value: "MCP"
+    
+    step_3_explain:
+      action: "explain"
+    
+    step_4_create:
+      action: "create_resource"
+    
+    step_5_update_created:
+      action: "update_dynamodb"
+      status: "Created"
+      arn: "{{cluster_arn}}"
+    
+    step_6_verify:
+      action: "aws_cli"
+      command: "aws ecs describe-clusters --clusters {{PROJECT_NAME}}-cluster --region {{AWS_REGION}}"
+      validation:
+        - "clusters[0].clusterName == '{{PROJECT_NAME}}-cluster'"
+        - "clusters[0].status == 'ACTIVE'"
+        - "clusters[0].settings[?name=='containerInsights'].value | [0] == 'enabled'"
+    
+    step_7_update_verified:
+      action: "update_dynamodb"
+      status: "Verified"
+    
+    step_8_on_error:
+      action: "update_dynamodb"
+      status: "Failed"

@@ -1,0 +1,205 @@
+# MAPEAMENTO COMPLETO DOS 60 RECURSOS
+# Baseado 100% no prompt original /home/prompt-dynamon.txt
+
+project:
+  name: "spring-redis-app"
+  executor: "Diego-Nardoni"
+  region: "us-east-1"
+  account_id: "221082174220"
+  total_resources: 60
+  estimated_monthly_cost: 470
+
+# ORDEM DE EXECUÇÃO CRÍTICA (do prompt original)
+execution_order:
+  - "00-dynamodb-state"      # Bootstrap (2 recursos)
+  - "01-kms-security"        # KMS primeiro (1 recurso)
+  - "02-security-services"   # Security services (6 recursos)
+  - "03-networking"          # VPC + Networking (19 recursos)
+  - "04-parameter-store"     # Parameter Store (3 recursos)
+  - "05-iam-roles"           # IAM Roles (3 recursos)
+  - "06-ecr"                 # ECR Repository (1 recurso)
+  - "07-ecs-cluster"         # ECS Cluster + Logs (2 recursos)
+  - "08-ecs-task-service"    # ECS Task + Service (2 recursos)
+  - "09-ecs-autoscaling"     # Auto Scaling (4 recursos)
+  - "10-alb"                 # ALB + Target Group + Listener (3 recursos)
+  - "11-redis"               # Redis Serverless (1 recurso)
+  - "12-waf-cloudfront"      # WAF + CloudFront (2 recursos)
+  - "13-vpc-flow-logs"       # VPC Flow Logs (5 recursos)
+  - "14-observability"       # Dashboards + Alarms + SNS (6 recursos)
+  - "15-well-architected"    # Well-Architected Assessment (0 recursos)
+
+# MAPEAMENTO DETALHADO POR FASE
+phases:
+  "00-dynamodb-state":
+    resources: 2
+    cost: 0
+    items:
+      - "DynamoDB Table: mcp-provisioning-checklist"
+      - "IAM Role: mcp-checklist-dynamodb-role"
+  
+  "01-kms-security":
+    resources: 1
+    cost: 1
+    items:
+      - "KMS Key: poc-encryption-key (com rotação automática)"
+  
+  "02-security-services":
+    resources: 6
+    cost: 24
+    items:
+      - "Amazon Inspector: ECR scanning enabled"
+      - "Amazon GuardDuty: Runtime monitoring enabled"
+      - "AWS Security Hub: Standards enabled"
+      - "IAM Access Analyzer: account-security-analyzer"
+      - "Amazon Macie: S3 classification enabled"
+      - "EBS Default Encryption: Enabled"
+  
+  "03-networking":
+    resources: 19
+    cost: 65
+    items:
+      - "VPC: spring-redis-app-vpc (10.0.0.0/16)"
+      - "Public Subnet 1a: 10.0.1.0/24"
+      - "Public Subnet 1b: 10.0.2.0/24"
+      - "Public Subnet 1c: 10.0.3.0/24"
+      - "Private Subnet 1a: 10.0.11.0/24"
+      - "Private Subnet 1b: 10.0.12.0/24"
+      - "Private Subnet 1c: 10.0.13.0/24"
+      - "Internet Gateway: spring-redis-app-igw"
+      - "Public Route Table: spring-redis-app-public-rt"
+      - "Private Route Table: spring-redis-app-private-rt (SEM internet)"
+      - "Security Group: sg-alb-cloudfront-only"
+      - "Security Group: sg-app"
+      - "Security Group: sg-endpoints"
+      - "Security Group: sg-redis"
+      - "VPC Endpoint: S3 Gateway"
+      - "VPC Endpoint: ECR API Interface"
+      - "VPC Endpoint: ECR DKR Interface"
+      - "VPC Endpoint: CloudWatch Logs Interface"
+      - "VPC Endpoint: SSM Interface"
+  
+  "04-parameter-store":
+    resources: 3
+    cost: 0
+    items:
+      - "Parameter: /spring-redis-app/redis/endpoint (KMS encrypted)"
+      - "Parameter: /spring-redis-app/redis/port (KMS encrypted)"
+      - "Parameter: /spring-redis-app/redis/ssl (KMS encrypted)"
+  
+  "05-iam-roles":
+    resources: 3
+    cost: 0
+    items:
+      - "IAM Role: spring-redis-app-ecsTaskExecutionRole"
+      - "IAM Role: spring-redis-app-ecsTaskRole"
+      - "IAM Role: spring-redis-app-flowlogs-role"
+  
+  "06-ecr":
+    resources: 1
+    cost: 0
+    items:
+      - "ECR Repository: spring-redis-app (scan on push, KMS encrypted)"
+  
+  "07-ecs-cluster":
+    resources: 2
+    cost: 0
+    items:
+      - "ECS Cluster: spring-redis-app-cluster (Container Insights enabled)"
+      - "CloudWatch Log Group: /ecs/spring-redis-app-task (KMS encrypted)"
+  
+  "08-ecs-task-service":
+    resources: 2
+    cost: 180
+    items:
+      - "ECS Task Definition: spring-redis-app-task (512 CPU, 1024 Memory, X-Ray SDK)"
+      - "ECS Service: spring-redis-app-service (3 tasks, circuit breaker, zero downtime)"
+  
+  "09-ecs-autoscaling":
+    resources: 4
+    cost: 0
+    items:
+      - "Auto Scaling Target: ecs service (min 2, max 15)"
+      - "Scaling Policy: CPU 75%"
+      - "Scaling Policy: ALB 1000 req/target"
+      - "Scaling Policy: Memory 80%"
+  
+  "10-alb":
+    resources: 3
+    cost: 30
+    items:
+      - "Application Load Balancer: spring-redis-app-alb"
+      - "Target Group: spring-redis-app-tg (health check /actuator/health/readiness)"
+      - "ALB Listener: HTTP:80 (header validation X-Origin-Verify)"
+  
+  "11-redis":
+    resources: 1
+    cost: 95
+    items:
+      - "ElastiCache Redis Serverless: spring-redis-app-serverless-cache (1-5GB, multi-AZ)"
+  
+  "12-waf-cloudfront":
+    resources: 2
+    cost: 40
+    items:
+      - "WAF Web ACL: spring-redis-app-cloudfront-web-acl (4 rules)"
+      - "CloudFront Distribution: spring-redis-app (4 cache behaviors, defense in depth)"
+  
+  "13-vpc-flow-logs":
+    resources: 5
+    cost: 30
+    items:
+      - "CloudWatch Log Group: /aws/vpc/flowlogs/spring-redis-app-vpc (90 days)"
+      - "CloudWatch Log Group: /aws/vpc/flowlogs/private-subnets (30 days)"
+      - "CloudWatch Log Group: /aws/vpc/flowlogs/public-subnets (30 days)"
+      - "VPC Flow Logs: VPC-level (ALL traffic)"
+      - "VPC Flow Logs: Private subnets (REJECT only)"
+  
+  "14-observability":
+    resources: 6
+    cost: 35
+    items:
+      - "SNS Topic: spring-redis-app-alerts-critical"
+      - "SNS Topic: spring-redis-app-alerts-warning"
+      - "SNS Topic: spring-redis-app-alerts-info"
+      - "CloudWatch Dashboards: 9 dashboards (Four Golden Signals, RED, USE, X-Ray, Redis, Security, Application, Infrastructure, Overview)"
+      - "CloudWatch Alarms: 12 alarms (5 critical, 4 warning, 3 info)"
+      - "X-Ray Sampling Rule: 10% sampling"
+  
+  "15-well-architected":
+    resources: 0
+    cost: 0
+    items:
+      - "Well-Architected Assessment Report (6 pillars)"
+      - "Automated recommendations and scoring"
+      - "Compliance validation (92/100 score)"
+
+# VALIDAÇÕES CRÍTICAS PRÉ-ECS (do prompt original)
+critical_validations:
+  before_ecs:
+    - "S3 Gateway Endpoint deve aparecer em AMBOS route tables"
+    - "Subnets privadas devem estar associadas ao route table privado (SEM rota 0.0.0.0/0)"
+    - "Todos VPC Endpoints devem estar available"
+    - "KMS key deve estar Enabled com KeyRotationStatus true"
+    - "Inspector ECR deve estar ENABLED"
+    - "GuardDuty Runtime Monitoring deve estar ENABLED"
+    - "ECR repository deve existir com imageScanningConfiguration.scanOnPush=true"
+
+# DEPENDÊNCIAS CRÍTICAS (do prompt original)
+dependencies:
+  - "IAM Roles devem existir ANTES da Task Definition"
+  - "Parameter Store deve ter valores reais ANTES do ECS Service"
+  - "Security Groups devem estar configurados ANTES do Redis/ECS"
+  - "VPC Endpoints devem existir ANTES do ECS (para ECR/CloudWatch)"
+
+# TOTAL DE RECURSOS POR CATEGORIA
+summary:
+  security: 7
+  networking: 19
+  iam: 3
+  containers: 9
+  load_balancer: 3
+  cdn_waf: 2
+  data: 4
+  observability: 11
+  state_tracking: 2
+  total: 60

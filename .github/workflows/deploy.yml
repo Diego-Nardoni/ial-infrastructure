@@ -1,0 +1,57 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths: ['phases/**/*.yaml']
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      
+      - name: Acquire Lock
+        run: |
+          aws dynamodb put-item \
+            --table-name mcp-provisioning-checklist \
+            --item '{"Project":{"S":"mcp-spring-boot"},"ResourceName":{"S":"DEPLOYMENT_LOCK"},"TTL":{"N":"'$(($(date +%s) + 1800))'"}}' \
+            --condition-expression 'attribute_not_exists(ResourceName)' || exit 1
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Dependencies
+        run: pip install boto3 pyyaml
+      
+      - name: Run Reconciliation
+        run: python scripts/reconcile.py
+      
+      - name: Release Lock
+        if: always()
+        run: |
+          aws dynamodb delete-item \
+            --table-name mcp-provisioning-checklist \
+            --key '{"Project":{"S":"mcp-spring-boot"},"ResourceName":{"S":"DEPLOYMENT_LOCK"}}'
+      
+      - name: Notify
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          aws sns publish \
+            --topic-arn arn:aws:sns:us-east-1:221082174220:ial-alerts-critical \
+            --subject "Deploy $STATUS: ${{ github.sha }}" \
+            --message "Deploy by ${{ github.actor }} - Status: $STATUS"
