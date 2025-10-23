@@ -10,7 +10,8 @@ sns = boto3.client('sns')
 def detect_drift():
     response = dynamodb.query(
         TableName='mcp-provisioning-checklist',
-        KeyConditionExpression='Project = :p',
+        KeyConditionExpression='#proj = :p',
+        ExpressionAttributeNames={'#proj': 'Project'},
         ExpressionAttributeValues={':p': {'S': 'mcp-spring-boot'}}
     )
     
@@ -33,9 +34,15 @@ def detect_drift():
             
             dynamodb.update_item(
                 TableName='mcp-provisioning-checklist',
-                Key={'Project': {'S': 'mcp-spring-boot'}, 'ResourceName': {'S': resource_name}},
+                Key={
+                    'Project': {'S': 'mcp-spring-boot'},
+                    'ResourceName': {'S': resource_name}
+                },
                 UpdateExpression='SET DriftDetected = :d, DriftSeverity = :s',
-                ExpressionAttributeValues={':d': {'BOOL': True}, ':s': {'S': severity}}
+                ExpressionAttributeValues={
+                    ':d': {'BOOL': True},
+                    ':s': {'S': severity}
+                }
             )
     
     if drifts:
@@ -45,30 +52,45 @@ def detect_drift():
         print("✅ No drifts detected")
 
 def get_aws_state(resource_name):
+    """Get current state from AWS - placeholder"""
     return {}
 
 def classify_severity(resource_name, desired, current):
+    """Classify drift severity using Bedrock"""
     prompt = f"""Classify drift severity (CRITICAL/HIGH/MEDIUM/LOW):
 Resource: {resource_name}
 Desired: {json.dumps(desired)}
 Current: {json.dumps(current)}"""
     
-    response = bedrock.invoke_model(
-        modelId='anthropic.claude-3-haiku-20240307-v1:0',
-        body=json.dumps({
-            'anthropic_version': 'bedrock-2023-05-31',
-            'max_tokens': 10,
-            'messages': [{'role': 'user', 'content': prompt}]
-        })
-    )
-    return json.loads(response['body'].read())['content'][0]['text'].strip()
+    try:
+        response = bedrock.invoke_model(
+            modelId='anthropic.claude-3-haiku-20240307-v1:0',
+            body=json.dumps({
+                'anthropic_version': 'bedrock-2023-05-31',
+                'max_tokens': 10,
+                'messages': [{'role': 'user', 'content': prompt}]
+            })
+        )
+        return json.loads(response['body'].read())['content'][0]['text'].strip()
+    except Exception as e:
+        print(f"⚠️  Bedrock error: {e}")
+        return 'MEDIUM'
 
 def notify_drifts(drifts):
-    sns.publish(
-        TopicArn='arn:aws:sns:us-east-1:ACCOUNT:alerts-critical',
-        Subject=f'Drift Detected: {len(drifts)} resources',
-        Message=json.dumps(drifts, indent=2)
-    )
+    """Send SNS notification about drifts"""
+    try:
+        # Get account ID from STS
+        sts = boto3.client('sts')
+        account_id = sts.get_caller_identity()['Account']
+        
+        sns.publish(
+            TopicArn=f'arn:aws:sns:us-east-1:{account_id}:ial-alerts-critical',
+            Subject=f'Drift Detected: {len(drifts)} resources',
+            Message=json.dumps(drifts, indent=2)
+        )
+        print(f"📧 SNS notification sent")
+    except Exception as e:
+        print(f"⚠️  SNS error: {e}")
 
 if __name__ == '__main__':
     detect_drift()

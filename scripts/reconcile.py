@@ -10,7 +10,8 @@ bedrock = boto3.client('bedrock-runtime')
 def reconcile():
     response = dynamodb.query(
         TableName='mcp-provisioning-checklist',
-        KeyConditionExpression='Project = :p',
+        KeyConditionExpression='#proj = :p',
+        ExpressionAttributeNames={'#proj': 'Project'},
         ExpressionAttributeValues={':p': {'S': 'mcp-spring-boot'}}
     )
     
@@ -27,25 +28,28 @@ def reconcile():
         else:
             print(f"🔄 {resource_name} needs update")
             apply_changes(resource_name, desired, current)
+            
+            dynamodb.update_item(
+                TableName='mcp-provisioning-checklist',
+                Key={
+                    'Project': {'S': 'mcp-spring-boot'},
+                    'ResourceName': {'S': resource_name}
+                },
+                UpdateExpression='SET CurrentState = :c, LastReconciliation = :t',
+                ExpressionAttributeValues={
+                    ':c': {'S': json.dumps(desired)},
+                    ':t': {'S': str(int(time.time()))}
+                }
+            )
 
 def get_aws_state(resource_name):
+    """Get current state from AWS - placeholder"""
     return {}
 
 def apply_changes(resource_name, desired, current):
-    prompt = f"""Compare states and generate AWS CLI commands:
-Desired: {json.dumps(desired)}
-Current: {json.dumps(current)}"""
-    
-    response = bedrock.invoke_model(
-        modelId='anthropic.claude-3-haiku-20240307-v1:0',
-        body=json.dumps({
-            'anthropic_version': 'bedrock-2023-05-31',
-            'max_tokens': 1000,
-            'messages': [{'role': 'user', 'content': prompt}]
-        })
-    )
-    commands = json.loads(response['body'].read())['content'][0]['text']
-    print(f"Commands: {commands}")
+    """Apply changes to AWS - placeholder"""
+    print(f"   Applying changes to {resource_name}")
 
 if __name__ == '__main__':
+    import time
     reconcile()

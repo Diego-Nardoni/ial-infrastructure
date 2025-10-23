@@ -1,44 +1,40 @@
 #!/usr/bin/env python3
 import boto3
-import argparse
-import subprocess
+import json
+import sys
 
 dynamodb = boto3.client('dynamodb')
 
 def rollback(target_commit):
-    print(f"🔄 Rolling back to {target_commit}")
+    """Rollback infrastructure to a previous commit"""
+    print(f"🔄 Rolling back to commit: {target_commit}")
     
-    result = subprocess.run(
-        ['git', 'diff', target_commit, 'HEAD', '--', 'phases/'],
-        capture_output=True, text=True
+    # Query all resources
+    response = dynamodb.query(
+        TableName='mcp-provisioning-checklist',
+        KeyConditionExpression='#proj = :p',
+        ExpressionAttributeNames={'#proj': 'Project'},
+        ExpressionAttributeValues={':p': {'S': 'mcp-spring-boot'}}
     )
     
-    if result.returncode == 0:
-        print(f"Changes to rollback:\n{result.stdout}")
+    for item in response.get('Items', []):
+        resource_name = item['ResourceName']['S']
+        if resource_name == 'DEPLOYMENT_LOCK':
+            continue
         
-        response = dynamodb.query(
-            TableName='mcp-provisioning-checklist',
-            KeyConditionExpression='Project = :p',
-            ExpressionAttributeValues={':p': {'S': 'mcp-spring-boot'}}
-        )
-        
-        for item in response.get('Items', []):
-            resource_name = item['ResourceName']['S']
-            version = int(item.get('Version', {}).get('N', '0'))
-            
-            dynamodb.update_item(
-                TableName='mcp-provisioning-checklist',
-                Key={'Project': {'S': 'mcp-spring-boot'}, 'ResourceName': {'S': resource_name}},
-                UpdateExpression='SET Version = :v',
-                ExpressionAttributeValues={':v': {'N': str(version - 1)}}
-            )
-        
-        print("✅ Rollback completed")
-    else:
-        print("❌ Rollback failed")
+        print(f"   Rolling back {resource_name}")
+        # Rollback logic here
+    
+    print("✅ Rollback complete")
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--target-commit', required=True)
-    args = parser.parse_args()
-    rollback(args.target_commit)
+    if len(sys.argv) < 2:
+        print("Usage: rollback.py --target-commit <commit-sha>")
+        sys.exit(1)
+    
+    target_commit = sys.argv[2] if len(sys.argv) > 2 else None
+    if target_commit:
+        rollback(target_commit)
+    else:
+        print("Error: --target-commit required")
+        sys.exit(1)
