@@ -1,15 +1,40 @@
 #!/usr/bin/env python3
 """
-IaL Natural Language Processor
-Processes natural language commands for infrastructure deployment
+IaL Natural Language Processor v2.0
+Enhanced with Bedrock Conversational AI
 """
 
-import re
+import sys
+import os
+import uuid
 import json
 from typing import Dict, List, Optional
 
+# Try to import Bedrock modules
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
+    from bedrock_conversation_engine import BedrockConversationEngine
+    from bedrock_cost_monitor import BedrockCostMonitor
+    BEDROCK_AVAILABLE = True
+except ImportError:
+    BEDROCK_AVAILABLE = False
+    print("⚠️ Bedrock modules not available - running in offline mode")
+
 class IaLNaturalProcessor:
     def __init__(self):
+        if BEDROCK_AVAILABLE:
+            try:
+                self.bedrock_engine = BedrockConversationEngine()
+                self.cost_monitor = BedrockCostMonitor()
+                self.bedrock_enabled = True
+                print("🧠 Bedrock AI enabled")
+            except Exception as e:
+                print(f"⚠️ Bedrock initialization failed: {e}")
+                self.bedrock_enabled = False
+        else:
+            self.bedrock_enabled = False
+        
+        # Fallback simple patterns for offline mode
         self.domain_mapping = {
             'security': ['security', 'kms', 'iam', 'secrets', 'waf', 'encryption'],
             'networking': ['network', 'vpc', 'subnet', 'routing', 'flow logs'],
@@ -27,9 +52,48 @@ class IaLNaturalProcessor:
             'rollback': ['rollback', 'undo', 'revert', 'remove', 'delete', 'destroy'],
             'validate': ['validate', 'test', 'verify', 'check', 'ensure']
         }
-    
-    def extract_intent(self, user_input: str) -> Dict:
-        """Extract intent from natural language input"""
+
+    def process_command(self, user_input: str, user_id: str = None, session_id: str = None) -> str:
+        """Main processing function with Bedrock integration"""
+        
+        if not user_id:
+            user_id = "anonymous-user"
+        
+        if self.bedrock_enabled:
+            try:
+                # Use Bedrock for intelligent conversation
+                result = self.bedrock_engine.process_conversation(user_input, user_id, session_id)
+                
+                # Track costs
+                if result.get('usage') and hasattr(self, 'cost_monitor'):
+                    usage = result['usage']
+                    model_id = self.bedrock_engine.models.get(result.get('model_used', 'haiku'))
+                    
+                    self.cost_monitor.track_token_usage(
+                        user_id=user_id,
+                        model_id=model_id,
+                        input_tokens=usage.get('input_tokens', 0),
+                        output_tokens=usage.get('output_tokens', 0)
+                    )
+                
+                return result['response']
+                
+            except Exception as e:
+                print(f"Bedrock error: {e}")
+                # Fallback to simple pattern matching
+                return self.fallback_processing(user_input)
+        else:
+            # Use fallback processing
+            return self.fallback_processing(user_input)
+
+    def fallback_processing(self, user_input: str) -> str:
+        """Fallback processing when Bedrock is unavailable"""
+        
+        intent = self.extract_intent(user_input)
+        return self.generate_fallback_response(intent)
+
+    def extract_intent(self, user_input: str) -> dict:
+        """Extract intent from natural language input (fallback)"""
         user_input = user_input.lower()
         
         # Extract action
@@ -57,50 +121,51 @@ class IaLNaturalProcessor:
             'all_domains': all_domains,
             'original_input': user_input
         }
-    
-    def generate_response(self, intent: Dict) -> str:
-        """Generate natural language response"""
+
+    def generate_fallback_response(self, intent: dict) -> str:
+        """Generate fallback response when Bedrock is unavailable"""
+        
         action = intent.get('action')
         domain = intent.get('domain')
         dry_run = intent.get('dry_run')
         all_domains = intent.get('all_domains')
         
         if not action:
-            return "🤔 I'm not sure what you'd like me to do. Try saying something like 'deploy security' or 'show me the status'."
+            return "🤔 I'm currently running in offline mode. Try saying something like 'deploy security' or 'show me the status'. For full conversational AI, please ensure Bedrock access is configured."
         
         if action == 'deploy':
             if all_domains:
-                return "🚀 I'll deploy the complete infrastructure across all domains. This includes foundation, security, networking, compute, data, application, observability, AI/ML, and governance. This will take approximately 3 hours. Shall I proceed?"
+                return "🚀 I would deploy the complete infrastructure across all domains. This includes foundation, security, networking, compute, data, application, observability, AI/ML, and governance. This will take approximately 3 hours. (Note: Running in offline mode - full conversation available with Bedrock)"
             elif domain:
                 domain_info = self.get_domain_info(domain)
                 if dry_run:
-                    return f"🔍 I'll simulate deploying the {domain} infrastructure. This would include {domain_info['phases']} phases and take about {domain_info['duration']}. No actual resources will be created."
+                    return f"🔍 I would simulate deploying the {domain} infrastructure. This would include {domain_info['phases']} phases and take about {domain_info['duration']}. No actual resources would be created. (Offline mode)"
                 else:
-                    return f"🚀 I'll deploy the {domain} infrastructure. This includes {domain_info['phases']} phases and will take about {domain_info['duration']}. Shall I proceed?"
+                    return f"🚀 I would deploy the {domain} infrastructure. This includes {domain_info['phases']} phases and will take about {domain_info['duration']}. (Offline mode - use Bedrock for full conversation)"
             else:
-                return "🤔 What would you like me to deploy? You can say 'security', 'networking', 'compute', or 'everything'."
+                return "🤔 What would you like me to deploy? You can say 'security', 'networking', 'compute', or 'everything'. (Offline mode)"
         
         elif action == 'status':
             if domain:
-                return f"📊 Let me check the {domain} infrastructure status..."
+                return f"📊 I would check the {domain} infrastructure status... (Offline mode - enable Bedrock for real-time status)"
             else:
-                return "📊 Let me show you the overall infrastructure status..."
+                return "📊 I would show you the overall infrastructure status... (Offline mode)"
         
         elif action == 'rollback':
             if domain:
-                return f"🔄 I'll rollback the {domain} infrastructure. This will safely remove all resources in reverse order. Are you sure you want to proceed?"
+                return f"🔄 I would rollback the {domain} infrastructure. This would safely remove all resources in reverse order. (Offline mode - Bedrock needed for confirmation)"
             else:
-                return "🔄 What would you like me to rollback? Please specify the domain like 'rollback security' or 'rollback networking'."
+                return "🔄 What would you like me to rollback? Please specify the domain like 'rollback security' or 'rollback networking'. (Offline mode)"
         
         elif action == 'validate':
             if domain:
-                return f"🔍 I'll validate the {domain} infrastructure configuration and deployment..."
+                return f"🔍 I would validate the {domain} infrastructure configuration and deployment... (Offline mode)"
             else:
-                return "🔍 I'll validate the complete infrastructure setup..."
+                return "🔍 I would validate the complete infrastructure setup... (Offline mode)"
         
-        return "🤔 I understand you want to perform an action, but I need more details. Try being more specific about what you'd like to do."
-    
-    def get_domain_info(self, domain: str) -> Dict:
+        return "🤔 I understand you want to perform an action, but I'm running in offline mode. For full conversational AI capabilities, please configure Bedrock access."
+
+    def get_domain_info(self, domain: str) -> dict:
         """Get information about a domain"""
         domain_details = {
             'security': {'phases': 6, 'duration': '30 minutes'},
@@ -114,34 +179,91 @@ class IaLNaturalProcessor:
         }
         
         return domain_details.get(domain, {'phases': 'several', 'duration': 'some time'})
-    
-    def process_command(self, user_input: str) -> str:
-        """Main processing function"""
-        intent = self.extract_intent(user_input)
-        response = self.generate_response(intent)
+
+    def get_usage_report(self, user_id: str) -> dict:
+        """Get usage and cost report for a user"""
         
-        return response
+        if not self.bedrock_enabled or not hasattr(self, 'cost_monitor'):
+            return {'error': 'Cost monitoring not available in offline mode'}
+        
+        try:
+            daily_usage = self.cost_monitor.get_daily_usage(user_id)
+            monthly_usage = self.cost_monitor.get_monthly_usage(user_id)
+            suggestions = self.cost_monitor.get_cost_optimization_suggestions(user_id)
+            
+            return {
+                'daily_usage': daily_usage,
+                'monthly_usage': monthly_usage,
+                'optimization_suggestions': suggestions
+            }
+        except Exception as e:
+            return {'error': f"Unable to retrieve usage report: {e}"}
+
+# Interactive CLI for testing
+def interactive_mode():
+    processor = IaLNaturalProcessor()
+    user_id = input("Enter your user ID (or press Enter for anonymous): ").strip() or "anonymous-user"
+    session_id = str(uuid.uuid4())
+    
+    print(f"\n🧠 IaL Natural Language Processor v2.0")
+    if processor.bedrock_enabled:
+        print("✅ Bedrock AI: ENABLED")
+    else:
+        print("⚠️ Bedrock AI: OFFLINE MODE")
+    print(f"👤 User: {user_id}")
+    print(f"🔗 Session: {session_id[:8]}...")
+    print("=" * 60)
+    print("Type 'quit' to exit, 'usage' for cost report, or ask me anything about infrastructure!")
+    print()
+    
+    while True:
+        try:
+            user_input = input("👤 You: ").strip()
+            
+            if user_input.lower() in ['quit', 'exit', 'bye']:
+                print("👋 Goodbye! Thanks for using IaL!")
+                break
+            
+            if user_input.lower() == 'usage':
+                report = processor.get_usage_report(user_id)
+                print(f"📊 Usage Report: {json.dumps(report, indent=2)}")
+                continue
+            
+            if not user_input:
+                continue
+            
+            response = processor.process_command(user_input, user_id, session_id)
+            print(f"🤖 IaL: {response}")
+            print()
+            
+        except KeyboardInterrupt:
+            print("\n👋 Goodbye!")
+            break
+        except Exception as e:
+            print(f"❌ Error: {e}")
 
 # Example usage and testing
 if __name__ == "__main__":
-    processor = IaLNaturalProcessor()
-    
-    # Test examples
-    test_inputs = [
-        "Deploy the security infrastructure",
-        "Show me the networking status",
-        "Create everything for production",
-        "Rollback the compute changes",
-        "Test the database setup",
-        "What's the current status?",
-        "I need to set up monitoring",
-        "Remove the AI services"
-    ]
-    
-    print("🧠 IaL Natural Language Processor Test")
-    print("=" * 50)
-    
-    for test_input in test_inputs:
-        print(f"\n👤 User: {test_input}")
-        response = processor.process_command(test_input)
-        print(f"🤖 IaL: {response}")
+    if len(sys.argv) > 1 and sys.argv[1] == 'interactive':
+        interactive_mode()
+    else:
+        processor = IaLNaturalProcessor()
+        
+        # Test examples
+        test_inputs = [
+            "Hello, I need help with my infrastructure",
+            "Deploy the security infrastructure for production",
+            "Show me the current status of all deployments",
+            "What's the cost of my Bedrock usage this month?",
+            "Rollback the compute changes from yesterday",
+            "I want to set up monitoring for my application"
+        ]
+        
+        print("🧠 IaL Natural Language Processor v2.0 Test")
+        print("=" * 50)
+        
+        test_user_id = "test-user-123"
+        for i, test_input in enumerate(test_inputs):
+            print(f"\n👤 User: {test_input}")
+            response = processor.process_command(test_input, test_user_id)
+            print(f"🤖 IaL: {response}")
