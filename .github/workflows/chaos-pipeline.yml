@@ -57,7 +57,28 @@ jobs:
           role-to-assume: ${{ secrets.AWS_CHAOS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       
+      - name: 'Check Chaos Engineering Status'
+        id: chaos-check
+        run: |
+          # Check if chaos engineering is enabled
+          CHAOS_ENABLED=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.PROJECT_NAME }}-chaos-engineering \
+            --query 'Stacks[0].Parameters[?ParameterKey==`ChaosEnabled`].ParameterValue' \
+            --output text 2>/dev/null || echo "false")
+          
+          echo "chaos_enabled=$CHAOS_ENABLED" >> $GITHUB_OUTPUT
+          
+          if [ "$CHAOS_ENABLED" != "true" ]; then
+            echo "🛡️ Chaos Engineering is DISABLED by default for safety"
+            echo "To enable: Update CloudFormation parameter ChaosEnabled=true"
+            echo "Or use natural language: 'Enable chaos engineering'"
+            exit 0
+          fi
+          
+          echo "🧪 Chaos Engineering is ENABLED - proceeding with tests"
+      
       - name: 'Pre-Chaos Health Check'
+        if: steps.chaos-check.outputs.chaos_enabled == 'true'
         id: pre-check
         run: |
           python3 -c "
@@ -90,6 +111,7 @@ jobs:
           "
       
       - name: 'Execute Chaos Experiments'
+        if: steps.chaos-check.outputs.chaos_enabled == 'true'
         id: chaos-execution
         run: |
           cd scripts
@@ -103,7 +125,7 @@ jobs:
           fi
       
       - name: 'Post-Chaos Health Check'
-        if: always()
+        if: always() && steps.chaos-check.outputs.chaos_enabled == 'true'
         run: |
           echo "Waiting 5 minutes for system recovery..."
           sleep 300
@@ -187,7 +209,10 @@ jobs:
       - name: 'Notify Results'
         if: always()
         run: |
-          if [ "${{ steps.chaos-execution.outcome }}" = "success" ]; then
+          if [ "${{ steps.chaos-check.outputs.chaos_enabled }}" != "true" ]; then
+            echo "🛡️ Chaos Engineering is DISABLED - no tests executed (safe default)"
+            echo "✅ System remains stable with chaos testing disabled"
+          elif [ "${{ steps.chaos-execution.outcome }}" = "success" ]; then
             echo "✅ Chaos engineering tests completed successfully"
           else
             echo "❌ Chaos engineering tests failed"

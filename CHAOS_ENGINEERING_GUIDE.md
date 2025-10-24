@@ -1,8 +1,26 @@
 # 🧪 IaL Chaos Engineering Guide
 
-## 🎯 **OVERVIEW**
+## 🛡️ **CONFIGURAÇÃO PADRÃO: DESABILITADO**
 
-O IaL implementa **Chaos Engineering** usando **AWS Fault Injection Simulator (FIS)** para validar a resiliência do sistema através de falhas controladas. Este é o **primeiro projeto open source** com chaos engineering completo e custo otimizado.
+**⚠️ IMPORTANTE:** O Chaos Engineering está **DESABILITADO POR PADRÃO** para segurança operacional e controle de custos.
+
+### **🔧 Estado Atual:**
+```yaml
+ChaosEnabled: false  # ← PADRÃO SEGURO
+Recursos FIS: Não criados
+Custo FIS: $0.00/mês
+GitHub Actions: Pula chaos tests
+```
+
+### **📋 Para Habilitar (Quando Necessário):**
+```bash
+1. Sistema estável por 2+ semanas
+2. Observability 100% funcional  
+3. Backup/recovery testados
+4. Solicitar ativação via linguagem natural
+```
+
+**Consulte `CHAOS_ENGINEERING_STRATEGY.md` para detalhes completos.**
 
 ---
 

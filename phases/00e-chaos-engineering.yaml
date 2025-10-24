@@ -10,7 +10,8 @@ Parameters:
     Default: 'dev'
   ChaosEnabled:
     Type: String
-    Default: 'true'
+    Default: 'false'
+    Description: 'Enable chaos engineering experiments (disabled by default for safety)'
     AllowedValues: ['true', 'false']
 
 Conditions:
