@@ -1,0 +1,107 @@
+# IaL Deployment Order - Domain-Based Architecture
+# Generated: 2025-10-24
+# Total Domains: 8
+# Total Phases: 31
+
+metadata:
+  version: "2.0"
+  architecture: "domain-based"
+  total_domains: 8
+  total_phases: 31
+  estimated_total_duration: "180min"
+  generated_by: "ial-restructure"
+
+execution_plan:
+  wave_1:
+    description: "Foundation - Core infrastructure base"
+    domains: ["00-foundation"]
+    parallel: false
+    estimated_duration: "25min"
+    phases:
+      - domain: "00-foundation"
+        sequence: ["01-dynamodb-state", "02-logging-infrastructure", "03-reconciliation-engine", "04-backup-strategy", "05-chaos-engineering", "06-reconciliation-wrapper"]
+        parallel_within_domain: false
+
+  wave_2:
+    description: "Security & Network - Foundation ready"
+    domains: ["10-security", "20-network"]
+    parallel: false
+    estimated_duration: "50min"
+    phases:
+      - domain: "10-security"
+        sequence: ["01-kms-security", "02-security-services", "03-secrets-manager", "04-iam-roles", "05-iam-bedrock-github", "06-waf-cloudfront"]
+        parallel_within_domain: true
+      - domain: "20-network"
+        sequence: ["01-networking", "02-vpc-flow-logs"]
+        parallel_within_domain: false
+        depends_on: ["10-security"]
+
+  wave_3:
+    description: "Core Services - Infrastructure ready"
+    domains: ["30-compute", "40-data"]
+    parallel: true
+    estimated_duration: "40min"
+    phases:
+      - domain: "30-compute"
+        sequence: ["01-ecr", "02-ecs-cluster", "03-ecs-task-service", "04-ecs-autoscaling", "05-alb"]
+        parallel_within_domain: true
+      - domain: "40-data"
+        sequence: ["01-redis", "02-aurora-postgresql", "03-aurora-postgresql-secure", "04-dynamodb-tables", "05-s3-storage"]
+        parallel_within_domain: true
+
+  wave_4:
+    description: "Application Services - Core ready"
+    domains: ["50-application"]
+    parallel: false
+    estimated_duration: "25min"
+    phases:
+      - domain: "50-application"
+        sequence: ["01-lambda-functions", "02-step-functions", "03-sns-topics", "04-parameter-store"]
+        parallel_within_domain: true
+
+  wave_5:
+    description: "Enhancement Services - Application ready"
+    domains: ["60-observability", "70-ai-ml"]
+    parallel: true
+    estimated_duration: "35min"
+    phases:
+      - domain: "60-observability"
+        sequence: ["01-enhanced-observability", "02-observability", "03-drift-detection"]
+        parallel_within_domain: true
+      - domain: "70-ai-ml"
+        sequence: ["01-rag-s3-tables"]
+        parallel_within_domain: true
+
+  wave_6:
+    description: "Governance - Final assessment"
+    domains: ["90-governance"]
+    parallel: false
+    estimated_duration: "10min"
+    phases:
+      - domain: "90-governance"
+        sequence: ["01-well-architected-assessment", "02-budgets-resources", "03-cost-guardrails"]
+        parallel_within_domain: false
+
+# Domain Dependencies Matrix
+dependencies:
+  "00-foundation": []
+  "10-security": ["00-foundation"]
+  "20-network": ["00-foundation", "10-security"]
+  "30-compute": ["00-foundation", "10-security", "20-network"]
+  "40-data": ["00-foundation", "10-security", "20-network"]
+  "50-application": ["00-foundation", "10-security", "20-network", "30-compute", "40-data"]
+  "60-observability": ["00-foundation", "30-compute", "40-data", "50-application"]
+  "70-ai-ml": ["00-foundation", "10-security", "40-data", "50-application"]
+  "90-governance": ["00-foundation", "10-security", "20-network", "30-compute", "40-data", "50-application", "60-observability", "70-ai-ml"]
+
+# Parallelization Opportunities
+parallelization:
+  wave_2_security_phases: ["01-kms-security", "02-security-services", "03-secrets-manager"]
+  wave_3_compute_data: ["30-compute", "40-data"]
+  wave_5_observability_ai: ["60-observability", "70-ai-ml"]
+
+# Risk Assessment
+risk_levels:
+  low: ["00-foundation", "60-observability", "90-governance"]
+  medium: ["20-network", "30-compute", "50-application", "70-ai-ml"]
+  high: ["10-security", "40-data"]

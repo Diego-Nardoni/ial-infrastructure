@@ -1,0 +1,12 @@
+domain:
+  name: "ai-ml"
+  description: "AI/ML services - RAG, Bedrock integrations"
+  dependencies: ["foundation", "security", "data", "application"]
+  parallel_safe: true
+  estimated_duration: "15min"
+  team_owner: "ai-team"
+  risk_level: "medium"
+  phases:
+    - "01-rag-s3-tables.yaml"
+  execution_order: "parallel"
+  priority: 7

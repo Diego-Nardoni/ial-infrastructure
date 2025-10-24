@@ -1,0 +1,16 @@
+domain:
+  name: "compute"
+  description: "Compute infrastructure - ECS, ECR, ALB, auto-scaling"
+  dependencies: ["foundation", "security", "network"]
+  parallel_safe: true
+  estimated_duration: "35min"
+  team_owner: "platform-team"
+  risk_level: "medium"
+  phases:
+    - "01-ecr.yaml"
+    - "02-ecs-cluster.yaml"
+    - "03-ecs-task-service.yaml"
+    - "04-ecs-autoscaling.yaml"
+    - "05-alb.yaml"
+  execution_order: "mixed"
+  priority: 4

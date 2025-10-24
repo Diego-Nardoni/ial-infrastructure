@@ -1,0 +1,14 @@
+domain:
+  name: "observability"
+  description: "Monitoring and observability - CloudWatch, X-Ray, drift detection"
+  dependencies: ["foundation", "compute", "data", "application"]
+  parallel_safe: true
+  estimated_duration: "20min"
+  team_owner: "sre-team"
+  risk_level: "low"
+  phases:
+    - "01-enhanced-observability.yaml"
+    - "02-observability.yaml"
+    - "03-drift-detection.yaml"
+  execution_order: "parallel"
+  priority: 6

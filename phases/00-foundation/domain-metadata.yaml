@@ -1,0 +1,17 @@
+domain:
+  name: "foundation"
+  description: "Core infrastructure foundation - state management, logging, reconciliation"
+  dependencies: []
+  parallel_safe: false
+  estimated_duration: "25min"
+  team_owner: "platform-team"
+  risk_level: "low"
+  phases:
+    - "01-dynamodb-state.yaml"
+    - "02-logging-infrastructure.yaml"
+    - "03-reconciliation-engine.yaml"
+    - "04-backup-strategy.yaml"
+    - "05-chaos-engineering.yaml"
+    - "06-reconciliation-wrapper.yaml"
+  execution_order: "sequential"
+  priority: 1

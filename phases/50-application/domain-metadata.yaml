@@ -1,0 +1,15 @@
+domain:
+  name: "application"
+  description: "Application services - Lambda, Step Functions, SNS, Parameter Store"
+  dependencies: ["foundation", "security", "network", "compute", "data"]
+  parallel_safe: true
+  estimated_duration: "25min"
+  team_owner: "application-team"
+  risk_level: "medium"
+  phases:
+    - "01-lambda-functions.yaml"
+    - "02-step-functions.yaml"
+    - "03-sns-topics.yaml"
+    - "04-parameter-store.yaml"
+  execution_order: "parallel"
+  priority: 5

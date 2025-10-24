@@ -1,0 +1,14 @@
+domain:
+  name: "governance"
+  description: "Governance and compliance - Well-Architected, budgets, cost controls"
+  dependencies: ["foundation", "security", "network", "compute", "data", "application", "observability", "ai-ml"]
+  parallel_safe: true
+  estimated_duration: "10min"
+  team_owner: "governance-team"
+  risk_level: "low"
+  phases:
+    - "01-well-architected-assessment.yaml"
+    - "02-budgets-resources.yaml"
+    - "03-cost-guardrails.yaml"
+  execution_order: "sequential"
+  priority: 9

@@ -1,0 +1,16 @@
+domain:
+  name: "data"
+  description: "Data storage and databases - RDS, DynamoDB, Redis, S3"
+  dependencies: ["foundation", "security", "network"]
+  parallel_safe: true
+  estimated_duration: "40min"
+  team_owner: "data-team"
+  risk_level: "high"
+  phases:
+    - "01-redis.yaml"
+    - "02-aurora-postgresql.yaml"
+    - "03-aurora-postgresql-secure.yaml"
+    - "04-dynamodb-tables.yaml"
+    - "05-s3-storage.yaml"
+  execution_order: "parallel"
+  priority: 4
