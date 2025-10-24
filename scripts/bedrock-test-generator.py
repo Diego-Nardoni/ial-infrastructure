@@ -301,7 +301,7 @@ def save_test_files(test_scenarios):
             f.write(f'''#!/usr/bin/env python3
 """
 Bedrock-generated {category.title()} Tests
-Generated: {datetime.utcnow().isoformat()}
+Generated: {datetime.now(datetime.timezone.utc).isoformat()}
 Test Count: {len(tests)}
 """
 
@@ -333,7 +333,7 @@ def log_bedrock_usage(model_id, input_tokens, output_tokens):
     """Log Bedrock usage for cost tracking"""
     
     usage_log = {
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
         'model_id': model_id,
         'input_tokens': input_tokens,
         'output_tokens': output_tokens,

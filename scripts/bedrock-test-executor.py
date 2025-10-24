@@ -36,7 +36,7 @@ def execute_pytest_tests():
     """Execute all generated pytest tests"""
     
     test_results = {
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
         'categories': {},
         'summary': {}
     }
@@ -274,7 +274,7 @@ def generate_intelligent_report(analysis):
     """Generate comprehensive test report"""
     
     report = {
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
         'analysis': analysis,
         'deployment_recommendation': get_deployment_recommendation(analysis)
     }
@@ -346,7 +346,7 @@ def log_bedrock_usage(model_id, input_tokens, output_tokens, operation):
     os.makedirs('/home/ial/logs', exist_ok=True)
     
     usage_log = {
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
         'model_id': model_id,
         'input_tokens': input_tokens,
         'output_tokens': output_tokens,

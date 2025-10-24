@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Conversational Infrastructure Orchestrator - Natural Language Intent Processing"""
 
+from pathlib import Path
 import yaml
 import re
 import subprocess
@@ -44,7 +45,11 @@ def load_intent_config():
     """Load intent configuration from main.mcp.yaml"""
     
     try:
-        with open('/home/ial/orchestration/main.mcp.yaml', 'r') as f:
+        # Get project root dynamically
+        project_root = Path(__file__).parent.parent
+        config_path = project_root / 'orchestration' / 'main.mcp.yaml'
+        
+        with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
         return config
     except Exception as e:
@@ -98,7 +103,9 @@ def deploy_phase(phase_name):
     
     print(f"📋 Deploying phase: {phase_name}")
     
-    phase_file = f"/home/ial/phases/{phase_name}.yaml"
+    # Get project root dynamically
+    project_root = Path(__file__).parent.parent
+    phase_file = project_root / 'phases' / f"{phase_name}.yaml"
     
     if not os.path.exists(phase_file):
         print(f"❌ Phase file not found: {phase_file}")
@@ -126,8 +133,9 @@ def run_script(script_command):
     print(f"🔧 Running script: {script_command}")
     
     try:
-        # Change to IaL directory
-        os.chdir('/home/ial')
+        # Change to project root directory
+        project_root = Path(__file__).parent.parent
+        os.chdir(project_root)
         
         # Run the script
         result = subprocess.run(
@@ -161,7 +169,8 @@ def run_verification(verify_command):
     """Run verification command"""
     
     try:
-        os.chdir('/home/ial')
+        project_root = Path(__file__).parent.parent
+        os.chdir(project_root)
         
         result = subprocess.run(
             verify_command,

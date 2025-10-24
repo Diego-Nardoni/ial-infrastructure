@@ -25,7 +25,7 @@ def main():
     
     # 4. Generate health report
     health_report = {
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
         'stuck_resources': stuck_resources,
         'failed_resources': failed_resources,
         'progress': progress,
@@ -45,7 +45,7 @@ def check_stuck_deployments():
     """Check for resources stuck in deployment"""
     
     # Resources older than 30 minutes without completion
-    cutoff_time = datetime.utcnow() - timedelta(minutes=30)
+    cutoff_time = datetime.now(datetime.timezone.utc) - timedelta(minutes=30)
     
     try:
         response = dynamodb.scan(

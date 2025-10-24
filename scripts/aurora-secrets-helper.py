@@ -128,7 +128,7 @@ def test_aurora_connection():
         # Test insert
         cursor.execute(
             "INSERT INTO connection_test (message) VALUES (%s);",
-            (f"Connection test at {datetime.utcnow()}",)
+            (f"Connection test at {datetime.now(datetime.timezone.utc)}",)
         )
         
         # Test select

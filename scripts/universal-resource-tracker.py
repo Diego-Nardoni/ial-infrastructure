@@ -227,7 +227,7 @@ def register_resource(resource_info):
                 'CreatedVia': {'S': 'universal-tracker'},
                 'Service': {'S': resource_info['service']},
                 'Operation': {'S': resource_info['operation']},
-                'Timestamp': {'S': datetime.utcnow().isoformat()}
+                'Timestamp': {'S': datetime.now(datetime.timezone.utc).isoformat()}
             }
         )
         print(f"✅ Registered in DynamoDB: {resource_info['name']}")
@@ -269,7 +269,7 @@ def add_to_phase_universal(resource_info):
                 'CreatedVia': 'universal-tracker',
                 'Service': resource_info['service'],
                 'Operation': resource_info['operation'],
-                'Timestamp': datetime.utcnow().isoformat(),
+                'Timestamp': datetime.now(datetime.timezone.utc).isoformat(),
                 'OriginalName': resource_info['name']
             }
         }

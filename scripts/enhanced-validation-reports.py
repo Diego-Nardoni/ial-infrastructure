@@ -22,7 +22,7 @@ def generate_enhanced_report():
     
     # Generate enhanced report
     report = {
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
         'account_id': account_id,
         'region': region,
         'summary': validation_data['summary'],
@@ -165,8 +165,8 @@ def get_detailed_cost_analysis():
         # Get last 30 days cost
         response = ce.get_cost_and_usage(
             TimePeriod={
-                'Start': (datetime.utcnow().replace(day=1)).strftime('%Y-%m-%d'),
-                'End': datetime.utcnow().strftime('%Y-%m-%d')
+                'Start': (datetime.now(datetime.timezone.utc).replace(day=1)).strftime('%Y-%m-%d'),
+                'End': datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d')
             },
             Granularity='MONTHLY',
             Metrics=['BlendedCost'],

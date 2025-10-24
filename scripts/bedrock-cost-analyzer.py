@@ -179,7 +179,7 @@ def generate_cost_report(cost_analysis, recommendations):
     os.makedirs('/home/ial/reports', exist_ok=True)
     
     report = {
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
         'summary': {
             'total_cost': round(cost_analysis['total_cost'], 4),
             'total_calls': cost_analysis['total_calls'],

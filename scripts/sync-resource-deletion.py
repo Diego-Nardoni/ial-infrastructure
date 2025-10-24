@@ -24,7 +24,7 @@ def sync_deletion(resource_name, resource_type=None):
             ExpressionAttributeNames={'#status': 'Status'},
             ExpressionAttributeValues={
                 ':deleted': {'S': 'Deleted'},
-                ':time': {'S': datetime.utcnow().isoformat()}
+                ':time': {'S': datetime.now(datetime.timezone.utc).isoformat()}
             }
         )
         

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import datetime
 """Deployment Validation - Ensure All Resources Are Created"""
 
 import boto3
@@ -8,6 +9,12 @@ import os
 import sys
 from pathlib import Path
 from datetime import datetime
+
+# Get project root directory dynamically
+PROJECT_ROOT = Path(__file__).parent.parent
+PHASES_DIR = PROJECT_ROOT / 'phases'
+REPORTS_DIR = PROJECT_ROOT / 'reports'
+VALIDATION_DIR = PROJECT_ROOT / 'validation'
 
 dynamodb = boto3.client('dynamodb')
 
@@ -39,7 +46,7 @@ def main():
 def count_expected_resources():
     """Count all resources defined in phases"""
     
-    phases_dir = Path('/home/ial/phases')
+    phases_dir = PHASES_DIR
     total_resources = 0
     phase_details = {}
     
@@ -149,7 +156,7 @@ def validate_completeness(expected, created):
     """Validate deployment completeness"""
     
     validation = {
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
         'expected_total': expected['total'],
         'created_total': created['total'],
         'completion_rate': 0,
@@ -210,9 +217,9 @@ def generate_validation_report(validation):
     """Generate comprehensive validation report"""
     
     # Save detailed report
-    os.makedirs('/home/ial/reports', exist_ok=True)
+    REPORTS_DIR.mkdir(exist_ok=True)
     
-    with open('/home/ial/reports/deployment_validation.json', 'w') as f:
+    with open(REPORTS_DIR / 'deployment_validation.json', 'w') as f:
         json.dump(validation, f, indent=2)
     
     # Print summary
@@ -244,7 +251,7 @@ def update_validation_metadata():
     expected = count_expected_resources()
     
     # Update checklist.yaml
-    checklist_path = '/home/ial/validation/checklist.yaml'
+    checklist_path = VALIDATION_DIR / 'checklist.yaml'
     
     try:
         with open(checklist_path, 'r') as f:

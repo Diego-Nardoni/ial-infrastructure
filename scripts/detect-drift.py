@@ -29,7 +29,7 @@ def detect_drift():
             drifts.append({
                 'resource': resource_name,
                 'severity': severity,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(datetime.timezone.utc).isoformat()
             })
             
             dynamodb.update_item(
