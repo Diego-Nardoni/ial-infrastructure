@@ -1,6 +1,6 @@
 phase_name: "Aurora PostgreSQL - Secure with Secrets Manager"
-description: "Aurora PostgreSQL cluster with Secrets Manager integration for secure credential management"
-resource_count: 3
+description: "Aurora PostgreSQL cluster with Secrets Manager integration and proper IAM roles"
+resource_count: 4
 
 Resources:
   # Aurora PostgreSQL Cluster with Secrets Manager
@@ -17,7 +17,14 @@ Resources:
       MasterUserSecret:
         SecretArn: !ImportValue 
           Fn::Sub: '${ProjectName}-aurora-secret-arn'
+        KmsKeyId: alias/aws/secretsmanager
       MasterUsername: postgres
+      
+      # Associate IAM role for Secrets Manager access
+      AssociatedRoles:
+        - RoleArn: !ImportValue
+            Fn::Sub: '${ProjectName}-aurora-secrets-role-arn'
+          FeatureName: 's3Import'  # Required parameter, using s3Import as placeholder
       
       # Network Configuration
       DBSubnetGroupName: !Ref AuroraSubnetGroup
@@ -102,6 +109,12 @@ Resources:
           SourceSecurityGroupId: !ImportValue 
             Fn::Sub: '${ProjectName}-ecs-sg'
           Description: 'PostgreSQL access from ECS services'
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: 'HTTPS outbound for Secrets Manager API calls'
       Tags:
         - Key: Project
           Value: !Ref ProjectName
@@ -136,10 +149,16 @@ Outputs:
       Name: !Sub '${ProjectName}-aurora-port'
 
   AuroraSecretArn:
-    Description: 'ARN of Aurora master secret'
+    Description: 'ARN of Aurora master secret (managed by Aurora)'
     Value: !GetAtt AuroraCluster.MasterUserSecret.SecretArn
     Export:
       Name: !Sub '${ProjectName}-aurora-cluster-secret-arn'
+
+  AuroraSecurityGroupId:
+    Description: 'Security Group ID for Aurora cluster'
+    Value: !Ref AuroraSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-aurora-sg-id'
 
   DatabaseName:
     Description: 'Default database name'
