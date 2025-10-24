@@ -1,0 +1,87 @@
+name: Enhanced Rollback Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Rollback action'
+        required: true
+        type: choice
+        options:
+          - 'rollback_to_checkpoint'
+          - 'create_checkpoint'
+          - 'list_checkpoints'
+      checkpoint_id:
+        description: 'Checkpoint ID (for rollback)'
+        required: false
+      description:
+        description: 'Checkpoint description (for create)'
+        required: false
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  enhanced-rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for rollback
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install boto3 pytest pytest-json-report
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      
+      - name: Verify AWS connection
+        run: |
+          aws --version
+          aws sts get-caller-identity
+      
+      - name: Execute Rollback Action
+        run: |
+          case "${{ github.event.inputs.action }}" in
+            "create_checkpoint")
+              python3 scripts/enhanced-rollback.py checkpoint --description "${{ github.event.inputs.description || 'Manual checkpoint from GitHub Actions' }}"
+              ;;
+            "list_checkpoints")
+              python3 scripts/enhanced-rollback.py list --limit 20
+              ;;
+            "rollback_to_checkpoint")
+              if [ -z "${{ github.event.inputs.checkpoint_id }}" ]; then
+                echo "❌ Checkpoint ID required for rollback"
+                exit 1
+              fi
+              python3 scripts/enhanced-rollback.py rollback "${{ github.event.inputs.checkpoint_id }}"
+              ;;
+            *)
+              echo "❌ Invalid action: ${{ github.event.inputs.action }}"
+              exit 1
+              ;;
+          esac
+      
+      - name: Validate Rollback (if applicable)
+        if: github.event.inputs.action == 'rollback_to_checkpoint'
+        run: |
+          echo "🔍 Validating rollback results..."
+          python3 scripts/validate-deployment.py
+      
+      - name: Cleanup Old Checkpoints
+        if: github.event.inputs.action == 'create_checkpoint'
+        run: |
+          echo "🧹 Cleaning up old checkpoints..."
+          python3 scripts/enhanced-rollback.py cleanup --keep 15

@@ -8,10 +8,16 @@ import os
 import sys
 from pathlib import Path
 from datetime import datetime, timezone
+from time import time
 
 # Import CloudFormation YAML loader
 sys.path.append(str(Path(__file__).parent))
 from cf_yaml_loader import load_cf_yaml
+
+# Import professional logging
+sys.path.append(str(Path(__file__).parent.parent))
+from utils.logger import get_logger
+from utils.rollback_manager import rollback_manager
 
 # Get project root directory dynamically
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -19,6 +25,8 @@ PHASES_DIR = PROJECT_ROOT / 'phases'
 REPORTS_DIR = PROJECT_ROOT / 'reports'
 VALIDATION_DIR = PROJECT_ROOT / 'validation'
 
+# Initialize logger and AWS clients
+logger = get_logger(__name__)
 dynamodb = boto3.client('dynamodb')
 
 def main():
@@ -40,10 +48,10 @@ def main():
     
     # 5. Exit with appropriate code
     if validation_result['status'] == 'COMPLETE':
-        print("✅ Deployment validation PASSED")
+        logger.info(" Deployment validation PASSED")
         sys.exit(0)
     else:
-        print("❌ Deployment validation FAILED")
+        logger.error(" Deployment validation FAILED")
         sys.exit(1)
 
 def count_expected_resources():
@@ -84,7 +92,7 @@ def count_expected_resources():
                 }
                 
         except Exception as e:
-            print(f"⚠️ Error processing {phase_file}: {e}")
+            logger.error(f" Error processing {phase_file}: {e}")
             phase_details[phase_name] = {'error': str(e)}
     
     return {
@@ -153,7 +161,7 @@ def count_created_resources():
         }
         
     except Exception as e:
-        print(f"❌ Error counting created resources: {e}")
+        logger.error(f" Error counting created resources: {e}")
         return {'total': 0, 'by_phase': {}}
 
 def validate_completeness(expected, created):
@@ -276,10 +284,10 @@ def update_validation_metadata():
         with open(checklist_path, 'w') as f:
             f.write(updated_content)
         
-        print(f"✅ Updated validation metadata: {expected['total']} resources")
+        logger.info(f" Updated validation metadata: {expected['total']} resources")
         
     except Exception as e:
-        print(f"⚠️ Could not update metadata: {e}")
+        logger.error(f" Could not update metadata: {e}")
 
 if __name__ == "__main__":
     # Update metadata first

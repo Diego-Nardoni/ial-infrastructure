@@ -58,7 +58,7 @@ jobs:
           # Deploy each phase sequentially
           for phase in phases/*.yaml; do
             phase_name=$(basename "$phase" .yaml)
-            echo "📦 Deploying $phase_name..."
+            python3 -c "import sys; sys.path.append("."); from utils.logger import get_logger; logger = get_logger("github-actions"); logger.deployment_started("$phase_name", 1)" && echo "📦 Deploying $phase_name..."
             
             # Here you would call your deployment logic
             # For now, we'll simulate with a status update

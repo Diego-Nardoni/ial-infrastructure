@@ -1,0 +1,103 @@
+# PHASE 00 - LOGGING INFRASTRUCTURE
+# Professional logging setup for IaL operations
+
+phase: "00-logging-infrastructure"
+description: "CloudWatch Logs setup for professional IaL logging"
+depends_on: []
+estimated_cost_monthly: 5
+resource_count: 3
+
+resources:
+  # CloudWatch Log Group for IaL operations
+  IaLLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: ial-infrastructure
+      RetentionInDays: 30
+      KmsKeyId: !Ref IaLKMSKey
+      Tags:
+        - Key: Project
+          Value: ial
+        - Key: Purpose
+          Value: operational-logging
+        - Key: Environment
+          Value: production
+
+  # CloudWatch Log Group for rollback operations
+  IaLRollbackLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: ial-rollback-operations
+      RetentionInDays: 90
+      KmsKeyId: !Ref IaLKMSKey
+      Tags:
+        - Key: Project
+          Value: ial
+        - Key: Purpose
+          Value: rollback-logging
+        - Key: Environment
+          Value: production
+
+  # CloudWatch Dashboard for IaL monitoring
+  IaLDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: IaL-Operations-Dashboard
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "log",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE 'ial-infrastructure'\n| fields @timestamp, level, message, phase, event_type\n| filter event_type = \"deployment_started\" or event_type = \"deployment_completed\" or event_type = \"deployment_failed\"\n| sort @timestamp desc\n| limit 50",
+                "region": "us-east-1",
+                "title": "Recent Deployments",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE 'ial-infrastructure'\n| fields @timestamp, level, message, error\n| filter level = \"ERROR\"\n| sort @timestamp desc\n| limit 20",
+                "region": "us-east-1",
+                "title": "Recent Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 6,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE 'ial-rollback-operations'\n| fields @timestamp, level, message, checkpoint_id, event_type\n| filter event_type like /rollback/\n| sort @timestamp desc\n| limit 30",
+                "region": "us-east-1",
+                "title": "Rollback Operations",
+                "view": "table"
+              }
+            }
+          ]
+        }
+
+# CloudFormation Outputs
+Outputs:
+  LogGroupArn:
+    Description: ARN of the IaL log group
+    Value: !GetAtt IaLLogGroup.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LogGroupArn"
+  
+  DashboardURL:
+    Description: URL to the IaL operations dashboard
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=IaL-Operations-Dashboard"
+    Export:
+      Name: !Sub "${AWS::StackName}-DashboardURL"

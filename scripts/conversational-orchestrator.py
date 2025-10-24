@@ -8,11 +8,22 @@ import subprocess
 import sys
 import os
 from datetime import datetime
+from time import time
+
+# Import professional logging
+sys.path.append(str(Path(__file__).parent.parent))
+from utils.logger import get_logger
+from utils.rollback_manager import rollback_manager
+
+logger = get_logger(__name__)
 
 def process_intent(user_input):
     """Process natural language intent and execute corresponding actions"""
     
-    print(f"🗣️ Processing intent: '{user_input}'")
+    start_time = time()
+    logger.info(f"Processing intent: {user_input}", 
+                user_input=user_input, 
+                event_type="intent_processing_started")
     
     # Load intent configuration
     config = load_intent_config()
