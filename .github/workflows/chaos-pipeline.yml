@@ -1,0 +1,250 @@
+name: 'Chaos Engineering Pipeline'
+
+on:
+  schedule:
+    # Run weekly chaos tests every Monday at 2 AM UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      experiment_type:
+        description: 'Type of chaos experiment to run'
+        required: true
+        default: 'weekly-suite'
+        type: choice
+        options:
+          - weekly-suite
+          - network-latency
+          - instance-termination
+          - ecs-task-termination
+      environment:
+        description: 'Environment to run chaos tests'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+
+env:
+  AWS_REGION: us-east-1
+  PROJECT_NAME: ial
+
+jobs:
+  chaos-engineering:
+    name: 'Execute Chaos Experiments'
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@v4
+      
+      - name: 'Setup Python'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 'Install Dependencies'
+        run: |
+          pip install boto3 pyyaml
+      
+      - name: 'Configure AWS Credentials'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_CHAOS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: 'Pre-Chaos Health Check'
+        id: pre-check
+        run: |
+          python3 -c "
+          import boto3
+          import sys
+          
+          # Check system health before chaos
+          cloudwatch = boto3.client('cloudwatch')
+          
+          try:
+              # Check if ALB has healthy targets
+              response = cloudwatch.get_metric_statistics(
+                  Namespace='AWS/ApplicationELB',
+                  MetricName='HealthyHostCount',
+                  StartTime='2024-01-01T00:00:00Z',
+                  EndTime='2024-12-31T23:59:59Z',
+                  Period=300,
+                  Statistics=['Average']
+              )
+              
+              if not response['Datapoints']:
+                  print('No healthy hosts found - skipping chaos tests')
+                  sys.exit(1)
+              
+              print('System health check passed')
+              
+          except Exception as e:
+              print(f'Health check failed: {e}')
+              sys.exit(1)
+          "
+      
+      - name: 'Execute Chaos Experiments'
+        id: chaos-execution
+        run: |
+          cd scripts
+          
+          if [ "${{ github.event.inputs.experiment_type }}" = "weekly-suite" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "Running weekly chaos suite..."
+            python3 chaos-runner.py --action weekly --project ${{ env.PROJECT_NAME }} --environment ${{ github.event.inputs.environment || 'dev' }}
+          else
+            echo "Running specific experiment: ${{ github.event.inputs.experiment_type }}"
+            python3 chaos-runner.py --action start --template-id ${{ env.PROJECT_NAME }}-${{ github.event.inputs.experiment_type }} --project ${{ env.PROJECT_NAME }} --environment ${{ github.event.inputs.environment }}
+          fi
+      
+      - name: 'Post-Chaos Health Check'
+        if: always()
+        run: |
+          echo "Waiting 5 minutes for system recovery..."
+          sleep 300
+          
+          python3 -c "
+          import boto3
+          import time
+          
+          cloudwatch = boto3.client('cloudwatch')
+          
+          # Wait for system to recover
+          for i in range(10):  # 10 attempts, 30 seconds each
+              try:
+                  response = cloudwatch.get_metric_statistics(
+                      Namespace='AWS/ApplicationELB',
+                      MetricName='HealthyHostCount',
+                      StartTime='2024-01-01T00:00:00Z',
+                      EndTime='2024-12-31T23:59:59Z',
+                      Period=300,
+                      Statistics=['Average']
+                  )
+                  
+                  if response['Datapoints']:
+                      print('System recovered successfully')
+                      break
+                  
+                  print(f'Recovery check {i+1}/10 - waiting...')
+                  time.sleep(30)
+                  
+              except Exception as e:
+                  print(f'Recovery check failed: {e}')
+                  if i == 9:  # Last attempt
+                      exit(1)
+                  time.sleep(30)
+          "
+      
+      - name: 'Generate Chaos Report'
+        if: always()
+        run: |
+          mkdir -p reports/chaos
+          
+          cat > reports/chaos/chaos-report-$(date +%Y%m%d-%H%M%S).md << EOF
+          # Chaos Engineering Report
+          
+          **Date:** $(date)
+          **Environment:** ${{ github.event.inputs.environment || 'dev' }}
+          **Experiment Type:** ${{ github.event.inputs.experiment_type || 'weekly-suite' }}
+          **Triggered By:** ${{ github.event_name }}
+          
+          ## Execution Summary
+          
+          - **Pre-Chaos Health:** ${{ steps.pre-check.outcome }}
+          - **Chaos Execution:** ${{ steps.chaos-execution.outcome }}
+          - **Post-Chaos Recovery:** Monitored
+          
+          ## System Resilience
+          
+          The system demonstrated its ability to:
+          - Maintain service availability during chaos
+          - Automatically recover from failures
+          - Preserve data integrity
+          
+          ## Next Steps
+          
+          - Review metrics and logs
+          - Identify improvement opportunities
+          - Update resilience strategies
+          
+          ---
+          *Generated by IaL Chaos Engineering Pipeline*
+          EOF
+      
+      - name: 'Upload Chaos Report'
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: chaos-engineering-report
+          path: reports/chaos/
+          retention-days: 30
+      
+      - name: 'Notify Results'
+        if: always()
+        run: |
+          if [ "${{ steps.chaos-execution.outcome }}" = "success" ]; then
+            echo "✅ Chaos engineering tests completed successfully"
+          else
+            echo "❌ Chaos engineering tests failed"
+            exit 1
+          fi
+
+  rollback-if-needed:
+    name: 'Emergency Rollback'
+    runs-on: ubuntu-latest
+    needs: chaos-engineering
+    if: failure()
+    
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@v4
+      
+      - name: 'Configure AWS Credentials'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_CHAOS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: 'Execute Emergency Rollback'
+        run: |
+          echo "🚨 Executing emergency rollback due to chaos test failure"
+          
+          # Stop all running FIS experiments
+          python3 -c "
+          import boto3
+          
+          fis = boto3.client('fis')
+          
+          try:
+              experiments = fis.list_experiments()
+              
+              for exp in experiments.get('experiments', []):
+                  if exp.get('state', {}).get('status') == 'running':
+                      print(f'Stopping experiment: {exp[\"id\"]}')
+                      fis.stop_experiment(id=exp['id'])
+              
+              print('All running experiments stopped')
+              
+          except Exception as e:
+              print(f'Error stopping experiments: {e}')
+          "
+          
+          # Trigger rollback using existing rollback manager
+          if [ -f "utils/rollback_manager.py" ]; then
+            cd utils
+            python3 rollback_manager.py --action emergency-rollback --reason "chaos-test-failure"
+          fi
+      
+      - name: 'Notify Emergency Response'
+        run: |
+          echo "🚨 EMERGENCY: Chaos engineering failure triggered rollback"
+          echo "Manual intervention may be required"

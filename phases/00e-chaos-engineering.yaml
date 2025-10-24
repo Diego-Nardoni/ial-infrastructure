@@ -1,0 +1,229 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IaL Phase 00e - Chaos Engineering with AWS FIS'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'ial'
+  Environment:
+    Type: String
+    Default: 'dev'
+  ChaosEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+
+Conditions:
+  IsChaosEnabled: !Equals [!Ref ChaosEnabled, 'true']
+
+Resources:
+  # IAM Role for FIS Experiments
+  FISExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: IsChaosEnabled
+    Properties:
+      RoleName: !Sub '${ProjectName}-fis-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: fis.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSFaultInjectionSimulatorNetworkAccess
+        - arn:aws:iam::aws:policy/service-role/AWSFaultInjectionSimulatorECSAccess
+        - arn:aws:iam::aws:policy/service-role/AWSFaultInjectionSimulatorEC2Access
+      Policies:
+        - PolicyName: FISChaosPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:StopInstances
+                  - ec2:RebootInstances
+                  - ecs:DescribeServices
+                  - ecs:UpdateService
+                  - ecs:DescribeTasks
+                  - ecs:StopTask
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - cloudwatch:PutMetricData
+                Resource: '*'
+
+  # Network Latency Experiment
+  NetworkLatencyExperiment:
+    Type: AWS::FIS::ExperimentTemplate
+    Condition: IsChaosEnabled
+    Properties:
+      Description: 'Network latency injection for resilience testing'
+      RoleArn: !GetAtt FISExecutionRole.Arn
+      Actions:
+        NetworkLatency:
+          ActionId: aws:network:latency-sources
+          Parameters:
+            duration: PT5M
+            latencyMs: '100'
+            jitterMs: '50'
+          Targets:
+            Subnets: NetworkTargets
+      Targets:
+        NetworkTargets:
+          ResourceType: aws:ec2:subnet
+          ResourceTags:
+            Environment: !Ref Environment
+          SelectionMode: PERCENT(50)
+      StopConditions:
+        - Source: aws:cloudwatch:alarm
+          Value: !Ref ChaosStopCondition
+      Tags:
+        Name: !Sub '${ProjectName}-network-latency'
+        Environment: !Ref Environment
+        Type: 'chaos-engineering'
+
+  # Instance Termination Experiment
+  InstanceTerminationExperiment:
+    Type: AWS::FIS::ExperimentTemplate
+    Condition: IsChaosEnabled
+    Properties:
+      Description: 'Random instance termination for auto-recovery testing'
+      RoleArn: !GetAtt FISExecutionRole.Arn
+      Actions:
+        StopInstances:
+          ActionId: aws:ec2:stop-instances
+          Parameters:
+            startInstancesAfterDuration: PT10M
+          Targets:
+            Instances: InstanceTargets
+      Targets:
+        InstanceTargets:
+          ResourceType: aws:ec2:instance
+          ResourceTags:
+            Environment: !Ref Environment
+            ChaosEnabled: 'true'
+          SelectionMode: COUNT(1)
+      StopConditions:
+        - Source: aws:cloudwatch:alarm
+          Value: !Ref ChaosStopCondition
+      Tags:
+        Name: !Sub '${ProjectName}-instance-termination'
+        Environment: !Ref Environment
+        Type: 'chaos-engineering'
+
+  # ECS Task Termination Experiment
+  ECSTaskTerminationExperiment:
+    Type: AWS::FIS::ExperimentTemplate
+    Condition: IsChaosEnabled
+    Properties:
+      Description: 'ECS task termination for service resilience testing'
+      RoleArn: !GetAtt FISExecutionRole.Arn
+      Actions:
+        StopTasks:
+          ActionId: aws:ecs:stop-task
+          Parameters:
+            reason: 'Chaos engineering test'
+          Targets:
+            Tasks: ECSTaskTargets
+      Targets:
+        ECSTaskTargets:
+          ResourceType: aws:ecs:task
+          ResourceTags:
+            Environment: !Ref Environment
+          SelectionMode: PERCENT(25)
+      StopConditions:
+        - Source: aws:cloudwatch:alarm
+          Value: !Ref ChaosStopCondition
+      Tags:
+        Name: !Sub '${ProjectName}-ecs-task-termination'
+        Environment: !Ref Environment
+        Type: 'chaos-engineering'
+
+  # CloudWatch Alarm for Stop Condition
+  ChaosStopCondition:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsChaosEnabled
+    Properties:
+      AlarmName: !Sub '${ProjectName}-chaos-stop-condition'
+      AlarmDescription: 'Stop chaos experiments if system becomes unhealthy'
+      MetricName: HealthyHostCount
+      Namespace: AWS/ApplicationELB
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+
+  # SNS Topic for Chaos Notifications
+  ChaosNotificationTopic:
+    Type: AWS::SNS::Topic
+    Condition: IsChaosEnabled
+    Properties:
+      TopicName: !Sub '${ProjectName}-chaos-notifications'
+      DisplayName: 'IaL Chaos Engineering Notifications'
+
+  # CloudWatch Log Group for Chaos Events
+  ChaosLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsChaosEnabled
+    Properties:
+      LogGroupName: !Sub '/aws/fis/${ProjectName}-chaos'
+      RetentionInDays: 30
+
+  # Custom Metrics for Chaos Engineering
+  ChaosMetricsNamespace:
+    Type: AWS::CloudWatch::CompositeAlarm
+    Condition: IsChaosEnabled
+    Properties:
+      AlarmName: !Sub '${ProjectName}-chaos-health-composite'
+      AlarmDescription: 'Composite alarm for chaos engineering health'
+      AlarmRule: !Sub |
+        ALARM("${ChaosStopCondition}") OR
+        ALARM("${ProjectName}-high-error-rate") OR
+        ALARM("${ProjectName}-high-latency")
+
+Outputs:
+  FISExecutionRoleArn:
+    Description: 'ARN of the FIS execution role'
+    Value: !GetAtt FISExecutionRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-fis-execution-role-arn'
+    Condition: IsChaosEnabled
+
+  NetworkLatencyExperimentId:
+    Description: 'ID of the network latency experiment template'
+    Value: !Ref NetworkLatencyExperiment
+    Export:
+      Name: !Sub '${ProjectName}-network-latency-experiment'
+    Condition: IsChaosEnabled
+
+  InstanceTerminationExperimentId:
+    Description: 'ID of the instance termination experiment template'
+    Value: !Ref InstanceTerminationExperiment
+    Export:
+      Name: !Sub '${ProjectName}-instance-termination-experiment'
+    Condition: IsChaosEnabled
+
+  ECSTaskTerminationExperimentId:
+    Description: 'ID of the ECS task termination experiment template'
+    Value: !Ref ECSTaskTerminationExperiment
+    Export:
+      Name: !Sub '${ProjectName}-ecs-task-termination-experiment'
+    Condition: IsChaosEnabled
+
+  ChaosNotificationTopicArn:
+    Description: 'ARN of the chaos notification topic'
+    Value: !Ref ChaosNotificationTopic
+    Export:
+      Name: !Sub '${ProjectName}-chaos-notification-topic'
+    Condition: IsChaosEnabled
+
+  ChaosLogGroupName:
+    Description: 'Name of the chaos log group'
+    Value: !Ref ChaosLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-chaos-log-group'
+    Condition: IsChaosEnabled
