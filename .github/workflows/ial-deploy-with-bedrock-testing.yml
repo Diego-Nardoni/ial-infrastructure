@@ -63,27 +63,35 @@ jobs:
             # Here you would call your deployment logic
             # For now, we'll simulate with a status update
             python3 -c "
-          import boto3
-          import json
-          from datetime import datetime
-          
-          dynamodb = boto3.client('dynamodb')
-          
-          # Update deployment status
-          dynamodb.put_item(
-              TableName='mcp-provisioning-checklist',
-              Item={
-                  'Project': {'S': '${{ env.PROJECT_NAME }}'},
-                  'ResourceName': {'S': '$phase_name'},
-                  'Status': {'S': 'Created'},
-                  'Phase': {'S': '$phase_name'},
-                  'Timestamp': {'S': datetime.utcnow().isoformat()},
-                  'Executor': {'S': 'github-actions'},
-                  'ResourceType': {'S': 'AWS::CloudFormation::Stack'}
-              }
-          )
-          print(f'✅ {phase_name} deployment recorded')
-          "
+import boto3
+import json
+import sys
+from datetime import datetime, timezone
+
+# Get phase name from shell variable
+phase_name = '$phase_name'
+
+try:
+    dynamodb = boto3.client('dynamodb')
+    
+    # Update deployment status
+    dynamodb.put_item(
+        TableName='mcp-provisioning-checklist',
+        Item={
+            'Project': {'S': '${{ env.PROJECT_NAME }}'},
+            'ResourceName': {'S': phase_name},
+            'Status': {'S': 'Created'},
+            'Phase': {'S': phase_name},
+            'Timestamp': {'S': datetime.now(timezone.utc).isoformat()},
+            'Executor': {'S': 'github-actions'},
+            'ResourceType': {'S': 'AWS::CloudFormation::Stack'}
+        }
+    )
+    print(f'✅ {phase_name} deployment recorded')
+except Exception as e:
+    print(f'❌ Error recording {phase_name}: {e}')
+    sys.exit(1)
+"
           done
       
       - name: Generate Bedrock Tests
