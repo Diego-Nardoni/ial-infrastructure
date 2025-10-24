@@ -1,0 +1,408 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IaL Cost & Performance Dashboard - Executive visibility and optimization'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'ial'
+  AlertEmail:
+    Type: String
+    Description: 'Email for cost and performance alerts'
+  Environment:
+    Type: String
+    Default: 'prod'
+
+Resources:
+  # Cost & Performance Dashboard
+  CostPerformanceDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${ProjectName}-Cost-Performance-Executive'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "text",
+              "x": 0,
+              "y": 0,
+              "width": 24,
+              "height": 2,
+              "properties": {
+                "markdown": "# 💰 ${ProjectName} - Cost & Performance Executive Dashboard\n**Real-time cost optimization and performance correlation**"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 2,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Billing", "EstimatedCharges", "Currency", "USD"],
+                  ["AWS/Budgets", "ActualCost", "BudgetName", "${ProjectName}-monthly-budget"],
+                  ["AWS/Budgets", "ForecastedCost", "BudgetName", "${ProjectName}-monthly-budget"]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "💰 Cost Trending vs Budget",
+                "period": 86400,
+                "stat": "Maximum",
+                "yAxis": {
+                  "left": {
+                    "min": 0
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 2,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${ProjectName}-alb"],
+                  ["AWS/ECS", "CPUUtilization", "ServiceName", "${ProjectName}-service"],
+                  ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", "${ProjectName}-db"]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "⚡ Performance Metrics",
+                "period": 300,
+                "stat": "Average"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 8,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/EC2", "EstimatedCharges", "Currency", "USD"],
+                  ["AWS/RDS", "EstimatedCharges", "Currency", "USD"],
+                  ["AWS/S3", "EstimatedCharges", "Currency", "USD"],
+                  ["AWS/Lambda", "EstimatedCharges", "Currency", "USD"]
+                ],
+                "view": "pie",
+                "region": "${AWS::Region}",
+                "title": "💸 Cost by Service",
+                "period": 86400,
+                "stat": "Maximum"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 8,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["IaL/Performance", "CostPerRequest"],
+                  ["IaL/Performance", "CostPerTransaction"],
+                  ["IaL/Performance", "PerformanceEfficiencyScore"]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "📊 Cost Efficiency Metrics",
+                "period": 3600,
+                "stat": "Average"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 8,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/TrustedAdvisor", "CostOptimizationRecommendations"],
+                  ["IaL/CostOptimization", "PotentialSavings"],
+                  ["IaL/CostOptimization", "OptimizationOpportunities"]
+                ],
+                "view": "number",
+                "region": "${AWS::Region}",
+                "title": "💡 Optimization Opportunities",
+                "period": 86400,
+                "stat": "Maximum"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 14,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ProjectName}-cost-analyzer'\n| fields @timestamp, @message\n| filter @message like /COST_ANOMALY/\n| sort @timestamp desc\n| limit 10",
+                "region": "${AWS::Region}",
+                "title": "🚨 Recent Cost Anomalies",
+                "view": "table"
+              }
+            }
+          ]
+        }
+
+  # Custom Metrics for Cost Efficiency
+  CostEfficiencyMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ProjectName}-cost-analyzer'
+      FilterPattern: '[timestamp, request_id, cost_per_request=*]'
+      MetricTransformations:
+        - MetricNamespace: 'IaL/Performance'
+          MetricName: 'CostPerRequest'
+          MetricValue: '$cost_per_request'
+          DefaultValue: 0
+
+  # Cost Anomaly Subscription
+  CostAnomalySubscription:
+    Type: AWS::CE::AnomalySubscription
+    Properties:
+      SubscriptionName: !Sub '${ProjectName}-cost-anomaly-alerts'
+      MonitorArnList:
+        - !Sub 'arn:aws:ce:${AWS::Region}:${AWS::AccountId}:anomalydetector/${ProjectName}-cost-anomaly-detector'
+      Subscribers:
+        - Type: EMAIL
+          Address: !Ref AlertEmail
+      Frequency: DAILY
+      ThresholdExpression: !Sub |
+        {
+          "And": [
+            {
+              "Dimensions": {
+                "Key": "ANOMALY_TOTAL_IMPACT_ABSOLUTE",
+                "Values": ["10"],
+                "MatchOptions": ["GREATER_THAN_OR_EQUAL"]
+              }
+            }
+          ]
+        }
+
+  # Performance Efficiency Calculator Lambda
+  PerformanceEfficiencyLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-performance-efficiency-calculator'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt PerformanceEfficiencyRole.Arn
+      Timeout: 300
+      Environment:
+        Variables:
+          PROJECT_NAME: !Ref ProjectName
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from datetime import datetime, timedelta
+          
+          cloudwatch = boto3.client('cloudwatch')
+          ce = boto3.client('ce')
+          
+          def lambda_handler(event, context):
+              project_name = os.environ['PROJECT_NAME']
+              
+              try:
+                  # Get cost data
+                  end_date = datetime.now()
+                  start_date = end_date - timedelta(days=1)
+                  
+                  cost_response = ce.get_cost_and_usage(
+                      TimePeriod={
+                          'Start': start_date.strftime('%Y-%m-%d'),
+                          'End': end_date.strftime('%Y-%m-%d')
+                      },
+                      Granularity='DAILY',
+                      Metrics=['BlendedCost'],
+                      GroupBy=[{'Type': 'DIMENSION', 'Key': 'SERVICE'}]
+                  )
+                  
+                  total_cost = 0
+                  for result in cost_response['ResultsByTime']:
+                      for group in result['Groups']:
+                          total_cost += float(group['Metrics']['BlendedCost']['Amount'])
+                  
+                  # Get performance metrics
+                  perf_response = cloudwatch.get_metric_statistics(
+                      Namespace='AWS/ApplicationELB',
+                      MetricName='RequestCount',
+                      StartTime=start_date,
+                      EndTime=end_date,
+                      Period=3600,
+                      Statistics=['Sum']
+                  )
+                  
+                  total_requests = sum([dp['Sum'] for dp in perf_response['Datapoints']])
+                  
+                  # Calculate efficiency metrics
+                  cost_per_request = total_cost / max(total_requests, 1)
+                  efficiency_score = min(100, max(0, 100 - (cost_per_request * 1000)))
+                  
+                  # Publish custom metrics
+                  cloudwatch.put_metric_data(
+                      Namespace='IaL/Performance',
+                      MetricData=[
+                          {
+                              'MetricName': 'CostPerRequest',
+                              'Value': cost_per_request,
+                              'Unit': 'None'
+                          },
+                          {
+                              'MetricName': 'PerformanceEfficiencyScore',
+                              'Value': efficiency_score,
+                              'Unit': 'Percent'
+                          },
+                          {
+                              'MetricName': 'TotalDailyCost',
+                              'Value': total_cost,
+                              'Unit': 'None'
+                          }
+                      ]
+                  )
+                  
+                  # Log for anomaly detection
+                  print(f'COST_ANALYSIS: cost_per_request={cost_per_request}, efficiency_score={efficiency_score}, total_cost={total_cost}')
+                  
+                  if cost_per_request > 0.01:  # Threshold for anomaly
+                      print(f'COST_ANOMALY: High cost per request detected: ${cost_per_request:.4f}')
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'cost_per_request': cost_per_request,
+                          'efficiency_score': efficiency_score,
+                          'total_cost': total_cost,
+                          'total_requests': total_requests
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f'ERROR: {str(e)}')
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps({'error': str(e)})
+                  }
+
+  # IAM Role for Performance Efficiency Lambda
+  PerformanceEfficiencyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-performance-efficiency-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CostAndPerformanceAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ce:GetCostAndUsage
+                  - ce:GetUsageReport
+                  - cloudwatch:GetMetricStatistics
+                  - cloudwatch:PutMetricData
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  # Scheduled execution for performance efficiency calculation
+  PerformanceEfficiencySchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-performance-efficiency-schedule'
+      Description: 'Daily calculation of cost and performance efficiency'
+      ScheduleExpression: 'rate(1 day)'
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt PerformanceEfficiencyLambda.Arn
+          Id: 'PerformanceEfficiencyTarget'
+
+  # Permission for EventBridge to invoke Lambda
+  PerformanceEfficiencyLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PerformanceEfficiencyLambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt PerformanceEfficiencySchedule.Arn
+
+  # Cost Optimization Recommendations Alarm
+  HighCostPerRequestAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-high-cost-per-request'
+      AlarmDescription: 'Alert when cost per request exceeds threshold'
+      MetricName: CostPerRequest
+      Namespace: IaL/Performance
+      Statistic: Average
+      Period: 3600
+      EvaluationPeriods: 2
+      Threshold: 0.01
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref CostOptimizationTopic
+      TreatMissingData: notBreaching
+
+  # SNS Topic for Cost Optimization Alerts
+  CostOptimizationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-cost-optimization-alerts'
+      DisplayName: 'IaL Cost Optimization Alerts'
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlertEmail
+
+  # Cost Explorer Saved Report
+  CostExplorerReport:
+    Type: AWS::CUR::ReportDefinition
+    Properties:
+      ReportName: !Sub '${ProjectName}-cost-performance-report'
+      TimeUnit: DAILY
+      Format: textORcsv
+      Compression: GZIP
+      AdditionalSchemaElements:
+        - RESOURCES
+      S3Bucket: !Sub '${ProjectName}-cost-reports-${AWS::AccountId}'
+      S3Prefix: 'cost-performance-reports/'
+      S3Region: !Ref AWS::Region
+      AdditionalArtifacts:
+        - REDSHIFT
+        - QUICKSIGHT
+
+Outputs:
+  DashboardURL:
+    Description: 'URL to the Cost & Performance Dashboard'
+    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ProjectName}-Cost-Performance-Executive'
+    Export:
+      Name: !Sub '${ProjectName}-cost-performance-dashboard-url'
+
+  PerformanceEfficiencyLambdaArn:
+    Description: 'ARN of the Performance Efficiency Calculator Lambda'
+    Value: !GetAtt PerformanceEfficiencyLambda.Arn
+    Export:
+      Name: !Sub '${ProjectName}-performance-efficiency-lambda-arn'
+
+  CostOptimizationTopicArn:
+    Description: 'ARN of the Cost Optimization SNS Topic'
+    Value: !Ref CostOptimizationTopic
+    Export:
+      Name: !Sub '${ProjectName}-cost-optimization-topic-arn'

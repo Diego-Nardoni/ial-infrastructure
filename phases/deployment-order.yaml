@@ -73,13 +73,13 @@ execution_plan:
         parallel_within_domain: true
 
   wave_6:
-    description: "Governance - Final assessment"
+    description: "Governance - Final assessment and cost optimization"
     domains: ["90-governance"]
     parallel: false
-    estimated_duration: "10min"
+    estimated_duration: "15min"
     phases:
       - domain: "90-governance"
-        sequence: ["01-well-architected-assessment", "02-budgets-resources", "03-cost-guardrails"]
+        sequence: ["01-well-architected-assessment", "02-budgets-resources", "03-cost-guardrails", "04-cost-performance-dashboard"]
         parallel_within_domain: false
 
 # Domain Dependencies Matrix
