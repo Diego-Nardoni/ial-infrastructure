@@ -1,0 +1,117 @@
+phase_name: "Cost Guardrails - Budget Control & Anomaly Detection"
+description: "AWS Budgets and Cost Anomaly Detection for proactive cost management"
+resource_count: 4
+
+Resources:
+  # Project Budget with Alerts
+  ProjectBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub '${ProjectName}-monthly-budget'
+        BudgetLimit:
+          Amount: 100
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+        CostFilters:
+          TagKey:
+            - Project
+          TagValue:
+            - !Ref ProjectName
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+
+  # Cost Anomaly Detector
+  CostAnomalyDetector:
+    Type: AWS::CE::AnomalyDetector
+    Properties:
+      AnomalyDetectorName: !Sub '${ProjectName}-cost-anomaly-detector'
+      MonitorType: DIMENSIONAL
+      MonitorSpecification: |
+        {
+          "DimensionKey": "SERVICE",
+          "MatchOptions": ["EQUALS"],
+          "Values": ["Amazon Elastic Compute Cloud - Compute", "Amazon Relational Database Service", "Amazon Simple Storage Service"]
+        }
+
+  # Cost Anomaly Monitor
+  CostAnomalyMonitor:
+    Type: AWS::CE::AnomalyMonitor
+    Properties:
+      MonitorName: !Sub '${ProjectName}-cost-monitor'
+      MonitorType: DIMENSIONAL
+      MonitorSpecification: !Sub |
+        {
+          "Tags": {
+            "Key": "Project",
+            "Values": ["${ProjectName}"],
+            "MatchOptions": ["EQUALS"]
+          }
+        }
+
+  # Cost Anomaly Subscription
+  CostAnomalySubscription:
+    Type: AWS::CE::AnomalySubscription
+    Properties:
+      SubscriptionName: !Sub '${ProjectName}-cost-alerts'
+      MonitorArnList:
+        - !Ref CostAnomalyMonitor
+      Subscribers:
+        - Type: EMAIL
+          Address: !Ref AlertEmail
+      Frequency: DAILY
+      Threshold: 10.0
+
+# Outputs
+Outputs:
+  BudgetName:
+    Description: 'Name of the project budget'
+    Value: !Sub '${ProjectName}-monthly-budget'
+    Export:
+      Name: !Sub '${ProjectName}-budget-name'
+
+  AnomalyDetectorArn:
+    Description: 'ARN of the cost anomaly detector'
+    Value: !Ref CostAnomalyDetector
+    Export:
+      Name: !Sub '${ProjectName}-anomaly-detector-arn'
+
+  CostMonitorArn:
+    Description: 'ARN of the cost monitor'
+    Value: !Ref CostAnomalyMonitor
+    Export:
+      Name: !Sub '${ProjectName}-cost-monitor-arn'
+
+# Cost estimation
+metadata:
+  estimated_monthly_cost: '$2.00'
+  cost_breakdown:
+    budgets_api: '$0.60'
+    cost_anomaly_detection: '$1.00'
+    cost_explorer_api: '$0.40'
+
+# Parameters
+parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+  AlertEmail:
+    Type: String
+    Default: admin@example.com
+    Description: Email address for cost alerts

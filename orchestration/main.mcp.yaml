@@ -1,0 +1,141 @@
+name: "IaL - Infrastructure as Language"
+version: "1.0.0"
+description: "Conversational Infrastructure Orchestration with Natural Language Intents"
+
+# Conversational Intents Mapping
+intents:
+  # Security Operations
+  security:
+    phrases:
+      - "provisionar segurança"
+      - "habilitar guardrails"
+      - "configurar security"
+      - "setup security foundation"
+      - "enable security services"
+    actions:
+      - phase: "01-kms-security"
+      - phase: "02-security-services"
+      - phase: "04b-secrets-manager"
+      - phase: "05b-iam-bedrock-github"
+    verify: "python3 scripts/validate-deployment.py --filter security"
+
+  # Networking Operations  
+  networking:
+    phrases:
+      - "subir rede"
+      - "configurar networking"
+      - "setup vpc"
+      - "create network infrastructure"
+      - "provision networking"
+    actions:
+      - phase: "03-networking"
+    verify: "aws ec2 describe-vpcs --filters Name=tag:Project,Values=ial"
+
+  # Application Operations
+  application:
+    phrases:
+      - "subir app"
+      - "deploy application"
+      - "provision app tier"
+      - "setup ecs"
+      - "create application"
+    actions:
+      - phase: "08-ecs-task-service"
+      - phase: "09-ec2-instances"
+      - phase: "13-lambda-functions"
+    verify: "aws ecs describe-clusters --clusters ial-cluster"
+
+  # Database Operations
+  database:
+    phrases:
+      - "criar banco"
+      - "setup database"
+      - "provision aurora"
+      - "create rds"
+      - "setup postgresql"
+    actions:
+      - phase: "11b-aurora-postgresql-secure"
+      - phase: "12-dynamodb-tables"
+    verify: "aws rds describe-db-clusters --db-cluster-identifier ial-aurora-cluster"
+
+  # Monitoring Operations
+  observability:
+    phrases:
+      - "configurar monitoramento"
+      - "setup observability"
+      - "enable monitoring"
+      - "create dashboards"
+      - "setup alerts"
+    actions:
+      - phase: "15-well-architected-assessment"
+      - phase: "16-drift-detection"
+    verify: "python3 scripts/deployment-health-check.py"
+
+  # State Operations
+  state:
+    phrases:
+      - "auditar estado"
+      - "check state"
+      - "validate deployment"
+      - "verify resources"
+      - "audit infrastructure"
+    actions:
+      - script: "python3 scripts/validate-deployment.py"
+      - script: "python3 scripts/deployment-health-check.py"
+    verify: "echo 'State audit complete'"
+
+  # Rollback Operations
+  rollback:
+    phrases:
+      - "resetar recurso"
+      - "rollback changes"
+      - "revert deployment"
+      - "undo changes"
+      - "restore previous state"
+    actions:
+      - script: "python3 scripts/rollback.py"
+    verify: "python3 scripts/validate-deployment.py"
+
+  # Discovery Operations
+  discovery:
+    phrases:
+      - "descobrir recursos"
+      - "find resources"
+      - "auto discover"
+      - "scan infrastructure"
+      - "detect resources"
+    actions:
+      - script: "python3 scripts/universal-resource-tracker.py --discover"
+    verify: "aws dynamodb scan --table-name mcp-provisioning-checklist --select COUNT"
+
+  # Cost Operations
+  cost:
+    phrases:
+      - "analisar custos"
+      - "check costs"
+      - "cost analysis"
+      - "budget review"
+      - "cost optimization"
+    actions:
+      - script: "python3 scripts/bedrock-cost-analyzer.py"
+      - phase: "01b-cost-guardrails"
+    verify: "aws budgets describe-budgets --account-id $(aws sts get-caller-identity --query Account --output text)"
+
+# Intent Processing Configuration
+processing:
+  default_timeout: 300
+  max_retries: 3
+  parallel_execution: false
+  checkpoint_enabled: true
+  
+# State Management
+state:
+  table: "mcp-provisioning-checklist"
+  status_field: "Status"
+  valid_statuses: ["Pending", "Created", "Verified", "Failed", "Drifted"]
+
+# Verification Settings
+verification:
+  required: true
+  timeout: 60
+  retry_count: 2
