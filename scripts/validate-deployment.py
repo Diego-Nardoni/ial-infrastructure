@@ -18,6 +18,7 @@ from cf_yaml_loader import load_cf_yaml
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.logger import get_logger
 from utils.rollback_manager import rollback_manager
+from utils.observability import record_validation_result
 
 # Get project root directory dynamically
 PROJECT_ROOT = Path(__file__).parent.parent

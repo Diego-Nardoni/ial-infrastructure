@@ -1,0 +1,216 @@
+# PHASE 00C - ENHANCED OBSERVABILITY
+# Professional monitoring and observability for IaL operations
+
+phase: "00c-enhanced-observability"
+description: "Enhanced observability with CloudWatch, X-Ray, and custom metrics"
+depends_on: ["00-logging-infrastructure"]
+estimated_cost_monthly: 11.77
+resource_count: 8
+
+resources:
+  # CloudWatch Dashboard for IaL Operations
+  IaLOperationsDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: IaL-Enhanced-Operations
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "IaL/Operations", "DeploymentSuccess", "Project", "ial" ],
+                  [ ".", "DeploymentFailure", ".", "." ],
+                  [ ".", "ValidationSuccess", ".", "." ],
+                  [ ".", "ValidationFailure", ".", "." ]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "region": "us-east-1",
+                "title": "IaL Operations Metrics"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "IaL/Performance", "DeploymentDuration", "Project", "ial" ],
+                  [ ".", "ValidationDuration", ".", "." ],
+                  [ ".", "RollbackDuration", ".", "." ]
+                ],
+                "period": 300,
+                "stat": "Average",
+                "region": "us-east-1",
+                "title": "Performance Metrics"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 6,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE 'ial-infrastructure'\n| fields @timestamp, level, message, phase, event_type\n| filter level = \"ERROR\"\n| sort @timestamp desc\n| limit 20",
+                "region": "us-east-1",
+                "title": "Recent Errors"
+              }
+            }
+          ]
+        }
+      Tags:
+        - Key: Project
+          Value: ial
+        - Key: Purpose
+          Value: enhanced-observability
+
+  # CloudWatch Alarms for Critical Operations
+  DeploymentFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: IaL-Deployment-Failures
+      AlarmDescription: Alert when deployment failures occur
+      MetricName: DeploymentFailure
+      Namespace: IaL/Operations
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref IaLAlertsSnsTopic
+      TreatMissingData: notBreaching
+
+  ValidationFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: IaL-Validation-Failures
+      AlarmDescription: Alert when validation failures occur
+      MetricName: ValidationFailure
+      Namespace: IaL/Operations
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref IaLAlertsSnsTopic
+      TreatMissingData: notBreaching
+
+  HighDeploymentDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: IaL-High-Deployment-Duration
+      AlarmDescription: Alert when deployments take too long
+      MetricName: DeploymentDuration
+      Namespace: IaL/Performance
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1800  # 30 minutes
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref IaLAlertsSnsTopic
+      TreatMissingData: notBreaching
+
+  LowCompletionRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: IaL-Low-Completion-Rate
+      AlarmDescription: Alert when completion rate drops below 95%
+      MetricName: CompletionRate
+      Namespace: IaL/Operations
+      Statistic: Average
+      Period: 900
+      EvaluationPeriods: 1
+      Threshold: 95
+      ComparisonOperator: LessThanThreshold
+      AlarmActions:
+        - !Ref IaLAlertsSnsTopic
+      TreatMissingData: notBreaching
+
+  RollbackTriggeredAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: IaL-Rollback-Triggered
+      AlarmDescription: Alert when automatic rollback is triggered
+      MetricName: RollbackTriggered
+      Namespace: IaL/Operations
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref IaLAlertsSnsTopic
+      TreatMissingData: notBreaching
+
+  # SNS Topic for Alerts
+  IaLAlertsSnsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ial-enhanced-alerts
+      DisplayName: IaL Enhanced Observability Alerts
+      Tags:
+        - Key: Project
+          Value: ial
+        - Key: Purpose
+          Value: alerting
+
+  # X-Ray Tracing Configuration
+  XRayTracingConfig:
+    Type: AWS::XRay::SamplingRule
+    Properties:
+      SamplingRule:
+        RuleName: IaL-Tracing-Rule
+        Priority: 9000
+        FixedRate: 0.1
+        ReservoirSize: 1
+        ServiceName: "ial-*"
+        ServiceType: "*"
+        Host: "*"
+        HTTPMethod: "*"
+        URLPath: "*"
+        Version: 1
+
+  # Container Insights Configuration (for ECS)
+  ContainerInsightsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/containerinsights/ial-cluster/performance
+      RetentionInDays: 7
+      KmsKeyId: !Ref IaLKMSKey
+      Tags:
+        - Key: Project
+          Value: ial
+        - Key: Purpose
+          Value: container-insights
+
+# CloudFormation Outputs
+Outputs:
+  DashboardURL:
+    Description: URL to the enhanced operations dashboard
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=IaL-Enhanced-Operations"
+    Export:
+      Name: !Sub "${AWS::StackName}-DashboardURL"
+  
+  AlertsTopicArn:
+    Description: ARN of the alerts SNS topic
+    Value: !Ref IaLAlertsSnsTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-AlertsTopicArn"
+  
+  XRayTracingEnabled:
+    Description: X-Ray tracing configuration status
+    Value: "Enabled with 10% sampling rate"
+    Export:
+      Name: !Sub "${AWS::StackName}-XRayStatus"
