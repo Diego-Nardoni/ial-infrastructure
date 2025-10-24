@@ -1,0 +1,171 @@
+phase_name: "Aurora PostgreSQL - Secure with Secrets Manager"
+description: "Aurora PostgreSQL cluster with Secrets Manager integration for secure credential management"
+resource_count: 3
+
+Resources:
+  # Aurora PostgreSQL Cluster with Secrets Manager
+  AuroraCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      DBClusterIdentifier: !Sub '${ProjectName}-aurora-cluster'
+      Engine: aurora-postgresql
+      EngineVersion: '15.4'
+      EngineMode: provisioned
+      
+      # Secrets Manager Integration (Secure)
+      ManageMasterUserPassword: true
+      MasterUserSecret:
+        SecretArn: !ImportValue 
+          Fn::Sub: '${ProjectName}-aurora-secret-arn'
+      MasterUsername: postgres
+      
+      # Network Configuration
+      DBSubnetGroupName: !Ref AuroraSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref AuroraSecurityGroup
+      
+      # Backup and Maintenance
+      BackupRetentionPeriod: 7
+      PreferredBackupWindow: '03:00-04:00'
+      PreferredMaintenanceWindow: 'sun:04:00-sun:05:00'
+      
+      # Performance and Monitoring
+      EnableCloudwatchLogsExports:
+        - postgresql
+      MonitoringInterval: 60
+      MonitoringRoleArn: !GetAtt AuroraMonitoringRole.Arn
+      
+      # Security
+      StorageEncrypted: true
+      KmsKeyId: alias/aws/rds
+      DeletionProtection: true
+      
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: ConversationStorage
+        - Key: Security
+          Value: SecretsManager
+
+  # Aurora DB Instance
+  AuroraInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub '${ProjectName}-aurora-instance-1'
+      DBClusterIdentifier: !Ref AuroraCluster
+      DBInstanceClass: db.r6g.large
+      Engine: aurora-postgresql
+      PubliclyAccessible: false
+      
+      # Performance Insights
+      EnablePerformanceInsights: true
+      PerformanceInsightsRetentionPeriod: 7
+      
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # Subnet Group for Aurora
+  AuroraSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: !Sub '${ProjectName}-aurora-subnet-group'
+      DBSubnetGroupDescription: 'Subnet group for Aurora PostgreSQL cluster'
+      SubnetIds:
+        - !ImportValue 
+          Fn::Sub: '${ProjectName}-private-subnet-1'
+        - !ImportValue 
+          Fn::Sub: '${ProjectName}-private-subnet-2'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # Security Group for Aurora
+  AuroraSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-aurora-sg'
+      GroupDescription: 'Security group for Aurora PostgreSQL cluster'
+      VpcId: !ImportValue 
+        Fn::Sub: '${ProjectName}-vpc-id'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !ImportValue 
+            Fn::Sub: '${ProjectName}-lambda-sg'
+          Description: 'PostgreSQL access from Lambda functions'
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !ImportValue 
+            Fn::Sub: '${ProjectName}-ecs-sg'
+          Description: 'PostgreSQL access from ECS services'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # IAM Role for Enhanced Monitoring
+  AuroraMonitoringRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-aurora-monitoring-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: monitoring.rds.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+
+# Outputs
+Outputs:
+  AuroraClusterEndpoint:
+    Description: 'Aurora cluster endpoint'
+    Value: !GetAtt AuroraCluster.Endpoint.Address
+    Export:
+      Name: !Sub '${ProjectName}-aurora-endpoint'
+
+  AuroraClusterPort:
+    Description: 'Aurora cluster port'
+    Value: !GetAtt AuroraCluster.Endpoint.Port
+    Export:
+      Name: !Sub '${ProjectName}-aurora-port'
+
+  AuroraSecretArn:
+    Description: 'ARN of Aurora master secret'
+    Value: !GetAtt AuroraCluster.MasterUserSecret.SecretArn
+    Export:
+      Name: !Sub '${ProjectName}-aurora-cluster-secret-arn'
+
+  DatabaseName:
+    Description: 'Default database name'
+    Value: 'ial_conversations'
+    Export:
+      Name: !Sub '${ProjectName}-database-name'
+
+# Connection helper for applications
+connection_info:
+  endpoint: !GetAtt AuroraCluster.Endpoint.Address
+  port: !GetAtt AuroraCluster.Endpoint.Port
+  database: 'ial_conversations'
+  secret_arn: !GetAtt AuroraCluster.MasterUserSecret.SecretArn
+  
+# Cost estimation
+metadata:
+  estimated_monthly_cost: '$180-250'
+  cost_breakdown:
+    aurora_instance: '$150-200'
+    storage: '$20-30'
+    backup: '$5-10'
+    monitoring: '$5-10'
+    secrets_manager: '$0.46'
+
+# Parameters
+parameters:
+  ProjectName:
+    Type: String
+    Default: ial
