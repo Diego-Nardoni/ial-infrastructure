@@ -4,8 +4,8 @@
 metadata:
   pattern_name: "Spring Boot + Redis Serverless"
   total_phases: 17
-  total_resources: 61
-  validation_type: "Manual"
+  total_resources: 49
+  validation_type: "Automated"
 
 # ============================================
 # PHASE 00: DynamoDB State Tracking

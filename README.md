@@ -18,7 +18,8 @@ IaL (Infrastructure as Language) permite gerenciar infraestrutura AWS através d
 - ✅ **Setup 100% Automatizado** - Um comando cria tudo
 - ✅ **Deploy Natural** - "Add port 8443 to ALB"
 - ✅ **100% Idempotência** - DynamoDB state management
-- ✅ **Drift Detection** - Automático a cada hora
+- ✅ **🧠 Intelligent Drift Correction** - Bedrock auto-remediation
+- ✅ **🧪 Intelligent Testing** - Bedrock CI/CD testing
 - ✅ **5-min Rollback** - "Rollback to previous version"
 - ✅ **CI/CD Pipeline** - GitHub Actions automático
 
@@ -53,10 +54,8 @@ q chat "Configure IaL para minha conta AWS"
 **Isso cria automaticamente:**
 - ✅ OIDC Provider (GitHub Actions authentication)
 - ✅ IAM Role para GitHub Actions (trust policy específico para SEU repo)
-- ✅ IAM Role para Lambda (drift-detector)
+- ✅ **Bedrock Permissions** (incluídas automaticamente na role)
 - ✅ DynamoDB Table (mcp-provisioning-checklist)
-- ✅ Lambda Function (drift-detector)
-- ✅ EventBridge Rule (drift-detection-scheduled)
 - ✅ SNS Topic (ial-alerts-critical)
 
 **Detecção Automática:**
@@ -75,8 +74,8 @@ q chat "Configure IaL para minha conta AWS"
 # Adicionar porta
 q chat "Add port 8443 to ALB security group"
 
-# Verificar drift
-q chat "Check infrastructure drift"
+# Verificar e corrigir drift automaticamente
+q chat "Check and fix infrastructure drift"
 
 # Rollback
 q chat "Rollback to previous version"
@@ -141,7 +140,9 @@ ial/
 
 ### Lambda: `drift-detector`
 - Runtime: Python 3.11
-- Drift detection com Bedrock classification
+- 🧠 **Intelligent Drift Correction** com Bedrock
+- Auto-remediation para drifts seguros
+- Human escalation para casos complexos
 
 ### EventBridge: `drift-detection-scheduled`
 - Execução horária
@@ -177,8 +178,8 @@ q chat "Increase ECS task memory to 2GB"
 # Verificar estado
 q chat "Show current infrastructure status"
 
-# Detectar drift
-q chat "Check for infrastructure drift"
+# Detectar e corrigir drift inteligentemente
+q chat "Check for infrastructure drift and auto-fix if safe"
 
 # Rollback
 q chat "Rollback to commit abc123"

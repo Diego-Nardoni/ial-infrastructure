@@ -182,10 +182,11 @@ def create_github_actions_role(account_id, region, github_repo):
     # Attach managed policies
     policies = [
         "arn:aws:iam::aws:policy/AmazonEC2FullAccess",
-        "arn:aws:iam::aws:policy/AmazonECS_FullAccess",
+        "arn:aws:iam::aws:policy/AmazonECS_FullAccess", 
         "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess",
         "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess",
-        "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+        "arn:aws:iam::aws:policy/AmazonSNSFullAccess",
+        "arn:aws:iam::aws:policy/AmazonBedrockFullAccess"
     ]
     
     for policy in policies:
@@ -194,30 +195,17 @@ def create_github_actions_role(account_id, region, github_repo):
             --policy-arn {policy}""",
             shell=True, check=True)
     
-    # Inline policy para Bedrock
-    bedrock_policy = {
-        "Version": "2012-10-17",
-        "Statement": [{
-            "Effect": "Allow",
-            "Action": ["bedrock:InvokeModel"],
-            "Resource": f"arn:aws:bedrock:{region}::foundation-model/*"
-        }]
-    }
-    
-    subprocess.run(f"""aws iam put-role-policy \
-        --role-name {role_name} \
-        --policy-name BedrockAccess \
-        --policy-document '{json.dumps(bedrock_policy)}'""",
-        shell=True, check=True)
-    
     print(f"⏳ Aguardando role propagar (10s)...")
     time.sleep(10)
     
     return role_name
 
 def create_lambda_execution_role(account_id, region):
-    """Cria IAM role para Lambda"""
-    role_name = "IaL-LambdaExecutionRole"
+    """Cria IAM role para Lambda - MOVIDO PARA PHASE 16"""
+    # Esta função foi movida para Phase 16 (drift-detection.yaml)
+    # Lambda drift-detector será criado junto com a VPC
+    print("⚠️  create_lambda_execution_role() foi movido para Phase 16")
+    return None
     
     # Verificar se já existe
     check = subprocess.run(
@@ -319,8 +307,11 @@ def create_dynamodb_table(account_id, region):
         --region {region}""", shell=True, capture_output=True)
 
 def create_lambda_function(account_id, region, role_name):
-    """Cria Lambda drift-detector"""
-    function_name = "drift-detector"
+    """Cria Lambda drift-detector - MOVIDO PARA PHASE 16"""
+    # Esta função foi movida para Phase 16 (drift-detection.yaml)
+    # Lambda será criado na VPC junto com a arquitetura
+    print("⚠️  create_lambda_function() foi movido para Phase 16")
+    return None
     
     # Verificar se já existe
     check = subprocess.run(
@@ -333,6 +324,8 @@ def create_lambda_function(account_id, region, role_name):
         return
     
     print(f"📦 Criando Lambda {function_name}...")
+    print("⚠️  NOTA: Lambda será criado FORA da VPC (VPC ainda não existe)")
+    print("   Será migrado para VPC na Phase 03 automaticamente")
     
     # Criar zip
     subprocess.run("""cd /home/ial/lambda/drift-detector && \
@@ -351,8 +344,11 @@ def create_lambda_function(account_id, region, role_name):
         --region {region}""", shell=True, check=True)
 
 def create_eventbridge_rule(account_id, region):
-    """Cria EventBridge rule"""
-    rule_name = "drift-detection-scheduled"
+    """Cria EventBridge rule - MOVIDO PARA PHASE 16"""
+    # Esta função foi movida para Phase 16 (drift-detection.yaml)
+    # EventBridge será criado junto com Lambda na VPC
+    print("⚠️  create_eventbridge_rule() foi movido para Phase 16")
+    return None
     function_name = "drift-detector"
     
     # Verificar se já existe
@@ -442,23 +438,14 @@ def setup_ial():
         # 2. IAM Role para GitHub Actions (com repo específico)
         github_role = create_github_actions_role(account_id, region, github_repo)
         
-        # 3. IAM Role para Lambda
-        lambda_role = create_lambda_execution_role(account_id, region)
-        
-        # 4. DynamoDB
+        # 3. DynamoDB State Table
         create_dynamodb_table(account_id, region)
         
-        # 5. SNS Topic
+        # 4. SNS Topic (para alertas)
         topic_arn = create_sns_topic(account_id, region)
         
-        # 6. Lambda
-        create_lambda_function(account_id, region, lambda_role)
-        
-        # 7. EventBridge
-        create_eventbridge_rule(account_id, region)
-        
         print("\n" + "="*60)
-        print("✅ Setup completo!")
+        print("✅ Setup inicial completo!")
         print("="*60)
         print(f"\n🎯 Próximos passos:")
         print(f"1. Subscrever email no SNS:")
@@ -466,10 +453,13 @@ def setup_ial():
         print(f"     --protocol email --notification-endpoint seu-email@example.com")
         print(f"2. Confirmar email (check inbox)")
         print(f"3. Habilitar Bedrock model access (console AWS)")
+        print(f"4. Fazer primeiro deploy via GitHub Actions")
         if github_repo:
             print(f"\n🚀 GitHub Actions configurado para: {github_repo}")
             print(f"   Role ARN: arn:aws:iam::{account_id}:role/{github_role}")
             print(f"   ✅ Workflows funcionarão automaticamente!")
+            print(f"\n📝 NOTA: Lambda drift-detector será criado na Phase 16")
+            print(f"   (junto com a VPC - arquitetura mais consistente)")
         else:
             print(f"\n⚠️  Configure GitHub depois:")
             print(f"   1. gh auth login")
@@ -481,7 +471,6 @@ def setup_ial():
             'region': region,
             'github_user': github_user,
             'github_repo': github_repo,
-            'lambda_role': lambda_role,
             'github_role': github_role,
             'oidc_arn': oidc_arn,
             'topic_arn': topic_arn

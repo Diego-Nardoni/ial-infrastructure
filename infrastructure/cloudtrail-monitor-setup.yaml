@@ -1,0 +1,237 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudTrail Monitor for Universal Resource Discovery'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource tagging
+
+Resources:
+  # CloudTrail for Data Events
+  ResourceDiscoveryTrail:
+    Type: AWS::CloudTrail::Trail
+    Properties:
+      TrailName: !Sub '${ProjectName}-resource-discovery-trail'
+      S3BucketName: !Ref CloudTrailBucket
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: true
+      EnableLogFileValidation: true
+      EventSelectors:
+        - ReadWriteType: WriteOnly
+          IncludeManagementEvents: true
+          DataResources: []
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: ResourceDiscovery
+
+  # S3 Bucket for CloudTrail logs
+  CloudTrailBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-cloudtrail-discovery-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldLogs
+            Status: Enabled
+            ExpirationInDays: 7  # Keep logs for 7 days only
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # Bucket Policy for CloudTrail
+  CloudTrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CloudTrailBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt CloudTrailBucket.Arn
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${CloudTrailBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                's3:x-amz-acl': bucket-owner-full-control
+
+  # Lambda Function for Processing Events
+  CloudTrailProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-cloudtrail-processor'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+          # Placeholder - deploy actual code separately
+          def lambda_handler(event, context):
+              return {'statusCode': 200}
+      Environment:
+        Variables:
+          PROJECT_NAME: !Ref ProjectName
+          DYNAMODB_TABLE: !Sub '${ProjectName}-provisioning-checklist'
+      Role: !GetAtt CloudTrailProcessorRole.Arn
+      Timeout: 60
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # IAM Role for Lambda
+  CloudTrailProcessorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-cloudtrail-processor-role'
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}-provisioning-checklist'
+        - PolicyName: SNSPublish
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${ProjectName}-alerts-critical'
+        - PolicyName: STSAccess
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sts:GetCallerIdentity
+                Resource: '*'
+
+  # EventBridge Rules for Resource Creation Events
+  S3CreationRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-s3-creation-rule'
+      EventPattern:
+        source: ['aws.s3']
+        detail-type: ['AWS API Call via CloudTrail']
+        detail:
+          eventSource: ['s3.amazonaws.com']
+          eventName: ['CreateBucket']
+      Targets:
+        - Arn: !GetAtt CloudTrailProcessorFunction.Arn
+          Id: S3CreationTarget
+
+  DynamoDBCreationRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-dynamodb-creation-rule'
+      EventPattern:
+        source: ['aws.dynamodb']
+        detail-type: ['AWS API Call via CloudTrail']
+        detail:
+          eventSource: ['dynamodb.amazonaws.com']
+          eventName: ['CreateTable']
+      Targets:
+        - Arn: !GetAtt CloudTrailProcessorFunction.Arn
+          Id: DynamoDBCreationTarget
+
+  LambdaCreationRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-lambda-creation-rule'
+      EventPattern:
+        source: ['aws.lambda']
+        detail-type: ['AWS API Call via CloudTrail']
+        detail:
+          eventSource: ['lambda.amazonaws.com']
+          eventName: ['CreateFunction']
+      Targets:
+        - Arn: !GetAtt CloudTrailProcessorFunction.Arn
+          Id: LambdaCreationTarget
+
+  StepFunctionsCreationRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-stepfunctions-creation-rule'
+      EventPattern:
+        source: ['aws.states']
+        detail-type: ['AWS API Call via CloudTrail']
+        detail:
+          eventSource: ['states.amazonaws.com']
+          eventName: ['CreateStateMachine']
+      Targets:
+        - Arn: !GetAtt CloudTrailProcessorFunction.Arn
+          Id: StepFunctionsCreationTarget
+
+  # Lambda Permissions for EventBridge
+  S3RulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CloudTrailProcessorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt S3CreationRule.Arn
+
+  DynamoDBRulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CloudTrailProcessorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DynamoDBCreationRule.Arn
+
+  LambdaRulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CloudTrailProcessorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt LambdaCreationRule.Arn
+
+  StepFunctionsRulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CloudTrailProcessorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt StepFunctionsCreationRule.Arn
+
+Outputs:
+  CloudTrailArn:
+    Description: ARN of the CloudTrail
+    Value: !GetAtt ResourceDiscoveryTrail.Arn
+    Export:
+      Name: !Sub '${ProjectName}-cloudtrail-arn'
+
+  ProcessorFunctionArn:
+    Description: ARN of the CloudTrail processor function
+    Value: !GetAtt CloudTrailProcessorFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-processor-function-arn'
+
+  EstimatedMonthlyCost:
+    Description: Estimated monthly cost
+    Value: '$0.05 - $0.15 (CloudTrail data events + Lambda executions)'

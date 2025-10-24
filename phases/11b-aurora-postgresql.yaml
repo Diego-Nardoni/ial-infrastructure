@@ -2,7 +2,7 @@ phase: "11b-aurora-postgresql"
 description: "Aurora PostgreSQL Serverless v2 - Banco relacional sob demanda (POC)"
 depends_on: ["03-networking", "01-kms-security"]
 estimated_cost_monthly: 35
-resource_count: 3
+resource_count: 0  # Migrated to 11b-aurora-postgresql-secure.yaml
 
 # BANCO RELACIONAL OPCIONAL - Preparado para uso futuro
 # Configuração otimizada para POC com custo mínimo

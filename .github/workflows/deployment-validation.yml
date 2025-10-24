@@ -1,0 +1,169 @@
+name: Deployment Validation
+
+on:
+  workflow_run:
+    workflows: ["IaL Deploy with Bedrock Intelligent Testing"]
+    types:
+      - completed
+  schedule:
+    # Run validation every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+env:
+  PROJECT_NAME: ial
+  AWS_REGION: us-east-1
+
+jobs:
+  validate-deployment:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install boto3 pyyaml
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/IaL-GitHubActionsRole
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Run Deployment Validation
+        id: validation
+        run: |
+          export PROJECT_NAME=${{ env.PROJECT_NAME }}
+          python3 scripts/validate-deployment.py
+          echo "validation_exit_code=$?" >> $GITHUB_OUTPUT
+      
+      - name: Run Health Check
+        run: |
+          python3 scripts/deployment-health-check.py
+      
+      - name: Upload Validation Reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: validation-reports
+          path: |
+            reports/deployment_validation.json
+            reports/deployment_health.json
+      
+      - name: Create Issue on Validation Failure
+        if: steps.validation.outputs.validation_exit_code != '0'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            
+            try {
+              const validation = JSON.parse(fs.readFileSync('reports/deployment_validation.json', 'utf8'));
+              
+              const issueBody = `## 🚨 Deployment Validation Failed
+              
+              **Status:** ${validation.status}
+              **Completion Rate:** ${validation.completion_rate.toFixed(1)}%
+              **Expected Resources:** ${validation.expected_total}
+              **Created Resources:** ${validation.created_total}
+              
+              ### Missing Resources
+              ${validation.missing_resources.map(missing => 
+                `- **${missing.phase}:** ${missing.missing_count} missing (${missing.created}/${missing.expected})`
+              ).join('\n')}
+              
+              ### Issues
+              ${validation.issues.map(issue => `- ${issue}`).join('\n')}
+              
+              ### Phase Analysis
+              ${Object.entries(validation.phase_analysis).map(([phase, analysis]) => 
+                `- **${phase}:** ${analysis.created}/${analysis.expected} (${analysis.completion_rate.toFixed(0)}%) ${analysis.status === 'COMPLETE' ? '✅' : '❌'}`
+              ).join('\n')}
+              
+              ---
+              **Validation Time:** ${validation.timestamp}
+              **Workflow:** ${context.workflow} #${context.runNumber}
+              
+              Please review and resolve missing resources before proceeding.`;
+              
+              // Check if issue already exists
+              const existingIssues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'deployment-validation'
+              });
+              
+              if (existingIssues.data.length === 0) {
+                // Create new issue
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: `🚨 Deployment Validation Failed - ${validation.completion_rate.toFixed(1)}% Complete`,
+                  body: issueBody,
+                  labels: ['deployment-validation', 'bug', 'high-priority']
+                });
+              } else {
+                // Update existing issue
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existingIssues.data[0].number,
+                  title: `🚨 Deployment Validation Failed - ${validation.completion_rate.toFixed(1)}% Complete`,
+                  body: issueBody
+                });
+              }
+            } catch (error) {
+              console.log('Could not create/update validation issue:', error.message);
+            }
+      
+      - name: Close Validation Issue on Success
+        if: steps.validation.outputs.validation_exit_code == '0'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // Close existing validation issues
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'deployment-validation'
+            });
+            
+            for (const issue of existingIssues.data) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: '✅ Deployment validation now passes. All resources have been successfully created.'
+              });
+            }
+      
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.validation.outputs.validation_exit_code }}" = "0" ]; then
+            echo "✅ Deployment validation PASSED - All resources created successfully"
+          else
+            echo "❌ Deployment validation FAILED - Some resources are missing"
+            echo "Check the validation report for details"
+          fi
