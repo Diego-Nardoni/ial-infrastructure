@@ -1,0 +1,536 @@
+phase: "03-networking"
+description: "VPC with VPC Endpoints (NO NAT Gateway) - Cost-optimized private connectivity"
+depends_on: ["01-kms-security"]
+estimated_cost_monthly: 14
+resource_count: 25
+
+# ARQUITETURA: VPC Endpoints em vez de NAT Gateway (economia de $18/mês)
+# Comunicação privada: ECS → VPC Endpoints → AWS Services (ECR, CloudWatch, SSM, S3, X-Ray)
+
+resources:
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 1. VPC
+  # ═══════════════════════════════════════════════════════════════════════════════
+  vpc:
+    name: "{{PROJECT_NAME}}-vpc"
+    resource_name: "03-vpc"
+    type: "AWS::EC2::VPC"
+    priority: 1
+    
+    mcp_workflow:
+      generate_code:
+        tool: "generate_infrastructure_code"
+        parameters:
+          resource_type: "AWS::EC2::VPC"
+          region: "{{AWS_REGION}}"
+          properties:
+            CidrBlock: "10.0.0.0/16"
+            EnableDnsSupport: true
+            EnableDnsHostnames: true
+            Tags:
+              - Key: "Name"
+                Value: "{{PROJECT_NAME}}-vpc"
+              - Key: "Project"
+                Value: "{{PROJECT_NAME}}"
+              - Key: "ManagedBy"
+                Value: "IaL"
+    
+    verification: |
+      aws ec2 describe-vpcs \
+        --filters "Name=tag:Name,Values={{PROJECT_NAME}}-vpc" \
+        --query 'Vpcs[0].{VpcId:VpcId,State:State,CidrBlock:CidrBlock}' \
+        --region {{AWS_REGION}}
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 2. SUBNETS - 3 Public + 3 Private (Multi-AZ)
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  # PUBLIC SUBNETS (ALB)
+  public_subnet_1a:
+    name: "{{PROJECT_NAME}}-public-subnet-1a"
+    resource_name: "03-public-subnet-1a"
+    type: "AWS::EC2::Subnet"
+    priority: 2
+    properties:
+      VpcId: "[VPC_ID]"
+      CidrBlock: "10.0.1.0/24"
+      AvailabilityZone: "{{AWS_REGION}}a"
+      MapPublicIpOnLaunch: true
+
+  public_subnet_1b:
+    name: "{{PROJECT_NAME}}-public-subnet-1b"
+    resource_name: "03-public-subnet-1b"
+    type: "AWS::EC2::Subnet"
+    priority: 2
+    properties:
+      VpcId: "[VPC_ID]"
+      CidrBlock: "10.0.2.0/24"
+      AvailabilityZone: "{{AWS_REGION}}b"
+      MapPublicIpOnLaunch: true
+
+  public_subnet_1c:
+    name: "{{PROJECT_NAME}}-public-subnet-1c"
+    resource_name: "03-public-subnet-1c"
+    type: "AWS::EC2::Subnet"
+    priority: 2
+    properties:
+      VpcId: "[VPC_ID]"
+      CidrBlock: "10.0.3.0/24"
+      AvailabilityZone: "{{AWS_REGION}}c"
+      MapPublicIpOnLaunch: true
+
+  # PRIVATE SUBNETS (ECS + Redis)
+  private_subnet_1a:
+    name: "{{PROJECT_NAME}}-private-subnet-1a"
+    resource_name: "03-private-subnet-1a"
+    type: "AWS::EC2::Subnet"
+    priority: 2
+    properties:
+      VpcId: "[VPC_ID]"
+      CidrBlock: "10.0.11.0/24"
+      AvailabilityZone: "{{AWS_REGION}}a"
+      MapPublicIpOnLaunch: false
+
+  private_subnet_1b:
+    name: "{{PROJECT_NAME}}-private-subnet-1b"
+    resource_name: "03-private-subnet-1b"
+    type: "AWS::EC2::Subnet"
+    priority: 2
+    properties:
+      VpcId: "[VPC_ID]"
+      CidrBlock: "10.0.12.0/24"
+      AvailabilityZone: "{{AWS_REGION}}b"
+      MapPublicIpOnLaunch: false
+
+  private_subnet_1c:
+    name: "{{PROJECT_NAME}}-private-subnet-1c"
+    resource_name: "03-private-subnet-1c"
+    type: "AWS::EC2::Subnet"
+    priority: 2
+    properties:
+      VpcId: "[VPC_ID]"
+      CidrBlock: "10.0.13.0/24"
+      AvailabilityZone: "{{AWS_REGION}}c"
+      MapPublicIpOnLaunch: false
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 3. INTERNET GATEWAY
+  # ═══════════════════════════════════════════════════════════════════════════════
+  internet_gateway:
+    name: "{{PROJECT_NAME}}-igw"
+    resource_name: "03-igw"
+    type: "AWS::EC2::InternetGateway"
+    priority: 3
+
+  igw_attachment:
+    name: "IGW Attachment"
+    resource_name: "03-igw-attachment"
+    type: "AWS::EC2::VPCGatewayAttachment"
+    priority: 3
+    properties:
+      VpcId: "[VPC_ID]"
+      InternetGatewayId: "[IGW_ID]"
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 4. ROUTE TABLES
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  # PUBLIC ROUTE TABLE (com rota para Internet)
+  public_route_table:
+    name: "{{PROJECT_NAME}}-public-rt"
+    resource_name: "03-public-rt"
+    type: "AWS::EC2::RouteTable"
+    priority: 4
+    properties:
+      VpcId: "[VPC_ID]"
+
+  public_route:
+    name: "Public Route to Internet"
+    resource_name: "03-public-route"
+    type: "AWS::EC2::Route"
+    priority: 4
+    properties:
+      RouteTableId: "[PUBLIC_RT_ID]"
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: "[IGW_ID]"
+
+  # PRIVATE ROUTE TABLE (SEM rota para Internet - apenas VPC Endpoints)
+  private_route_table:
+    name: "{{PROJECT_NAME}}-private-rt"
+    resource_name: "03-private-rt"
+    type: "AWS::EC2::RouteTable"
+    priority: 4
+    properties:
+      VpcId: "[VPC_ID]"
+    note: "SEM rota 0.0.0.0/0 - comunicação 100% privada via VPC Endpoints"
+
+  # SUBNET ASSOCIATIONS
+  public_subnet_1a_association:
+    resource_name: "03-public-subnet-1a-assoc"
+    type: "AWS::EC2::SubnetRouteTableAssociation"
+    priority: 5
+    properties:
+      SubnetId: "[PUBLIC_SUBNET_1A_ID]"
+      RouteTableId: "[PUBLIC_RT_ID]"
+
+  public_subnet_1b_association:
+    resource_name: "03-public-subnet-1b-assoc"
+    type: "AWS::EC2::SubnetRouteTableAssociation"
+    priority: 5
+    properties:
+      SubnetId: "[PUBLIC_SUBNET_1B_ID]"
+      RouteTableId: "[PUBLIC_RT_ID]"
+
+  public_subnet_1c_association:
+    resource_name: "03-public-subnet-1c-assoc"
+    type: "AWS::EC2::SubnetRouteTableAssociation"
+    priority: 5
+    properties:
+      SubnetId: "[PUBLIC_SUBNET_1C_ID]"
+      RouteTableId: "[PUBLIC_RT_ID]"
+
+  private_subnet_1a_association:
+    resource_name: "03-private-subnet-1a-assoc"
+    type: "AWS::EC2::SubnetRouteTableAssociation"
+    priority: 5
+    properties:
+      SubnetId: "[PRIVATE_SUBNET_1A_ID]"
+      RouteTableId: "[PRIVATE_RT_ID]"
+
+  private_subnet_1b_association:
+    resource_name: "03-private-subnet-1b-assoc"
+    type: "AWS::EC2::SubnetRouteTableAssociation"
+    priority: 5
+    properties:
+      SubnetId: "[PRIVATE_SUBNET_1B_ID]"
+      RouteTableId: "[PRIVATE_RT_ID]"
+
+  private_subnet_1c_association:
+    resource_name: "03-private-subnet-1c-assoc"
+    type: "AWS::EC2::SubnetRouteTableAssociation"
+    priority: 5
+    properties:
+      SubnetId: "[PRIVATE_SUBNET_1C_ID]"
+      RouteTableId: "[PRIVATE_RT_ID]"
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 5. SECURITY GROUPS
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  sg_alb_cloudfront_only:
+    name: "{{PROJECT_NAME}}-sg-alb-cloudfront-only"
+    resource_name: "03-sg-alb"
+    type: "AWS::EC2::SecurityGroup"
+    priority: 6
+    properties:
+      GroupName: "{{PROJECT_NAME}}-sg-alb-cloudfront-only"
+      GroupDescription: "ALB Security Group - CloudFront Only"
+      VpcId: "[VPC_ID]"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          SourcePrefixListId: "pl-3b927c52"  # CloudFront Prefix List
+
+  sg_app:
+    name: "{{PROJECT_NAME}}-sg-app"
+    resource_name: "03-sg-app"
+    type: "AWS::EC2::SecurityGroup"
+    priority: 6
+    properties:
+      GroupName: "{{PROJECT_NAME}}-sg-app"
+      GroupDescription: "ECS Tasks Security Group"
+      VpcId: "[VPC_ID]"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: "[SG_ALB_ID]"
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: "0.0.0.0/0"  # Permite saída para VPC Endpoints
+
+  sg_endpoints:
+    name: "{{PROJECT_NAME}}-sg-endpoints"
+    resource_name: "03-sg-endpoints"
+    type: "AWS::EC2::SecurityGroup"
+    priority: 6
+    properties:
+      GroupName: "{{PROJECT_NAME}}-sg-endpoints"
+      GroupDescription: "VPC Endpoints Security Group"
+      VpcId: "[VPC_ID]"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: "[SG_APP_ID]"
+          Description: "HTTPS from ECS tasks"
+        - IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: "[SG_LAMBDA_ID]"
+          Description: "HTTPS from Lambda functions"
+
+  sg_redis:
+    name: "{{PROJECT_NAME}}-sg-redis"
+    resource_name: "03-sg-redis"
+    type: "AWS::EC2::SecurityGroup"
+    priority: 6
+    properties:
+      GroupName: "{{PROJECT_NAME}}-sg-redis"
+      GroupDescription: "Redis Security Group"
+      VpcId: "[VPC_ID]"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: "[SG_APP_ID]"
+
+  sg_database:
+    name: "{{PROJECT_NAME}}-sg-db"
+    resource_name: "03-sg-db"
+    type: "AWS::EC2::SecurityGroup"
+    priority: 6
+    properties:
+      GroupName: "{{PROJECT_NAME}}-sg-db"
+      GroupDescription: "Aurora PostgreSQL Security Group - Access from ECS only"
+      VpcId: "[VPC_ID]"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: "[SG_APP_ID]"
+          Description: "PostgreSQL from ECS tasks"
+
+  sg_lambda:
+    name: "{{PROJECT_NAME}}-sg-lambda"
+    resource_name: "03-sg-lambda"
+    type: "AWS::EC2::SecurityGroup"
+    priority: 6
+    properties:
+      GroupName: "{{PROJECT_NAME}}-sg-lambda"
+      GroupDescription: "Lambda Security Group - Access to VPC Endpoints"
+      VpcId: "[VPC_ID]"
+      SecurityGroupEgress:
+        - IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          DestinationSecurityGroupId: "[SG_ENDPOINTS_ID]"
+          Description: "HTTPS to VPC Endpoints"
+        - IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          CidrIp: "0.0.0.0/0"
+          Description: "HTTPS to API Gateway (público)"
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 6. VPC ENDPOINTS (Substituem NAT Gateway - Economia de $18/mês)
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  # S3 GATEWAY ENDPOINT (FREE)
+  s3_gateway_endpoint:
+    name: "S3 Gateway Endpoint"
+    resource_name: "03-vpce-s3"
+    type: "AWS::EC2::VPCEndpoint"
+    priority: 7
+    properties:
+      VpcId: "[VPC_ID]"
+      ServiceName: "com.amazonaws.{{AWS_REGION}}.s3"
+      VpcEndpointType: "Gateway"
+      RouteTableIds:
+        - "[PUBLIC_RT_ID]"
+        - "[PRIVATE_RT_ID]"  # AMBOS obrigatórios
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal: "*"
+            Action: "s3:*"
+            Resource: "*"
+    note: "Gateway Endpoint - FREE - Usado para ECR image layers"
+
+  # ECR API INTERFACE ENDPOINT ($7/mês)
+  ecr_api_endpoint:
+    name: "ECR API Interface Endpoint"
+    resource_name: "03-vpce-ecr-api"
+    type: "AWS::EC2::VPCEndpoint"
+    priority: 7
+    properties:
+      VpcId: "[VPC_ID]"
+      ServiceName: "com.amazonaws.{{AWS_REGION}}.ecr.api"
+      VpcEndpointType: "Interface"
+      SubnetIds:
+        - "[PRIVATE_SUBNET_1A_ID]"
+        - "[PRIVATE_SUBNET_1B_ID]"
+        - "[PRIVATE_SUBNET_1C_ID]"
+      SecurityGroupIds:
+        - "[SG_ENDPOINTS_ID]"
+      PrivateDnsEnabled: true
+    note: "Interface Endpoint - $7/mês - Necessário para ECR pull"
+
+  # ECR DKR INTERFACE ENDPOINT ($7/mês)
+  ecr_dkr_endpoint:
+    name: "ECR DKR Interface Endpoint"
+    resource_name: "03-vpce-ecr-dkr"
+    type: "AWS::EC2::VPCEndpoint"
+    priority: 7
+    properties:
+      VpcId: "[VPC_ID]"
+      ServiceName: "com.amazonaws.{{AWS_REGION}}.ecr.dkr"
+      VpcEndpointType: "Interface"
+      SubnetIds:
+        - "[PRIVATE_SUBNET_1A_ID]"
+        - "[PRIVATE_SUBNET_1B_ID]"
+        - "[PRIVATE_SUBNET_1C_ID]"
+      SecurityGroupIds:
+        - "[SG_ENDPOINTS_ID]"
+      PrivateDnsEnabled: true
+    note: "Interface Endpoint - $7/mês - Necessário para ECR pull"
+
+  # CLOUDWATCH LOGS INTERFACE ENDPOINT ($7/mês)
+  logs_endpoint:
+    name: "CloudWatch Logs Interface Endpoint"
+    resource_name: "03-vpce-logs"
+    type: "AWS::EC2::VPCEndpoint"
+    priority: 7
+    properties:
+      VpcId: "[VPC_ID]"
+      ServiceName: "com.amazonaws.{{AWS_REGION}}.logs"
+      VpcEndpointType: "Interface"
+      SubnetIds:
+        - "[PRIVATE_SUBNET_1A_ID]"
+        - "[PRIVATE_SUBNET_1B_ID]"
+        - "[PRIVATE_SUBNET_1C_ID]"
+      SecurityGroupIds:
+        - "[SG_ENDPOINTS_ID]"
+      PrivateDnsEnabled: true
+    note: "Interface Endpoint - $7/mês - Necessário para ECS logs"
+
+  # SSM INTERFACE ENDPOINT ($7/mês)
+  ssm_endpoint:
+    name: "SSM Interface Endpoint"
+    resource_name: "03-vpce-ssm"
+    type: "AWS::EC2::VPCEndpoint"
+    priority: 7
+    properties:
+      VpcId: "[VPC_ID]"
+      ServiceName: "com.amazonaws.{{AWS_REGION}}.ssm"
+      VpcEndpointType: "Interface"
+      SubnetIds:
+        - "[PRIVATE_SUBNET_1A_ID]"
+        - "[PRIVATE_SUBNET_1B_ID]"
+        - "[PRIVATE_SUBNET_1C_ID]"
+      SecurityGroupIds:
+        - "[SG_ENDPOINTS_ID]"
+      PrivateDnsEnabled: true
+    note: "Interface Endpoint - $7/mês - CRÍTICO para Parameter Store"
+
+  # X-RAY INTERFACE ENDPOINT ($7/mês)
+  xray_endpoint:
+    name: "X-Ray Interface Endpoint"
+    resource_name: "03-vpce-xray"
+    type: "AWS::EC2::VPCEndpoint"
+    priority: 7
+    properties:
+      VpcId: "[VPC_ID]"
+      ServiceName: "com.amazonaws.{{AWS_REGION}}.xray"
+      VpcEndpointType: "Interface"
+      SubnetIds:
+        - "[PRIVATE_SUBNET_1A_ID]"
+        - "[PRIVATE_SUBNET_1B_ID]"
+        - "[PRIVATE_SUBNET_1C_ID]"
+      SecurityGroupIds:
+        - "[SG_ENDPOINTS_ID]"
+      PrivateDnsEnabled: true
+    note: "Interface Endpoint - $7/mês - CRÍTICO para X-Ray SDK-only"
+
+  # DYNAMODB GATEWAY ENDPOINT (FREE) - Para Phase 17
+  dynamodb_gateway_endpoint:
+    name: "DynamoDB Gateway Endpoint"
+    resource_name: "03-vpce-dynamodb"
+    type: "AWS::EC2::VPCEndpoint"
+    priority: 7
+    properties:
+      VpcId: "[VPC_ID]"
+      ServiceName: "com.amazonaws.{{AWS_REGION}}.dynamodb"
+      VpcEndpointType: "Gateway"
+      RouteTableIds:
+        - "[PUBLIC_RT_ID]"
+        - "[PRIVATE_RT_ID]"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal: "*"
+            Action: "dynamodb:*"
+            Resource: "*"
+    note: "Gateway Endpoint - FREE - Para Lambda acessar DynamoDB"
+
+  # BEDROCK RUNTIME INTERFACE ENDPOINT ($7/mês) - Para Phase 17
+  bedrock_runtime_endpoint:
+    name: "Bedrock Runtime Interface Endpoint"
+    resource_name: "03-vpce-bedrock-runtime"
+    type: "AWS::EC2::VPCEndpoint"
+    priority: 7
+    properties:
+      VpcId: "[VPC_ID]"
+      ServiceName: "com.amazonaws.{{AWS_REGION}}.bedrock-runtime"
+      VpcEndpointType: "Interface"
+      SubnetIds:
+        - "[PRIVATE_SUBNET_1A_ID]"
+        - "[PRIVATE_SUBNET_1B_ID]"
+        - "[PRIVATE_SUBNET_1C_ID]"
+      SecurityGroupIds:
+        - "[SG_ENDPOINTS_ID]"
+      PrivateDnsEnabled: true
+    note: "Interface Endpoint - $7/mês - Para Lambda acessar Bedrock"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VALIDAÇÕES CRÍTICAS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+validation:
+  pre_ecs_checks:
+    - name: "Verificar VPC Endpoints ativos"
+      command: |
+        aws ec2 describe-vpc-endpoints \
+          --filters "Name=vpc-id,Values=[VPC_ID]" \
+          --query 'VpcEndpoints[*].{Service:ServiceName,State:State}' \
+          --region {{AWS_REGION}}
+      expected: "Todos endpoints com State=available"
+    
+    - name: "Verificar Private DNS habilitado"
+      command: |
+        aws ec2 describe-vpc-endpoints \
+          --filters "Name=vpc-id,Values=[VPC_ID]" "Name=vpc-endpoint-type,Values=Interface" \
+          --query 'VpcEndpoints[*].{Service:ServiceName,PrivateDns:PrivateDnsEnabled}' \
+          --region {{AWS_REGION}}
+      expected: "Todos Interface Endpoints com PrivateDnsEnabled=true"
+    
+    - name: "Verificar Route Table privada SEM rota 0.0.0.0/0"
+      command: |
+        aws ec2 describe-route-tables \
+          --filters "Name=tag:Name,Values={{PROJECT_NAME}}-private-rt" \
+          --query 'RouteTables[0].Routes[?DestinationCidrBlock==`0.0.0.0/0`]' \
+          --region {{AWS_REGION}}
+      expected: "[] (vazio - sem rota para internet)"
+
+notes:
+  - "VPC Endpoints substituem NAT Gateway - economia de $18/mês"
+  - "S3 Gateway Endpoint é FREE"
+  - "5 Interface Endpoints = $35/mês (vs $32/mês de 2 NAT Gateways)"
+  - "Economia real considerando data transfer: ~$18/mês"
+  - "Subnets privadas NÃO têm rota para internet (0.0.0.0/0)"
+  - "Comunicação 100% privada via VPC Endpoints"
+  - "Private DNS DEVE estar habilitado para Interface Endpoints"
+
+cost_breakdown:
+  s3_gateway_endpoint: 0
+  ecr_api_endpoint: 7
+  ecr_dkr_endpoint: 7
+  logs_endpoint: 7
+  ssm_endpoint: 7
+  xray_endpoint: 7
+  total_monthly: 35
+  vs_nat_gateway: 32
+  real_savings_with_data_transfer: 18
