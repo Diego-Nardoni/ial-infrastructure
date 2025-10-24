@@ -55,26 +55,40 @@ IaL transforms infrastructure management through **natural conversation**. Inste
 
 ## 🚀 **Quick Start**
 
-### **Simple Installation via Amazon Q:**
+### **🎯 Zero-Config Installation (Recommended)**
 ```bash
-# In Amazon Q chat:
-👤 "Install IaL for me"
+# Clone repository
+git clone https://github.com/Diego-Nardoni/ial-infrastructure.git
+cd ial-infrastructure
 
-# Amazon Q will:
-# ✅ Create phases structure respecting order
-# ✅ Validate Well-Architected before each deploy  
-# ✅ Deploy sequentially: foundation → security → network...
-# ✅ Provide conversational infrastructure management
+# Start conversational installation
+python3 setup.py
 ```
 
-### **Manual Setup (if needed):**
+The Bootstrap Assistant will:
+- ✅ Check your environment automatically
+- ✅ Configure AWS dependencies  
+- ✅ Deploy required infrastructure
+- ✅ Guide you through setup conversationally
+- ✅ Launch the main system when ready
+
+### **🛠️ Manual Installation (Advanced)**
 ```bash
 # Prerequisites
-aws configure
-# Enable Bedrock models (Claude 3.5 Sonnet & Haiku)
+aws configure  # Configure AWS CLI
+python3 --version  # Ensure Python 3.11+
 
-# Use MCP tools for infrastructure management
-# All operations through Amazon Q natural conversation
+# Deploy foundation
+aws cloudformation deploy \
+  --template-file phases/00-foundation/07-conversation-memory.yaml \
+  --stack-name ial-conversation-memory \
+  --capabilities CAPABILITY_IAM
+
+# Enable Bedrock models (AWS Console)
+# Bedrock → Model access → Enable Claude 3.5 Sonnet & Haiku
+
+# Start system
+python3 natural_language_processor.py interactive
 ```
 
 ---
@@ -262,13 +276,15 @@ Scale: ~$115/month (high usage)
 
 ### **🎯 Recommended Path:**
 ```bash
-# In Amazon Q chat:
-👤 "Install IaL for me"
+# 1. Clone and enter directory
+git clone https://github.com/Diego-Nardoni/ial-infrastructure.git
+cd ial-infrastructure
 
-# Amazon Q will handle everything:
-# - Phase-by-phase deployment respecting dependencies
-# - Well-Architected validation before each deploy
-# - Natural conversation throughout the process
+# 2. Start conversational installation
+python3 setup.py
+
+# 3. Follow the guided setup conversation
+# The system will handle everything automatically!
 ```
 
 ### **📚 Additional Resources:**
@@ -295,8 +311,12 @@ MIT License - see [LICENSE](./LICENSE) for details.
 **🎯 Ready to transform your infrastructure management? Start with natural conversation today!**
 
 ```bash
-# In Amazon Q:
-👤 "Install IaL for me"
+# Clone repository
+git clone https://github.com/Diego-Nardoni/ial-infrastructure.git
+cd ial-infrastructure
+
+# Start conversational installation
+python3 setup.py
 ```
 
 *IaL v3.0 - Production Ready - October 2025*

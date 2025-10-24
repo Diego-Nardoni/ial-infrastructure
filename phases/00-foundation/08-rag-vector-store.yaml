@@ -1,0 +1,275 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IaL RAG Vector Store - DynamoDB tables for vector embeddings and S3 bucket for knowledge storage'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'ial'
+    Description: 'Project name for resource naming'
+
+Resources:
+  # S3 Bucket for Knowledge Base Storage
+  IaLKnowledgeBaseBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-knowledge-base-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicReadWrite: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldConversations
+            Status: Enabled
+            ExpirationInDays: 90  # Keep conversations for 90 days
+            Prefix: conversations/
+      NotificationConfiguration:
+        CloudWatchConfigurations:
+          - Event: s3:ObjectCreated:*
+            CloudWatchConfiguration:
+              LogGroupName: !Ref KnowledgeBaseLogGroup
+
+  # DynamoDB Table for Vector Embeddings
+  IaLVectorEmbeddingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-vector-embeddings'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: vector_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: vector_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIndex
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: RAG-VectorStore
+        - Key: Environment
+          Value: production
+
+  # DynamoDB Table for Knowledge Base Metadata
+  IaLKnowledgeBaseTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-knowledge-base'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: knowledge_id
+          AttributeType: S
+        - AttributeName: category
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: knowledge_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: CategoryIndex
+          KeySchema:
+            - AttributeName: category
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: RAG-KnowledgeBase
+        - Key: Environment
+          Value: production
+
+  # CloudWatch Log Group for Knowledge Base
+  KnowledgeBaseLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/ial/${ProjectName}/knowledge-base'
+      RetentionInDays: 30
+
+  # IAM Role for RAG Operations
+  IaLRAGExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-rag-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: RAGOperationsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt IaLVectorEmbeddingsTable.Arn
+                  - !Sub '${IaLVectorEmbeddingsTable.Arn}/index/*'
+                  - !GetAtt IaLKnowledgeBaseTable.Arn
+                  - !Sub '${IaLKnowledgeBaseTable.Arn}/index/*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt IaLKnowledgeBaseBucket.Arn
+                  - !Sub '${IaLKnowledgeBaseBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource:
+                  - arn:aws:bedrock:*::foundation-model/amazon.titan-embed-text-v1
+                  - arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ial/${ProjectName}/*'
+
+  # Lambda Function for RAG Processing (Optional)
+  RAGProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-rag-processor'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt IaLRAGExecutionRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          KNOWLEDGE_BUCKET: !Ref IaLKnowledgeBaseBucket
+          VECTOR_TABLE: !Ref IaLVectorEmbeddingsTable
+          KNOWLEDGE_TABLE: !Ref IaLKnowledgeBaseTable
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          
+          def lambda_handler(event, context):
+              """Process RAG operations via Lambda"""
+              
+              try:
+                  # Initialize clients
+                  s3 = boto3.client('s3')
+                  dynamodb = boto3.client('dynamodb')
+                  
+                  # Get environment variables
+                  knowledge_bucket = os.environ['KNOWLEDGE_BUCKET']
+                  vector_table = os.environ['VECTOR_TABLE']
+                  
+                  # Process the event
+                  operation = event.get('operation', 'process_conversation')
+                  
+                  if operation == 'process_conversation':
+                      # Process conversation for RAG storage
+                      conversation_data = event.get('conversation_data', {})
+                      
+                      # Store conversation in S3
+                      s3_key = f"conversations/{conversation_data.get('user_id', 'unknown')}/{conversation_data.get('timestamp', '')}.json"
+                      
+                      s3.put_object(
+                          Bucket=knowledge_bucket,
+                          Key=s3_key,
+                          Body=json.dumps(conversation_data),
+                          ContentType='application/json'
+                      )
+                      
+                      return {
+                          'statusCode': 200,
+                          'body': json.dumps({
+                              'message': 'Conversation processed successfully',
+                              's3_key': s3_key
+                          })
+                      }
+                  
+                  else:
+                      return {
+                          'statusCode': 400,
+                          'body': json.dumps({'error': f'Unknown operation: {operation}'})
+                      }
+              
+              except Exception as e:
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps({'error': str(e)})
+                  }
+
+Outputs:
+  KnowledgeBaseBucket:
+    Description: 'S3 Bucket for knowledge base storage'
+    Value: !Ref IaLKnowledgeBaseBucket
+    Export:
+      Name: !Sub '${ProjectName}-knowledge-base-bucket'
+
+  VectorEmbeddingsTable:
+    Description: 'DynamoDB table for vector embeddings'
+    Value: !Ref IaLVectorEmbeddingsTable
+    Export:
+      Name: !Sub '${ProjectName}-vector-embeddings-table'
+
+  KnowledgeBaseTable:
+    Description: 'DynamoDB table for knowledge base metadata'
+    Value: !Ref IaLKnowledgeBaseTable
+    Export:
+      Name: !Sub '${ProjectName}-knowledge-base-table'
+
+  RAGExecutionRole:
+    Description: 'IAM role for RAG operations'
+    Value: !GetAtt IaLRAGExecutionRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-rag-execution-role-arn'
+
+  RAGProcessorFunction:
+    Description: 'Lambda function for RAG processing'
+    Value: !Ref RAGProcessorFunction
+    Export:
+      Name: !Sub '${ProjectName}-rag-processor-function'
