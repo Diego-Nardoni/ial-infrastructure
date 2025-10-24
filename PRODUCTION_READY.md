@@ -20,45 +20,48 @@ IaL v3.0 is a complete conversational AI system that manages AWS infrastructure 
 
 ## 🚀 **QUICK START**
 
-### **1. Prerequisites**
+### **🎯 Zero-Config Installation (Recommended)**
 ```bash
-# AWS CLI configured
-aws configure
+# 1. Clone repository
+git clone https://github.com/Diego-Nardoni/ial-infrastructure.git
+cd ial-infrastructure
 
-# Python 3.11+
-python3 --version
-
-# Required AWS services access:
-# - Bedrock (Claude models)
-# - DynamoDB
-# - CloudFormation
-# - CloudWatch
+# 2. Start conversational installation
+python3 setup.py
 ```
 
-### **2. Deploy Infrastructure**
+**The Bootstrap Assistant will:**
+- ✅ Automatically detect your environment
+- ✅ Check AWS CLI configuration
+- ✅ Verify Bedrock access
+- ✅ Deploy required DynamoDB tables
+- ✅ Guide you through any missing setup
+- ✅ Launch the main system when ready
+
+### **🛠️ Manual Installation (Advanced Users)**
 ```bash
-# Deploy conversation memory tables
+# Prerequisites check
+aws configure  # Configure AWS CLI
+python3 --version  # Ensure Python 3.11+
+
+# Deploy foundation infrastructure
 aws cloudformation deploy \
   --template-file phases/00-foundation/07-conversation-memory.yaml \
   --stack-name ial-conversation-memory \
   --capabilities CAPABILITY_IAM
 
-# Enable Bedrock model access
-# AWS Console → Bedrock → Model access → Enable Claude 3.5 Sonnet & Haiku
-```
+# Enable Bedrock models (AWS Console)
+# Bedrock → Model access → Enable Claude 3.5 Sonnet & Haiku
 
-### **3. Start Conversation**
-```bash
-# Interactive mode
+# Start system directly
 python3 natural_language_processor.py interactive
-
-# Or direct usage
-python3 -c "
-from natural_language_processor import IaLNaturalProcessor
-processor = IaLNaturalProcessor()
-print(processor.process_command('Deploy security infrastructure', 'user-123'))
-"
 ```
+
+### **📋 Required AWS Services:**
+- **Bedrock** - Claude 3.5 Sonnet & Haiku models
+- **DynamoDB** - Conversation history and caching
+- **CloudFormation** - Infrastructure deployment
+- **CloudWatch** - Monitoring and logging
 
 ---
 

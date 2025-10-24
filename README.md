@@ -55,18 +55,30 @@ IaL transforms infrastructure management through **natural conversation**. Inste
 
 ## 🚀 **Quick Start**
 
-### **1. Prerequisites**
+### **🎯 Zero-Config Installation (Recommended)**
 ```bash
-# AWS CLI configured
-aws configure
+# Clone repository
+git clone https://github.com/Diego-Nardoni/ial-infrastructure.git
+cd ial-infrastructure
 
-# Python 3.11+
-python3 --version
+# Start conversational installation
+python3 setup.py
 ```
 
-### **2. Deploy Foundation**
+The Bootstrap Assistant will:
+- ✅ Check your environment automatically
+- ✅ Configure AWS dependencies  
+- ✅ Deploy required infrastructure
+- ✅ Guide you through setup conversationally
+- ✅ Launch the main system when ready
+
+### **🛠️ Manual Installation (Advanced)**
 ```bash
-# Deploy conversation memory
+# Prerequisites
+aws configure  # Configure AWS CLI
+python3 --version  # Ensure Python 3.11+
+
+# Deploy foundation
 aws cloudformation deploy \
   --template-file phases/00-foundation/07-conversation-memory.yaml \
   --stack-name ial-conversation-memory \
@@ -74,19 +86,9 @@ aws cloudformation deploy \
 
 # Enable Bedrock models (AWS Console)
 # Bedrock → Model access → Enable Claude 3.5 Sonnet & Haiku
-```
 
-### **3. Start Conversation**
-```bash
-# Interactive mode
+# Start system
 python3 natural_language_processor.py interactive
-
-# Direct usage
-python3 -c "
-from natural_language_processor import IaLNaturalProcessor
-processor = IaLNaturalProcessor()
-print(processor.process_command('Hello, help me with my infrastructure'))
-"
 ```
 
 ---
@@ -272,11 +274,23 @@ Scale: ~$115/month (high usage)
 
 ## 🚀 **Getting Started**
 
-1. **[Read the Production Guide](./PRODUCTION_READY.md)** for complete setup
-2. **Deploy the foundation** infrastructure
-3. **Enable Bedrock models** in AWS Console
-4. **Start your first conversation** with IaL
-5. **Deploy your infrastructure** through natural language
+### **🎯 Recommended Path:**
+```bash
+# 1. Clone and enter directory
+git clone https://github.com/Diego-Nardoni/ial-infrastructure.git
+cd ial-infrastructure
+
+# 2. Start conversational installation
+python3 setup.py
+
+# 3. Follow the guided setup conversation
+# The system will handle everything automatically!
+```
+
+### **📚 Additional Resources:**
+- **[Production Guide](./PRODUCTION_READY.md)** - Advanced deployment options
+- **[Architecture](./ARCHITECTURE.md)** - Technical deep dive
+- **[Quick Reference](./QUICK_REFERENCE.md)** - Command examples
 
 ---
 
@@ -297,7 +311,12 @@ MIT License - see [LICENSE](./LICENSE) for details.
 **🎯 Ready to transform your infrastructure management? Start with natural conversation today!**
 
 ```bash
-python3 natural_language_processor.py interactive
+# Clone repository
+git clone https://github.com/Diego-Nardoni/ial-infrastructure.git
+cd ial-infrastructure
+
+# Start conversational installation
+python3 setup.py
 ```
 
 *IaL v3.0 - Production Ready - October 2025*
