@@ -20,41 +20,27 @@ IaL v3.0 is a complete conversational AI system that manages AWS infrastructure 
 
 ## 🚀 **QUICK START**
 
-### **🎯 Zero-Config Installation (Recommended)**
+### **🎯 Simple Installation via Amazon Q (Recommended)**
 ```bash
-# 1. Clone repository
-git clone https://github.com/Diego-Nardoni/ial-infrastructure.git
-cd ial-infrastructure
-
-# 2. Start conversational installation
-python3 setup.py
+# In Amazon Q chat:
+👤 "Install IaL for me"
 ```
 
-**The Bootstrap Assistant will:**
-- ✅ Automatically detect your environment
-- ✅ Check AWS CLI configuration
-- ✅ Verify Bedrock access
-- ✅ Deploy required DynamoDB tables
-- ✅ Guide you through any missing setup
-- ✅ Launch the main system when ready
+**Amazon Q will automatically:**
+- ✅ Respect phase deployment order (00-foundation → 10-security → etc.)
+- ✅ Run Well-Architected assessment before each phase
+- ✅ Deploy infrastructure sequentially with dependency validation
+- ✅ Provide conversational management throughout
+- ✅ Enable natural language infrastructure operations
 
-### **🛠️ Manual Installation (Advanced Users)**
+### **🛠️ Manual Setup (Advanced Users)**
 ```bash
-# Prerequisites check
-aws configure  # Configure AWS CLI
-python3 --version  # Ensure Python 3.11+
+# Prerequisites
+aws configure
+# Enable Bedrock models: Claude 3.5 Sonnet & Haiku
 
-# Deploy foundation infrastructure
-aws cloudformation deploy \
-  --template-file phases/00-foundation/07-conversation-memory.yaml \
-  --stack-name ial-conversation-memory \
-  --capabilities CAPABILITY_IAM
-
-# Enable Bedrock models (AWS Console)
-# Bedrock → Model access → Enable Claude 3.5 Sonnet & Haiku
-
-# Start system directly
-python3 natural_language_processor.py interactive
+# Use Amazon Q with MCP tools for all operations
+# Natural conversation handles phase management automatically
 ```
 
 ### **📋 Required AWS Services:**
