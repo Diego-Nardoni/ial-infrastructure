@@ -1,0 +1,13 @@
+phase_name: Universal Budgets Resources
+description: Auto-generated phase for budgets resources
+resource_count: 1
+Resources:
+  UniversalBudgets:
+    Type: AWS::Budgets::Resource
+    Properties: {}
+    Metadata:
+      CreatedVia: universal-tracker
+      Service: budgets
+      Operation: create-budget
+      Timestamp: '2025-10-24T11:31:36.042872'
+      OriginalName: budgets
