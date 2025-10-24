@@ -49,9 +49,12 @@ def load_intent_config():
         project_root = Path(__file__).parent.parent
         config_path = project_root / 'orchestration' / 'main.mcp.yaml'
         
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-        return config
+        # Import CloudFormation YAML loader
+        sys.path.append(str(Path(__file__).parent))
+        from cf_yaml_loader import load_cf_yaml
+        
+        config = load_cf_yaml(config_path)
+        return config if config else {'intents': {}}
     except Exception as e:
         print(f"❌ Error loading intent config: {e}")
         return {'intents': {}}

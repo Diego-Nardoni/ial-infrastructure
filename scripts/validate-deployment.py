@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import datetime
 """Deployment Validation - Ensure All Resources Are Created"""
 
 import boto3
@@ -8,7 +7,11 @@ import json
 import os
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
+
+# Import CloudFormation YAML loader
+sys.path.append(str(Path(__file__).parent))
+from cf_yaml_loader import load_cf_yaml
 
 # Get project root directory dynamically
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -52,8 +55,9 @@ def count_expected_resources():
     
     for phase_file in phases_dir.glob('*.yaml'):
         try:
-            with open(phase_file, 'r') as f:
-                phase_data = yaml.safe_load(f)
+            phase_data = load_cf_yaml(phase_file)
+            if phase_data is None:
+                continue
             
             phase_name = phase_file.stem
             
@@ -156,7 +160,7 @@ def validate_completeness(expected, created):
     """Validate deployment completeness"""
     
     validation = {
-        'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'expected_total': expected['total'],
         'created_total': created['total'],
         'completion_rate': 0,
