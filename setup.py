@@ -9,7 +9,16 @@ import sys
 import subprocess
 import json
 import time
+import readline
 from datetime import datetime
+
+# Configure readline for better input handling
+def clear_screen():
+    """Clear the terminal screen"""
+    os.system('clear' if os.name == 'posix' else 'cls')
+
+# Set up readline key bindings
+readline.parse_and_bind('Control-l: clear-screen')
 
 class IaLBootstrapAssistant:
     def __init__(self):
@@ -34,6 +43,16 @@ class IaLBootstrapAssistant:
             if user_input.lower() in ['sair', 'quit', 'exit']:
                 print("👋 Instalação cancelada. Execute novamente quando quiser configurar!")
                 break
+            
+            if user_input.lower() in ['clear', 'cls']:
+                clear_screen()
+                print("🚀 IaL - Infrastructure as Language")
+                print("Assistente de Instalação Inteligente")
+                print("=" * 50)
+                print("🚀 Olá! Sou o assistente de instalação do IaL")
+                print("Vou configurar tudo para você usar linguagem natural com sua infraestrutura AWS")
+                print()
+                continue
                 
             response = self.process_setup_request(user_input)
             print(f"🤖 IaL Setup: {response}")
@@ -43,6 +62,8 @@ class IaLBootstrapAssistant:
             if self.is_setup_complete():
                 print("✅ Instalação completa! Transferindo para o sistema principal...")
                 print("=" * 60)
+                self.start_main_system()
+                break
                 self.start_main_system()
                 break
 
@@ -197,11 +218,17 @@ class IaLBootstrapAssistant:
             bedrock_result = self.setup_bedrock_models()
             steps_completed.append(bedrock_result)
         
+        # 5. Criar alias para facilitar acesso
+        alias_result = self.create_ial_alias()
+        steps_completed.append(alias_result)
+        
         response = "🎉 Configuração concluída!\n\n"
         for step in steps_completed:
             response += f"{step}\n"
         
-        response += "\n✅ Sistema IaL pronto para uso!"
+        response += "\n🎉 Instalação completa! Transferindo para o sistema principal..."
+        response += "\n" + "="*60
+        response += "\n🚀 IaL Master Engine initialized - All systems operational"
         return response
 
     def check_python_dependencies(self):
@@ -281,6 +308,77 @@ O que você gostaria de fazer?"""
         
         return "🤔 Não entendi. Diga 'instalar tudo' para começar ou 'ajuda' para ver opções."
 
+    def create_ial_alias(self):
+        """Cria alias 'ial' para facilitar acesso ao sistema"""
+        try:
+            import os
+            import subprocess
+            
+            # Caminho atual do IaL
+            ial_path = os.path.abspath(os.path.dirname(__file__))
+            
+            # Comando do alias
+            alias_command = f'alias ial="cd {ial_path} && python3 natural_language_processor.py interactive"'
+            
+            # Arquivos de configuração do shell para tentar
+            shell_configs = [
+                os.path.expanduser("~/.bashrc"),
+                os.path.expanduser("~/.zshrc"),
+                os.path.expanduser("~/.profile")
+            ]
+            
+            alias_added = False
+            config_used = None
+            
+            for config_file in shell_configs:
+                if os.path.exists(config_file):
+                    # Verificar se alias já existe
+                    with open(config_file, 'r') as f:
+                        content = f.read()
+                    
+                    if 'alias ial=' not in content:
+                        # Adicionar alias
+                        with open(config_file, 'a') as f:
+                            f.write(f'\n# IaL - Infrastructure as Language\n{alias_command}\n')
+                        alias_added = True
+                        config_used = config_file
+                        break
+                    else:
+                        alias_added = True
+                        config_used = config_file
+                        break
+            
+            if alias_added:
+                # Criar script de ativação
+                activation_script = f"""#!/bin/bash
+echo "🚀 Ativando alias 'ial'..."
+source {config_used}
+echo "✅ Alias ativado! Digite 'ial' para acessar o sistema"
+echo "📋 Ou use: cd {ial_path} && python3 natural_language_processor.py interactive"
+"""
+                with open(f"{ial_path}/activate_alias.sh", 'w') as f:
+                    f.write(activation_script)
+                
+                os.chmod(f"{ial_path}/activate_alias.sh", 0o755)
+                
+                return f"""✅ Alias 'ial' criado com sucesso!
+
+📋 Para usar o IaL, escolha uma opção:
+
+1️⃣ Ativar alias (recomendado):
+   source {config_used} && ial
+
+2️⃣ Script de ativação:
+   {ial_path}/activate_alias.sh
+
+3️⃣ Comando direto:
+   cd {ial_path} && python3 natural_language_processor.py interactive"""
+            else:
+                return "⚠️ Não foi possível criar alias automaticamente"
+                
+        except Exception as e:
+            return f"⚠️ Erro ao criar alias: {e}"
+
     def is_setup_complete(self):
         """Verifica se setup está completo"""
         checks = self.run_environment_checks()
@@ -296,7 +394,7 @@ O que você gostaria de fazer?"""
             processor = IaLNaturalProcessor()
             print("🧠 Sistema IaL carregado com sucesso!")
             print("Agora você pode conversar naturalmente sobre sua infraestrutura.")
-            print("Digite 'sair' para encerrar.\n")
+            print("Digite 'sair' para encerrar, 'clear' para limpar tela (Ctrl+L também funciona).\n")
             
             while True:
                 user_input = input("👤 Você: ").strip()
@@ -304,6 +402,19 @@ O que você gostaria de fazer?"""
                 if user_input.lower() in ['sair', 'quit', 'exit']:
                     print("👋 Obrigado por usar o IaL!")
                     break
+                
+                if user_input.lower() in ['clear', 'cls']:
+                    clear_screen()
+                    print("🚀 IaL v3.0 - Advanced Mode: ALL SYSTEMS OPERATIONAL")
+                    print("✅ Bedrock Conversational AI")
+                    print("✅ Infrastructure Integration") 
+                    print("✅ Response Caching & Optimization")
+                    print("✅ Knowledge Base & RAG")
+                    print("✅ Cost Monitoring & Rate Limiting")
+                    print("=" * 60)
+                    print("🧠 Sistema IaL carregado com sucesso!")
+                    print("Digite 'sair' para encerrar, 'clear' para limpar tela (Ctrl+L também funciona).\n")
+                    continue
                 
                 if not user_input:
                     continue

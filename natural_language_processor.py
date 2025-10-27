@@ -8,7 +8,16 @@ import sys
 import os
 import uuid
 import json
+import readline
 from typing import Dict, List, Optional
+
+# Configure readline for better input handling
+def clear_screen():
+    """Clear the terminal screen"""
+    os.system('clear' if os.name == 'posix' else 'cls')
+
+# Set up readline key bindings
+readline.parse_and_bind('Control-l: clear-screen')
 
 # Try to import Master Engine
 try:
@@ -233,8 +242,8 @@ def interactive_mode():
     print(f"👤 User: {user_id}")
     print(f"🔗 Session: {session_id[:8]}...")
     print("=" * 60)
-    print("Commands: 'quit' to exit, 'status' for system status, 'usage' for cost report")
-    print("Ask me anything about infrastructure!")
+    print("Commands: 'quit' to exit, 'clear' to clear screen, 'status' for system status")
+    print("Ask me anything about infrastructure! (Ctrl+L also clears screen)")
     print()
     
     while True:
@@ -244,6 +253,20 @@ def interactive_mode():
             if user_input.lower() in ['quit', 'exit', 'bye']:
                 print("👋 Goodbye! Thanks for using IaL!")
                 break
+            
+            if user_input.lower() in ['clear', 'cls']:
+                clear_screen()
+                print("🚀 IaL v3.0 - Advanced Mode: ALL SYSTEMS OPERATIONAL")
+                print("✅ Bedrock Conversational AI")
+                print("✅ Infrastructure Integration") 
+                print("✅ Response Caching & Optimization")
+                print("✅ Knowledge Base & RAG")
+                print("✅ Cost Monitoring & Rate Limiting")
+                print("=" * 60)
+                print("Commands: 'quit' to exit, 'clear' to clear screen, 'status' for system status")
+                print("Ask me anything about infrastructure! (Ctrl+L also clears screen)")
+                print()
+                continue
             
             if user_input.lower() == 'status':
                 status = processor.get_system_status()

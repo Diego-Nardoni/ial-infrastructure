@@ -1,0 +1,309 @@
+name: 🔍 Validate Completeness Gate
+
+on:
+  workflow_run:
+    workflows: ["🚀 Deploy Infrastructure"]
+    types:
+      - completed
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'phases/**/*.yaml'
+      - 'scripts/validate_completeness.py'
+      - 'scripts/phase_manager.py'
+  workflow_dispatch:
+    inputs:
+      force_validation:
+        description: 'Force validation even if no deployment'
+        required: false
+        default: 'false'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  issues: write
+
+env:
+  AWS_REGION: us-east-1
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  validate-completeness:
+    name: 🔍 Completeness Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: 📦 Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install boto3 pyyaml networkx pandas requests
+      
+      - name: 🔐 Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: ial-completeness-validation
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: 🧠 Generate DAG Cognitivo
+        id: generate_dag
+        run: |
+          echo "🧠 Gerando DAG cognitivo..."
+          python scripts/phase_manager.py
+          
+          if [ $? -eq 0 ]; then
+            echo "dag_generated=true" >> $GITHUB_OUTPUT
+            echo "✅ DAG gerado com sucesso"
+          else
+            echo "dag_generated=false" >> $GITHUB_OUTPUT
+            echo "❌ Erro gerando DAG"
+            exit 1
+          fi
+      
+      - name: 🔍 Execute Completeness Validation
+        id: validation
+        run: |
+          echo "🔍 Executando validação de completude..."
+          
+          # Executar validação
+          python scripts/validate_completeness.py
+          validation_exit_code=$?
+          
+          echo "validation_exit_code=$validation_exit_code" >> $GITHUB_OUTPUT
+          
+          # Ler relatório gerado
+          if [ -f "reports/completeness_validation.json" ]; then
+            completeness=$(jq -r '.completeness_percentage' reports/completeness_validation.json)
+            total_expected=$(jq -r '.total_expected' reports/completeness_validation.json)
+            total_missing=$(jq -r '.total_missing' reports/completeness_validation.json)
+            
+            echo "completeness_percentage=$completeness" >> $GITHUB_OUTPUT
+            echo "total_expected=$total_expected" >> $GITHUB_OUTPUT
+            echo "total_missing=$total_missing" >> $GITHUB_OUTPUT
+            
+            # Preparar resumo
+            if [ "$validation_exit_code" -eq 0 ]; then
+              echo "validation_status=✅ PASSOU" >> $GITHUB_OUTPUT
+              echo "validation_summary=Todos os $total_expected recursos estão presentes (100%)" >> $GITHUB_OUTPUT
+            else
+              echo "validation_status=❌ FALHOU" >> $GITHUB_OUTPUT
+              echo "validation_summary=$total_missing de $total_expected recursos ausentes (${completeness}% completo)" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "validation_status=⚠️ ERRO" >> $GITHUB_OUTPUT
+            echo "validation_summary=Relatório de validação não encontrado" >> $GITHUB_OUTPUT
+          fi
+          
+          # Retornar exit code original
+          exit $validation_exit_code
+      
+      - name: 🔄 Execute Reconcile with JSON Output
+        id: reconcile
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "🔄 Executando reconciliação..."
+          
+          python scripts/reconcile.py
+          reconcile_exit_code=$?
+          
+          echo "reconcile_exit_code=$reconcile_exit_code" >> $GITHUB_OUTPUT
+          
+          # Ler relatório de reconciliação
+          if [ -f "reports/reconcile_report.json" ]; then
+            drift_count=$(jq -r '.reconcile_report.summary.drift_detected' reports/reconcile_report.json)
+            high_risk_count=$(jq -r '.reconcile_report.summary.high_risk' reports/reconcile_report.json)
+            
+            echo "drift_count=$drift_count" >> $GITHUB_OUTPUT
+            echo "high_risk_count=$high_risk_count" >> $GITHUB_OUTPUT
+            
+            if [ "$high_risk_count" -gt 0 ]; then
+              echo "reconcile_status=⚠️ ALTO RISCO" >> $GITHUB_OUTPUT
+            elif [ "$drift_count" -gt 0 ]; then
+              echo "reconcile_status=🔄 DRIFT DETECTADO" >> $GITHUB_OUTPUT
+            else
+              echo "reconcile_status=✅ CONFORME" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "reconcile_status=⚠️ ERRO" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: 📊 Generate Mermaid Diagram
+        id: mermaid
+        if: steps.generate_dag.outputs.dag_generated == 'true'
+        run: |
+          echo "📊 Gerando diagrama Mermaid do DAG..."
+          
+          # Criar script Python para gerar Mermaid
+          cat > generate_mermaid.py << 'EOF'
+          import yaml
+          import json
+          from pathlib import Path
+          
+          # Ler deployment-order.yaml
+          with open('phases/deployment-order.yaml', 'r') as f:
+              data = yaml.safe_load(f)
+          
+          # Gerar Mermaid
+          mermaid = ["graph TD"]
+          
+          dependencies = data.get('dependencies', {})
+          for phase, deps in dependencies.items():
+              phase_clean = phase.replace('/', '_').replace('-', '_')
+              
+              if deps.get('depends_on'):
+                  for dep in deps['depends_on']:
+                      dep_clean = dep.replace('/', '_').replace('-', '_')
+                      mermaid.append(f"    {dep_clean} --> {phase_clean}")
+              else:
+                  mermaid.append(f"    {phase_clean}")
+          
+          # Salvar
+          with open('dag_diagram.mmd', 'w') as f:
+              f.write('\n'.join(mermaid))
+          
+          print("Mermaid diagram generated")
+          EOF
+          
+          python generate_mermaid.py
+          
+          if [ -f "dag_diagram.mmd" ]; then
+            echo "mermaid_generated=true" >> $GITHUB_OUTPUT
+          else
+            echo "mermaid_generated=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: 💬 Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Ler relatórios
+            let completenessReport = {};
+            let reconcileReport = {};
+            let mermaidDiagram = '';
+            
+            try {
+              if (fs.existsSync('reports/completeness_validation.json')) {
+                completenessReport = JSON.parse(fs.readFileSync('reports/completeness_validation.json', 'utf8'));
+              }
+              if (fs.existsSync('reports/reconcile_report.json')) {
+                reconcileReport = JSON.parse(fs.readFileSync('reports/reconcile_report.json', 'utf8'));
+              }
+              if (fs.existsSync('dag_diagram.mmd')) {
+                mermaidDiagram = fs.readFileSync('dag_diagram.mmd', 'utf8');
+              }
+            } catch (e) {
+              console.log('Error reading reports:', e);
+            }
+            
+            // Construir comentário
+            const validationStatus = '${{ steps.validation.outputs.validation_status }}';
+            const reconcileStatus = '${{ steps.reconcile.outputs.reconcile_status }}';
+            
+            const comment = `## 🔍 IAL Core Cognitivo - Validation Report
+            
+            ### 📊 Resultados
+            
+            | Componente | Status | Detalhes |
+            |------------|--------|----------|
+            | **Completeness Gate** | ${validationStatus} | ${{ steps.validation.outputs.validation_summary }} |
+            | **Reconcile Engine** | ${reconcileStatus} | ${{ steps.reconcile.outputs.drift_count || 0 }} drifts, ${{ steps.reconcile.outputs.high_risk_count || 0 }} alto risco |
+            | **DAG Cognitivo** | ${{ steps.generate_dag.outputs.dag_generated == 'true' ? '✅ GERADO' : '❌ ERRO' }} | Dependências inferidas com IA |
+            
+            ### 🧠 DAG de Dependências
+            
+            ${mermaidDiagram ? '```mermaid\n' + mermaidDiagram + '\n```' : '_Diagrama não disponível_'}
+            
+            ### 📋 Detalhes Técnicos
+            
+            <details>
+            <summary>🔍 Relatório de Completude</summary>
+            
+            \`\`\`json
+            ${JSON.stringify(completenessReport, null, 2)}
+            \`\`\`
+            
+            </details>
+            
+            <details>
+            <summary>🔄 Relatório de Reconciliação</summary>
+            
+            \`\`\`json
+            ${JSON.stringify(reconcileReport, null, 2)}
+            \`\`\`
+            
+            </details>
+            
+            ---
+            
+            **🤖 Gerado automaticamente pelo IAL Core Cognitivo**  
+            *Timestamp: ${new Date().toISOString()}*
+            `;
+            
+            // Postar comentário
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: 📤 Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ial-core-reports
+          path: |
+            reports/completeness_validation.json
+            reports/reconcile_report.json
+            phases/deployment-order.yaml
+            dag_diagram.mmd
+          retention-days: 30
+      
+      - name: 🚨 Fail if Completeness Gate Failed
+        if: steps.validation.outputs.validation_exit_code != '0'
+        run: |
+          echo "❌ COMPLETENESS GATE FAILED"
+          echo "🔍 ${{ steps.validation.outputs.validation_summary }}"
+          echo ""
+          echo "Este pipeline falhou porque nem todos os recursos esperados foram encontrados na AWS."
+          echo "Verifique o relatório de completude para detalhes dos recursos ausentes."
+          exit 1
+      
+      - name: ⚠️ Warn on High Risk Drift
+        if: steps.reconcile.outputs.high_risk_count > 0
+        run: |
+          echo "⚠️ HIGH RISK DRIFT DETECTED"
+          echo "🔄 ${{ steps.reconcile.outputs.high_risk_count }} recursos de alto risco detectados"
+          echo ""
+          echo "Recursos com drift de alto risco foram detectados."
+          echo "Revise o relatório de reconciliação antes de prosseguir."
+          exit 1
+      
+      - name: ✅ Success Summary
+        if: steps.validation.outputs.validation_exit_code == '0' && steps.reconcile.outputs.high_risk_count == '0'
+        run: |
+          echo "✅ IAL CORE VALIDATION PASSED"
+          echo "🔍 Completeness: ${{ steps.validation.outputs.validation_summary }}"
+          echo "🔄 Reconcile: ${{ steps.reconcile.outputs.reconcile_status }}"
+          echo "🧠 DAG: Gerado com sucesso"
+          echo ""
+          echo "Todos os gates de qualidade passaram!"

@@ -1,107 +1,250 @@
-# IaL Deployment Order - Domain-Based Architecture
-# Generated: 2025-10-24
-# Total Domains: 8
-# Total Phases: 31
-
 metadata:
-  version: "2.0"
-  architecture: "domain-based"
-  total_domains: 8
-  total_phases: 31
-  estimated_total_duration: "180min"
-  generated_by: "ial-restructure"
-
-execution_plan:
-  wave_1:
-    description: "Foundation - Core infrastructure base"
-    domains: ["00-foundation"]
-    parallel: false
-    estimated_duration: "25min"
-    phases:
-      - domain: "00-foundation"
-        sequence: ["01-dynamodb-state", "02-logging-infrastructure", "03-reconciliation-engine", "04-backup-strategy", "05-chaos-engineering", "06-reconciliation-wrapper"]
-        parallel_within_domain: false
-
-  wave_2:
-    description: "Security & Network - Foundation ready"
-    domains: ["10-security", "20-network"]
-    parallel: false
-    estimated_duration: "50min"
-    phases:
-      - domain: "10-security"
-        sequence: ["01-kms-security", "02-security-services", "03-secrets-manager", "04-iam-roles", "05-iam-bedrock-github", "06-waf-cloudfront"]
-        parallel_within_domain: true
-      - domain: "20-network"
-        sequence: ["01-networking", "02-vpc-flow-logs"]
-        parallel_within_domain: false
-        depends_on: ["10-security"]
-
-  wave_3:
-    description: "Core Services - Infrastructure ready"
-    domains: ["30-compute", "40-data"]
-    parallel: true
-    estimated_duration: "40min"
-    phases:
-      - domain: "30-compute"
-        sequence: ["01-ecr", "02-ecs-cluster", "03-ecs-task-service", "04-ecs-autoscaling", "05-alb"]
-        parallel_within_domain: true
-      - domain: "40-data"
-        sequence: ["01-redis", "02-aurora-postgresql", "03-aurora-postgresql-secure", "04-dynamodb-tables", "05-s3-storage"]
-        parallel_within_domain: true
-
-  wave_4:
-    description: "Application Services - Core ready"
-    domains: ["50-application"]
-    parallel: false
-    estimated_duration: "25min"
-    phases:
-      - domain: "50-application"
-        sequence: ["01-lambda-functions", "02-step-functions", "03-sns-topics", "04-parameter-store"]
-        parallel_within_domain: true
-
-  wave_5:
-    description: "Enhancement Services - Application ready"
-    domains: ["60-observability", "70-ai-ml"]
-    parallel: true
-    estimated_duration: "35min"
-    phases:
-      - domain: "60-observability"
-        sequence: ["01-enhanced-observability", "02-observability", "03-drift-detection"]
-        parallel_within_domain: true
-      - domain: "70-ai-ml"
-        sequence: ["01-rag-s3-tables"]
-        parallel_within_domain: true
-
-  wave_6:
-    description: "Governance - Final assessment and cost optimization"
-    domains: ["90-governance"]
-    parallel: false
-    estimated_duration: "15min"
-    phases:
-      - domain: "90-governance"
-        sequence: ["01-well-architected-assessment", "02-budgets-resources", "03-cost-guardrails", "04-cost-performance-dashboard"]
-        parallel_within_domain: false
-
-# Domain Dependencies Matrix
+  version: '3.0'
+  architecture: dag-cognitive
+  generated_by: phase_manager_ai
+  total_phases: 37
+  generated_at: '2025-10-27 11:56:03.959231'
+execution_order:
+- 30-compute/01-ecr
+- 50-application/03-sns-topics
+- 20-network/01-networking
+- 60-observability/01-enhanced-observability
+- 60-observability/03-drift-detection
+- 90-governance/01-well-architected-assessment
+- 90-governance/02-budgets-resources
+- 00-foundation/04-backup-strategy
+- 00-foundation/05-chaos-engineering
+- 10-security/01-kms-security
+- 10-security/04-iam-roles
+- 30-compute/02-ecs-cluster
+- 20-network/02-vpc-flow-logs
+- 40-data/01-redis
+- 40-data/04-dynamodb-tables
+- 40-data/05-s3-storage
+- 10-security/02-security-services
+- 10-security/06-waf-cloudfront
+- 60-observability/02-observability
+- 90-governance/03-cost-guardrails
+- 90-governance/04-cost-performance-dashboard
+- 40-data/02-aurora-postgresql
+- 10-security/03-secrets-manager
+- 10-security/05-iam-bedrock-github
+- 30-compute/03-ecs-task-service
+- 00-foundation/02-logging-infrastructure
+- 00-foundation/07-conversation-memory
+- 00-foundation/01-dynamodb-state
+- 70-ai-ml/01-rag-s3-tables
+- 40-data/03-aurora-postgresql-secure
+- 50-application/01-lambda-functions
+- 50-application/04-parameter-store
+- 30-compute/04-ecs-autoscaling
+- 30-compute/05-alb
+- 00-foundation/03-reconciliation-engine
+- 50-application/02-step-functions
+- 00-foundation/06-reconciliation-wrapper
 dependencies:
-  "00-foundation": []
-  "10-security": ["00-foundation"]
-  "20-network": ["00-foundation", "10-security"]
-  "30-compute": ["00-foundation", "10-security", "20-network"]
-  "40-data": ["00-foundation", "10-security", "20-network"]
-  "50-application": ["00-foundation", "10-security", "20-network", "30-compute", "40-data"]
-  "60-observability": ["00-foundation", "30-compute", "40-data", "50-application"]
-  "70-ai-ml": ["00-foundation", "10-security", "40-data", "50-application"]
-  "90-governance": ["00-foundation", "10-security", "20-network", "30-compute", "40-data", "50-application", "60-observability", "70-ai-ml"]
-
-# Parallelization Opportunities
-parallelization:
-  wave_2_security_phases: ["01-kms-security", "02-security-services", "03-secrets-manager"]
-  wave_3_compute_data: ["30-compute", "40-data"]
-  wave_5_observability_ai: ["60-observability", "70-ai-ml"]
-
-# Risk Assessment
-risk_levels:
-  low: ["00-foundation", "60-observability", "90-governance"]
-  medium: ["20-network", "30-compute", "50-application", "70-ai-ml"]
-  high: ["10-security", "40-data"]
+  30-compute/01-ecr:
+    depends_on: []
+    reasoning: "O ECR (Elastic Container Registry) n\xE3o depende de nenhuma outra\
+      \ fase, pois \xE9 um servi\xE7o independente que fornece um registro de cont\xEA\
+      ineres para armazenar e gerenciar imagens de cont\xEAineres."
+  30-compute/02-ecs-cluster:
+    depends_on:
+    - 30-compute/01-ecr
+    reasoning: "O cluster do ECS (Elastic Container Service) depende do ECR, pois\
+      \ as tarefas e servi\xE7os do ECS precisam ter acesso \xE0s imagens de cont\xEA\
+      ineres armazenadas no ECR."
+  30-compute/03-ecs-task-service:
+    depends_on:
+    - 30-compute/02-ecs-cluster
+    reasoning: "As tarefas e servi\xE7os do ECS dependem do cluster do ECS, pois eles\
+      \ s\xE3o implantados e executados dentro do cluster."
+  30-compute/04-ecs-autoscaling:
+    depends_on:
+    - 30-compute/03-ecs-task-service
+    reasoning: "O autoscaling do ECS depende das tarefas e servi\xE7os do ECS, pois\
+      \ \xE9 respons\xE1vel por dimensionar automaticamente esses recursos com base\
+      \ na demanda."
+  30-compute/05-alb:
+    depends_on:
+    - 30-compute/03-ecs-task-service
+    reasoning: "O Application Load Balancer (ALB) depende dos servi\xE7os do ECS,\
+      \ pois ele \xE9 respons\xE1vel por rotear o tr\xE1fego para os cont\xEAineres\
+      \ implantados no ECS."
+  50-application/01-lambda-functions:
+    depends_on:
+    - 10-security/01-kms-security
+    - 10-security/03-secrets-manager
+    reasoning: "As fun\xE7\xF5es Lambda dependem das chaves do KMS (Key Management\
+      \ Service) para criptografia e do Secrets Manager para acessar segredos."
+  50-application/02-step-functions:
+    depends_on:
+    - 50-application/01-lambda-functions
+    reasoning: "As AWS Step Functions dependem das fun\xE7\xF5es Lambda, pois elas\
+      \ podem chamar e orquestrar essas fun\xE7\xF5es como parte de seus fluxos de\
+      \ trabalho."
+  50-application/03-sns-topics:
+    depends_on: []
+    reasoning: "Os t\xF3picos do SNS (Simple Notification Service) n\xE3o dependem\
+      \ de nenhuma outra fase, pois s\xE3o um servi\xE7o independente que fornece\
+      \ publica\xE7\xE3o e assinatura de mensagens."
+  50-application/04-parameter-store:
+    depends_on:
+    - 10-security/03-secrets-manager
+    reasoning: O Parameter Store depende do Secrets Manager, pois ele pode ser usado
+      para armazenar segredos de maneira segura.
+  20-network/01-networking:
+    depends_on: []
+    reasoning: "A configura\xE7\xE3o da rede, incluindo VPC, subnets e security groups,\
+      \ n\xE3o depende de nenhuma outra fase, pois \xE9 um pr\xE9-requisito para a\
+      \ maioria dos recursos da AWS."
+  20-network/02-vpc-flow-logs:
+    depends_on:
+    - 20-network/01-networking
+    reasoning: "Os logs de fluxo da VPC dependem da rede configurada, pois eles capturam\
+      \ o tr\xE1fego de rede dentro da VPC."
+  70-ai-ml/01-rag-s3-tables:
+    depends_on:
+    - 40-data/05-s3-storage
+    reasoning: As tabelas do S3 para o Retrieval and Generation (RAG) dependem do
+      bucket do S3 configurado na fase de armazenamento de dados.
+  60-observability/01-enhanced-observability:
+    depends_on: []
+    reasoning: "A configura\xE7\xE3o da observabilidade aprimorada n\xE3o depende\
+      \ de nenhuma outra fase, pois \xE9 um conjunto de servi\xE7os independentes,\
+      \ como CloudWatch, X-Ray e Datadog."
+  60-observability/02-observability:
+    depends_on:
+    - 60-observability/01-enhanced-observability
+    reasoning: "A observabilidade geral depende da configura\xE7\xE3o da observabilidade\
+      \ aprimorada, pois se baseia nessa infraestrutura para coletar, armazenar e\
+      \ analisar os dados de observabilidade."
+  60-observability/03-drift-detection:
+    depends_on:
+    - 60-observability/02-observabilidade
+    reasoning: "A detec\xE7\xE3o de desvio depende da observabilidade configurada,\
+      \ pois utiliza os dados coletados e armazenados para identificar mudan\xE7as\
+      \ indesejadas na infraestrutura."
+  90-governance/01-well-architected-assessment:
+    depends_on: []
+    reasoning: "A avalia\xE7\xE3o da arquitetura bem-planejada n\xE3o depende de nenhuma\
+      \ outra fase, pois \xE9 um processo independente de revis\xE3o e valida\xE7\xE3\
+      o da arquitetura."
+  90-governance/02-budgets-resources:
+    depends_on: []
+    reasoning: "A configura\xE7\xE3o de or\xE7amentos e recursos n\xE3o depende de\
+      \ nenhuma outra fase, pois \xE9 um servi\xE7o independente para gerenciar e\
+      \ controlar os custos da AWS."
+  90-governance/03-cost-guardrails:
+    depends_on:
+    - 90-governance/02-budgets-resources
+    reasoning: "As guardrails de custo dependem da configura\xE7\xE3o de or\xE7amentos\
+      \ e recursos, pois eles se baseiam nesses dados para implementar controles de\
+      \ custo e limites."
+  90-governance/04-cost-performance-dashboard:
+    depends_on:
+    - 90-governance/02-budgets-resources
+    - 60-observability/02-observabilidade
+    reasoning: "O painel de desempenho e custo depende tanto dos dados de or\xE7amentos\
+      \ e recursos quanto da observabilidade configurada, pois precisa dessas informa\xE7\
+      \xF5es para fornecer uma vis\xE3o geral do desempenho e dos custos."
+  00-foundation/01-dynamodb-state:
+    depends_on:
+    - 40-data/04-dynamodb-tables
+    reasoning: O estado do DynamoDB depende das tabelas do DynamoDB configuradas na
+      fase de dados.
+  00-foundation/02-logging-infrastructure:
+    depends_on:
+    - 20-network/02-vpc-flow-logs
+    reasoning: "A infraestrutura de registro (logging) depende dos logs de fluxo da\
+      \ VPC, pois eles fornecem informa\xE7\xF5es importantes sobre o tr\xE1fego de\
+      \ rede."
+  00-foundation/03-reconciliation-engine:
+    depends_on:
+    - 00-foundation/01-dynamodb-state
+    reasoning: "O mecanismo de reconcilia\xE7\xE3o depende do estado do DynamoDB,\
+      \ pois ele usa esse armazenamento para manter o estado da reconcilia\xE7\xE3\
+      o."
+  00-foundation/04-backup-strategy:
+    depends_on: []
+    reasoning: "A estrat\xE9gia de backup n\xE3o depende de nenhuma outra fase, pois\
+      \ \xE9 um processo independente de prote\xE7\xE3o e recupera\xE7\xE3o de dados."
+  00-foundation/05-chaos-engineering:
+    depends_on: []
+    reasoning: "A engenharia de caos n\xE3o depende de nenhuma outra fase, pois \xE9\
+      \ uma abordagem independente para testar a resili\xEAncia da aplica\xE7\xE3\
+      o."
+  00-foundation/06-reconciliation-wrapper:
+    depends_on:
+    - 00-foundation/03-reconciliation-engine
+    reasoning: "O wrapper de reconcilia\xE7\xE3o depende do mecanismo de reconcilia\xE7\
+      \xE3o, pois \xE9 uma camada adicional que se baseia nele para fornecer funcionalidades\
+      \ de reconcilia\xE7\xE3o."
+  00-foundation/07-conversation-memory:
+    depends_on:
+    - 40-data/01-redis
+    reasoning: "A mem\xF3ria de conversa\xE7\xE3o depende do Redis configurado na\
+      \ fase de dados, pois ele \xE9 usado para armazenar e gerenciar o estado das\
+      \ conversa\xE7\xF5es."
+  40-data/01-redis:
+    depends_on:
+    - 20-network/01-networking
+    reasoning: "O Redis depende da rede configurada, pois ele \xE9 um servi\xE7o que\
+      \ precisa ser implantado em uma VPC e em subnets espec\xEDficas."
+  40-data/02-aurora-postgresql:
+    depends_on:
+    - 20-network/01-networking
+    - 10-security/01-kms-security
+    reasoning: "O Aurora PostgreSQL depende da rede configurada e das chaves do KMS,\
+      \ pois ele \xE9 implantado em uma VPC e pode usar o KMS para criptografia de\
+      \ dados em repouso."
+  40-data/03-aurora-postgresql-secure:
+    depends_on:
+    - 40-data/02-aurora-postgresql
+    reasoning: "O Aurora PostgreSQL seguro depende da configura\xE7\xE3o do Aurora\
+      \ PostgreSQL base, pois adiciona camadas de seguran\xE7a adicionais a esse recurso."
+  40-data/04-dynamodb-tables:
+    depends_on:
+    - 20-network/01-networking
+    reasoning: "As tabelas do DynamoDB dependem da rede configurada, pois elas s\xE3\
+      o implantadas em uma VPC e precisam de subnets e seguran\xE7a de rede."
+  40-data/05-s3-storage:
+    depends_on:
+    - 20-network/01-networking
+    reasoning: "O armazenamento do S3 depende da rede configurada, pois os acessos\
+      \ ao S3 podem ser restringidos por meio de pol\xEDticas de rede."
+  10-security/01-kms-security:
+    depends_on: []
+    reasoning: "A seguran\xE7a do KMS n\xE3o depende de nenhuma outra fase, pois \xE9\
+      \ um servi\xE7o independente de criptografia de chaves."
+  10-security/02-security-services:
+    depends_on:
+    - 20-network/01-networking
+    reasoning: "Os servi\xE7os de seguran\xE7a, como AWS GuardDuty, AWS Config e AWS\
+      \ Security Hub, dependem da rede configurada, pois monitoram e avaliam os recursos\
+      \ da AWS dentro da VPC."
+  10-security/03-secrets-manager:
+    depends_on:
+    - 10-security/01-kms-security
+    reasoning: O Secrets Manager depende das chaves do KMS, pois usa o KMS para criptografar
+      e descriptografar os segredos armazenados.
+  10-security/04-iam-roles:
+    depends_on: []
+    reasoning: "As fun\xE7\xF5es do IAM n\xE3o dependem de nenhuma outra fase, pois\
+      \ s\xE3o um servi\xE7o independente de gerenciamento de identidades e acesso."
+  10-security/05-iam-bedrock-github:
+    depends_on:
+    - 10-security/04-iam-roles
+    reasoning: "A integra\xE7\xE3o do IAM com o Bedrock GitHub depende das fun\xE7\
+      \xF5es do IAM configuradas, pois precisa desses recursos para permitir o acesso\
+      \ e as permiss\xF5es necess\xE1rias."
+  10-security/06-waf-cloudfront:
+    depends_on:
+    - 20-network/01-networking
+    reasoning: "O WAF do CloudFront depende da rede configurada, pois o CloudFront\
+      \ \xE9 implantado em uma VPC e precisa de subnets e seguran\xE7a de rede."
+dag_validation:
+  is_valid: true
+  has_cycles: false
+  total_nodes: 37
+  total_edges: 28
