@@ -1,0 +1,395 @@
+# MCP Mesh Configuration - IAL Intelligent Router
+# Configuração completa dos MCPs especializados
+
+version: "1.0"
+updated: "2025-11-04"
+
+# MCPs sempre ativos (core essenciais)
+core_mcps:
+  always_active:
+    - name: aws-cloudformation-mcp
+      priority: 1
+      load_timeout: 3.0
+      health_check_interval: 30
+      description: "Core CloudFormation operations"
+      
+    - name: aws-iam-mcp
+      priority: 1
+      load_timeout: 3.0
+      health_check_interval: 30
+      description: "IAM roles, policies, and permissions"
+      
+    - name: aws-cloudwatch-mcp
+      priority: 2
+      load_timeout: 4.0
+      health_check_interval: 60
+      description: "Monitoring, metrics, and logs"
+      
+    - name: core-mcp
+      priority: 1
+      load_timeout: 2.0
+      health_check_interval: 30
+      description: "IAL internal tools and utilities"
+      
+    - name: aws-cloudcontrol-mcp
+      priority: 1
+      load_timeout: 4.0
+      health_check_interval: 30
+      description: "AWS Cloud Control API for unified resource management"
+
+# MCPs especializados por domínio (lazy loading)
+domain_mcps:
+  compute:
+    description: "Compute services - containers, serverless, VMs"
+    trigger_keywords: 
+      - 'ecs'
+      - 'fargate' 
+      - 'container'
+      - 'task'
+      - 'service'
+      - 'cluster'
+      - 'lambda'
+      - 'function'
+      - 'serverless'
+      - 'event'
+      - 'trigger'
+      - 'eks'
+      - 'kubernetes'
+      - 'k8s'
+      - 'pod'
+      - 'deployment'
+      - 'ec2'
+      - 'instance'
+      - 'virtual machine'
+      - 'vm'
+      - 'server'
+    mcps:
+      - name: aws-ecs-mcp
+        priority: 1
+        load_timeout: 5.0
+        capabilities: ['create_cluster', 'create_service', 'create_task_definition', 'scale_service']
+        
+      - name: aws-lambda-mcp
+        priority: 1
+        load_timeout: 3.0
+        capabilities: ['create_function', 'update_code', 'create_trigger', 'manage_layers']
+        
+      - name: aws-eks-mcp
+        priority: 2
+        load_timeout: 8.0
+        capabilities: ['create_cluster', 'manage_nodegroups', 'configure_networking']
+        
+      - name: aws-ec2-mcp
+        priority: 2
+        load_timeout: 5.0
+        capabilities: ['launch_instances', 'manage_security_groups', 'configure_networking']
+
+  data:
+    description: "Data services - databases, storage, caching"
+    trigger_keywords:
+      - 'rds'
+      - 'database'
+      - 'mysql'
+      - 'postgres'
+      - 'aurora'
+      - 'db'
+      - 'dynamodb'
+      - 'nosql'
+      - 'table'
+      - 'item'
+      - 'key-value'
+      - 'redis'
+      - 'memcached'
+      - 'cache'
+      - 'elasticache'
+      - 's3'
+      - 'bucket'
+      - 'object'
+      - 'storage'
+      - 'file'
+    mcps:
+      - name: aws-rds-mcp
+        priority: 1
+        load_timeout: 6.0
+        capabilities: ['create_database', 'create_subnet_group', 'manage_snapshots', 'configure_security']
+        
+      - name: aws-dynamodb-mcp
+        priority: 1
+        load_timeout: 4.0
+        capabilities: ['create_table', 'manage_indexes', 'configure_streams', 'backup_restore']
+        
+      - name: aws-elasticache-mcp
+        priority: 2
+        load_timeout: 5.0
+        capabilities: ['create_cluster', 'configure_replication', 'manage_parameters']
+        
+      - name: aws-s3-mcp
+        priority: 2
+        load_timeout: 3.0
+        capabilities: ['create_bucket', 'configure_policies', 'manage_lifecycle', 'enable_versioning']
+
+  networking:
+    description: "Networking services - load balancers, VPC, API Gateway"
+    trigger_keywords:
+      - 'elb'
+      - 'alb'
+      - 'nlb'
+      - 'load balancer'
+      - 'balancer'
+      - 'lb'
+      - 'vpc'
+      - 'network'
+      - 'subnet'
+      - 'security group'
+      - 'routing'
+      - 'api gateway'
+      - 'api'
+      - 'rest'
+      - 'http'
+      - 'endpoint'
+    mcps:
+      - name: aws-elb-mcp
+        priority: 1
+        load_timeout: 4.0
+        capabilities: ['create_load_balancer', 'create_target_group', 'configure_listeners', 'health_checks']
+        
+      - name: aws-vpc-mcp
+        priority: 1
+        load_timeout: 5.0
+        capabilities: ['create_vpc', 'create_subnets', 'create_security_groups', 'configure_routing']
+        
+      - name: aws-apigateway-mcp
+        priority: 2
+        load_timeout: 4.0
+        capabilities: ['create_api', 'configure_resources', 'manage_stages', 'setup_auth']
+
+  security:
+    description: "Security services - encryption, secrets, access control"
+    trigger_keywords:
+      - 'kms'
+      - 'encryption'
+      - 'key'
+      - 'encrypt'
+      - 'decrypt'
+      - 'secrets manager'
+      - 'secret'
+      - 'password'
+      - 'credential'
+      - 'waf'
+      - 'shield'
+      - 'security'
+    mcps:
+      - name: aws-kms-mcp
+        priority: 2
+        load_timeout: 3.0
+        capabilities: ['create_key', 'manage_policies', 'encrypt_decrypt', 'key_rotation']
+        
+      - name: aws-secrets-mcp
+        priority: 2
+        load_timeout: 3.0
+        capabilities: ['create_secret', 'rotate_secret', 'configure_access']
+        
+      - name: aws-waf-mcp
+        priority: 3
+        load_timeout: 4.0
+        capabilities: ['create_webacl', 'configure_rules', 'associate_resources']
+
+  serverless:
+    description: "Serverless services - orchestration, messaging, events"
+    trigger_keywords:
+      - 'step functions'
+      - 'workflow'
+      - 'state machine'
+      - 'orchestration'
+      - 'sns'
+      - 'notification'
+      - 'topic'
+      - 'message'
+      - 'publish'
+      - 'sqs'
+      - 'queue'
+      - 'fifo'
+      - 'dead letter'
+    mcps:
+      - name: aws-stepfunctions-mcp
+        priority: 1
+        load_timeout: 5.0
+        capabilities: ['create_state_machine', 'manage_executions', 'configure_logging']
+        
+      - name: aws-sns-mcp
+        priority: 2
+        load_timeout: 3.0
+        capabilities: ['create_topic', 'manage_subscriptions', 'configure_delivery']
+        
+      - name: aws-sqs-mcp
+        priority: 2
+        load_timeout: 3.0
+        capabilities: ['create_queue', 'configure_dlq', 'manage_permissions']
+
+  observability:
+    description: "Observability services - monitoring, tracing, logging"
+    trigger_keywords:
+      - 'xray'
+      - 'tracing'
+      - 'trace'
+      - 'distributed'
+      - 'monitoring'
+      - 'metrics'
+      - 'logs'
+      - 'alarm'
+    mcps:
+      - name: aws-xray-mcp
+        priority: 2
+        load_timeout: 4.0
+        capabilities: ['enable_tracing', 'create_service_map', 'analyze_traces']
+
+  finops:
+    description: "FinOps services - cost management, billing, optimization"
+    trigger_keywords:
+      - 'billing'
+      - 'cost'
+      - 'budget'
+      - 'pricing'
+      - 'expense'
+      - 'cost explorer'
+      - 'cost analysis'
+      - 'spend'
+      - 'optimization'
+      - 'rightsizing'
+    mcps:
+      - name: aws-cost-explorer-mcp
+        priority: 1
+        load_timeout: 5.0
+        capabilities: ['analyze_costs', 'create_reports', 'get_recommendations']
+        
+      - name: aws-pricing-mcp
+        priority: 2
+        load_timeout: 4.0
+        capabilities: ['get_pricing', 'compare_options', 'estimate_costs']
+        
+      - name: aws-billing-mcp
+        priority: 2
+        load_timeout: 4.0
+        capabilities: ['get_bills', 'manage_budgets', 'configure_alerts']
+
+  devops:
+    description: "DevOps services - CI/CD, version control, collaboration"
+    trigger_keywords:
+      - 'github'
+      - 'git'
+      - 'repository'
+      - 'repo'
+      - 'pull request'
+      - 'pr'
+      - 'commit'
+      - 'branch'
+      - 'merge'
+      - 'issue'
+      - 'workflow'
+      - 'action'
+      - 'ci/cd'
+      - 'pipeline'
+      - 'deployment'
+      - 'release'
+    mcps:
+      - name: github-mcp-server
+        priority: 1
+        load_timeout: 4.0
+        capabilities: ['create_repository', 'manage_issues', 'create_pull_request', 'manage_workflows', 'search_code', 'manage_releases']
+
+# Configurações globais
+settings:
+  # Lazy loading
+  lazy_loading:
+    enabled: true
+    max_concurrent_loads: 3
+    default_timeout: 10.0
+    
+  # Cache
+  cache:
+    enabled: true
+    ttl_seconds: 300
+    max_entries: 100
+    
+  # Health checks
+  health_checks:
+    enabled: true
+    interval_seconds: 60
+    timeout_seconds: 5
+    max_failures: 3
+    
+  # Fallback
+  fallback:
+    enabled: true
+    use_cloudformation: true
+    confidence_threshold: 0.3
+    
+  # Logging
+  logging:
+    level: INFO
+    log_decisions: true
+    log_performance: true
+    log_errors: true
+
+# Padrões arquiteturais e otimizações
+architecture_patterns:
+  "3-tier":
+    description: "Three-tier web application"
+    optimizations:
+      enable_auto_scaling: true
+      multi_az_deployment: true
+      load_balancer_required: true
+      database_backup: true
+    required_domains: ['networking', 'compute', 'data']
+    
+  serverless:
+    description: "Serverless architecture"
+    optimizations:
+      prefer_lambda: true
+      enable_api_gateway: true
+      use_dynamodb: true
+      enable_xray: true
+    required_domains: ['serverless', 'data']
+    
+  microservices:
+    description: "Microservices architecture"
+    optimizations:
+      use_containers: true
+      service_mesh: true
+      distributed_tracing: true
+      centralized_logging: true
+    required_domains: ['compute', 'networking', 'observability']
+    
+  data-pipeline:
+    description: "Data processing pipeline"
+    optimizations:
+      use_step_functions: true
+      enable_monitoring: true
+      data_encryption: true
+      backup_strategy: true
+    required_domains: ['serverless', 'data', 'observability']
+
+  ci-cd:
+    description: "CI/CD pipeline with GitHub integration"
+    optimizations:
+      automated_testing: true
+      infrastructure_as_code: true
+      automated_deployment: true
+      rollback_capability: true
+    required_domains: ['devops', 'compute', 'observability']
+
+# Métricas e monitoramento
+metrics:
+  enabled: true
+  namespace: "IAL/MCPRouter"
+  
+  tracked_metrics:
+    - routing_decisions_total
+    - mcp_load_time
+    - execution_time
+    - cache_hit_rate
+    - fallback_usage
+    - confidence_scores
+    - error_rates
+    
+  cloudwatch_dashboard: "IAL-MCP-Router-Dashboard"

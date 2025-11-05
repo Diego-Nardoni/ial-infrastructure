@@ -1,0 +1,127 @@
+metadata:
+  name: "IAL Workloads Deployment Order"
+  description: "Deployment sequence for user workload infrastructure components"
+  version: "1.0"
+  created: "2025-11-03"
+  total_phases: 28
+  deployment_type: "workloads"
+
+execution_order:
+  - 10-security/01-kms-security
+  - 10-security/04-iam-roles
+  - 20-network/01-networking
+  - 20-network/02-vpc-flow-logs
+  - 40-data/01-redis
+  - 40-data/04-dynamodb-tables
+  - 40-data/05-s3-storage
+  - 10-security/02-security-services
+  - 10-security/03-secrets-manager
+  - 10-security/05-iam-bedrock-github
+  - 10-security/06-waf-cloudfront
+  - 30-compute/01-ecr
+  - 30-compute/02-ecs-cluster
+  - 30-compute/03-ecs-task-service
+  - 30-compute/04-ecs-autoscaling
+  - 30-compute/05-alb
+  - 40-data/02-aurora-postgresql
+  - 40-data/03-aurora-postgresql-secure
+  - 50-application/01-lambda-functions
+  - 50-application/03-sns-topics
+  - 50-application/04-parameter-store
+  - 60-observability/01-enhanced-observability
+  - 60-observability/02-observability
+  - 60-observability/03-drift-detection
+  - 70-ai-ml/01-rag-s3-tables
+  - 90-governance/01-well-architected-assessment
+  - 90-governance/02-budgets-resources
+  - 90-governance/03-cost-guardrails
+  - 90-governance/04-cost-performance-dashboard
+
+dependencies:
+  30-compute/01-ecr:
+    depends_on: []
+    reasoning: "ECR is independent and provides container registry"
+  30-compute/02-ecs-cluster:
+    depends_on: [30-compute/01-ecr]
+    reasoning: "ECS cluster depends on ECR for container images"
+  30-compute/03-ecs-task-service:
+    depends_on: [30-compute/02-ecs-cluster]
+    reasoning: "ECS tasks and services depend on ECS cluster"
+  30-compute/04-ecs-autoscaling:
+    depends_on: [30-compute/03-ecs-task-service]
+    reasoning: "ECS autoscaling depends on ECS tasks and services"
+  30-compute/05-alb:
+    depends_on: [30-compute/03-ecs-task-service]
+    reasoning: "ALB depends on ECS services for routing traffic"
+  50-application/01-lambda-functions:
+    depends_on: [10-security/01-kms-security, 10-security/03-secrets-manager]
+    reasoning: "Lambda functions depend on KMS and Secrets Manager"
+  50-application/03-sns-topics:
+    depends_on: []
+    reasoning: "SNS topics are independent messaging service"
+  50-application/04-parameter-store:
+    depends_on: [10-security/03-secrets-manager]
+    reasoning: "Parameter Store depends on Secrets Manager"
+  20-network/01-networking:
+    depends_on: []
+    reasoning: "Networking is prerequisite for most AWS resources"
+  20-network/02-vpc-flow-logs:
+    depends_on: [20-network/01-networking]
+    reasoning: "VPC flow logs depend on configured network"
+  70-ai-ml/01-rag-s3-tables:
+    depends_on: [40-data/05-s3-storage]
+    reasoning: "RAG S3 tables depend on S3 storage configuration"
+  60-observability/01-enhanced-observability:
+    depends_on: []
+    reasoning: "Enhanced observability is independent service set"
+  60-observability/02-observability:
+    depends_on: [60-observability/01-enhanced-observability]
+    reasoning: "General observability depends on enhanced observability"
+  60-observability/03-drift-detection:
+    depends_on: [60-observability/02-observability]
+    reasoning: "Drift detection depends on configured observability"
+  90-governance/01-well-architected-assessment:
+    depends_on: []
+    reasoning: "Well-architected assessment is independent review process"
+  90-governance/02-budgets-resources:
+    depends_on: []
+    reasoning: "Budget configuration is independent cost management service"
+  90-governance/03-cost-guardrails:
+    depends_on: [90-governance/02-budgets-resources]
+    reasoning: "Cost guardrails depend on budget configuration"
+  90-governance/04-cost-performance-dashboard:
+    depends_on: [90-governance/02-budgets-resources, 60-observability/02-observability]
+    reasoning: "Cost performance dashboard depends on budget data and observability"
+  40-data/01-redis:
+    depends_on: [20-network/01-networking]
+    reasoning: "Redis depends on configured network"
+  40-data/02-aurora-postgresql:
+    depends_on: [20-network/01-networking, 10-security/01-kms-security]
+    reasoning: "Aurora PostgreSQL depends on network and KMS"
+  40-data/03-aurora-postgresql-secure:
+    depends_on: [40-data/02-aurora-postgresql]
+    reasoning: "Secure Aurora PostgreSQL depends on base Aurora configuration"
+  40-data/04-dynamodb-tables:
+    depends_on: [20-network/01-networking]
+    reasoning: "DynamoDB tables depend on configured network"
+  40-data/05-s3-storage:
+    depends_on: [20-network/01-networking]
+    reasoning: "S3 storage depends on configured network"
+  10-security/01-kms-security:
+    depends_on: []
+    reasoning: "KMS security is independent encryption key service"
+  10-security/02-security-services:
+    depends_on: [20-network/01-networking]
+    reasoning: "Security services depend on configured network"
+  10-security/03-secrets-manager:
+    depends_on: [10-security/01-kms-security]
+    reasoning: "Secrets Manager depends on KMS for encryption"
+  10-security/04-iam-roles:
+    depends_on: []
+    reasoning: "IAM roles are independent identity and access management"
+  10-security/05-iam-bedrock-github:
+    depends_on: [10-security/04-iam-roles]
+    reasoning: "Bedrock GitHub IAM integration depends on configured IAM roles"
+  10-security/06-waf-cloudfront:
+    depends_on: [20-network/01-networking]
+    reasoning: "WAF CloudFront depends on configured network"

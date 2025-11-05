@@ -1,0 +1,8 @@
+{
+  "event_id": "test-event-123",
+  "event_type": "aws.guardduty",
+  "severity": "medium",
+  "rationale": "The event indicates an unauthorized API call, which could potentially lead to unauthorized access or actions. However, the severity is marked as 'Medium' by the source AWS GuardDuty, suggesting a moderate level of risk.",
+  "action_taken": "AUTO_REMEDIATED",
+  "timestamp": "unknown"
+}

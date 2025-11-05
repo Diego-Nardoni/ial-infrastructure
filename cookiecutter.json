@@ -1,0 +1,15 @@
+{
+  "phase_number": "01",
+  "phase_name": "networking-vpc",
+  "domain": "networking",
+  "priority": "100",
+  "description": "VPC privada multi-AZ com endpoints S3/Logs, NAT resiliente, logs cifrados",
+  "template_name": "vpc",
+  "vpc_cidr": "10.0.0.0/16",
+  "availability_zones": "2",
+  "nat_gateways": "1",
+  "max_monthly_cost": "50",
+  "required_outputs": "VPCId,PrivateSubnetIds,NatGatewayIds",
+  "encrypted_outputs": "FlowLogsBucket",
+  "validation_prompt": "A rede é privada, multi-AZ e com logs cifrados?"
+}

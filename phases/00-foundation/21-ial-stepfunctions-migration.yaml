@@ -1,0 +1,323 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Step Functions Migration Infrastructure'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'ial'
+  Environment:
+    Type: String
+    Default: 'prod'
+
+Resources:
+  # IAM Role for Step Functions Execution
+  StepFunctionsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-stepfunctions-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      Policies:
+        - PolicyName: StepFunctionsExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - sns:Publish
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: stepfunctions-execution
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Healing Orchestrator State Machine
+  HealingOrchestratorStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-healing-orchestrator'
+      RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
+      StateMachineType: STANDARD
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL Healing Orchestrator - Step Functions Implementation",
+          "StartAt": "InitializeHealing",
+          "States": {
+            "InitializeHealing": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectName}-healing-initializer",
+                "Payload": {
+                  "failed_resources.$": "$.failed_resources",
+                  "region.$": "$.region",
+                  "correlation_id.$": "$.correlation_id"
+                }
+              },
+              "ResultPath": "$.healing_plan",
+              "Next": "CheckHealingPlan",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ]
+            },
+            "CheckHealingPlan": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.healing_plan.Payload.has_resources",
+                  "BooleanEquals": false,
+                  "Next": "NoHealingNeeded"
+                }
+              ],
+              "Default": "ProcessHealingBatches"
+            },
+            "NoHealingNeeded": {
+              "Type": "Pass",
+              "Result": {
+                "status": "success",
+                "message": "No healing required"
+              },
+              "End": true
+            },
+            "ProcessHealingBatches": {
+              "Type": "Map",
+              "ItemsPath": "$.healing_plan.Payload.healing_batches",
+              "MaxConcurrency": 3,
+              "Iterator": {
+                "StartAt": "HealResourceBatch",
+                "States": {
+                  "HealResourceBatch": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::lambda:invoke",
+                    "Parameters": {
+                      "FunctionName": "${ProjectName}-resource-healer",
+                      "Payload": {
+                        "batch.$": "$",
+                        "correlation_id.$": "$.correlation_id"
+                      }
+                    },
+                    "End": true
+                  }
+                }
+              },
+              "End": true
+            }
+          }
+        }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: healing-orchestration
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Phase Manager State Machine
+  PhaseManagerStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-phase-manager'
+      RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
+      StateMachineType: STANDARD
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL Phase Manager - Step Functions Implementation",
+          "StartAt": "DiscoverPhases",
+          "States": {
+            "DiscoverPhases": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectName}-phase-discoverer",
+                "Payload": {
+                  "correlation_id.$": "$.correlation_id"
+                }
+              },
+              "ResultPath": "$.phases",
+              "Next": "ExecutePhases"
+            },
+            "ExecutePhases": {
+              "Type": "Map",
+              "ItemsPath": "$.phases.Payload.execution_order",
+              "MaxConcurrency": 1,
+              "Iterator": {
+                "StartAt": "ExecutePhase",
+                "States": {
+                  "ExecutePhase": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::lambda:invoke",
+                    "Parameters": {
+                      "FunctionName": "${ProjectName}-phase-executor",
+                      "Payload": {
+                        "phase.$": "$",
+                        "correlation_id.$": "$.correlation_id"
+                      }
+                    },
+                    "End": true
+                  }
+                }
+              },
+              "End": true
+            }
+          }
+        }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: phase-management
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Audit Validator State Machine
+  AuditValidatorStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-audit-validator'
+      RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
+      StateMachineType: STANDARD
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL Audit Validator - Step Functions Implementation",
+          "StartAt": "InitializeAudit",
+          "States": {
+            "InitializeAudit": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectName}-audit-initializer",
+                "Payload": {
+                  "desired_spec_path.$": "$.desired_spec_path",
+                  "correlation_id.$": "$.correlation_id"
+                }
+              },
+              "ResultPath": "$.audit_config",
+              "Next": "ParallelValidation"
+            },
+            "ParallelValidation": {
+              "Type": "Parallel",
+              "Branches": [
+                {
+                  "StartAt": "ValidateCloudFormation",
+                  "States": {
+                    "ValidateCloudFormation": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                        "FunctionName": "${ProjectName}-cf-validator",
+                        "Payload": {
+                          "audit_config.$": "$.audit_config.Payload"
+                        }
+                      },
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "ValidateAWSReal",
+                  "States": {
+                    "ValidateAWSReal": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                        "FunctionName": "${ProjectName}-aws-validator",
+                        "Payload": {
+                          "audit_config.$": "$.audit_config.Payload"
+                        }
+                      },
+                      "End": true
+                    }
+                  }
+                }
+              ],
+              "ResultPath": "$.validation_results",
+              "Next": "AggregateResults"
+            },
+            "AggregateResults": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectName}-audit-aggregator",
+                "Payload": {
+                  "validation_results.$": "$.validation_results"
+                }
+              },
+              "End": true
+            }
+          }
+        }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: audit-validation
+        - Key: Environment
+          Value: !Ref Environment
+
+  # SNS Topic for Step Functions Notifications
+  StepFunctionsNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-stepfunctions-notifications'
+      DisplayName: 'IAL Step Functions Notifications'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: stepfunctions-notifications
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  StepFunctionsExecutionRoleArn:
+    Description: 'ARN of the Step Functions execution role'
+    Value: !GetAtt StepFunctionsExecutionRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-stepfunctions-execution-role-arn'
+
+  HealingOrchestratorStateMachineArn:
+    Description: 'ARN of the Healing Orchestrator State Machine'
+    Value: !Ref HealingOrchestratorStateMachine
+    Export:
+      Name: !Sub '${ProjectName}-healing-orchestrator-arn'
+
+  PhaseManagerStateMachineArn:
+    Description: 'ARN of the Phase Manager State Machine'
+    Value: !Ref PhaseManagerStateMachine
+    Export:
+      Name: !Sub '${ProjectName}-phase-manager-arn'
+
+  AuditValidatorStateMachineArn:
+    Description: 'ARN of the Audit Validator State Machine'
+    Value: !Ref AuditValidatorStateMachine
+    Export:
+      Name: !Sub '${ProjectName}-audit-validator-arn'
+
+  NotificationTopicArn:
+    Description: 'ARN of the SNS notification topic'
+    Value: !Ref StepFunctionsNotificationTopic
+    Export:
+      Name: !Sub '${ProjectName}-stepfunctions-notifications-arn'

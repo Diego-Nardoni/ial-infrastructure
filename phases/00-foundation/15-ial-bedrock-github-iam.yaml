@@ -8,6 +8,7 @@ metadata:
   description: "Add Bedrock InvokeModel permission to GitHubActionsECRDeployRole"
   dependencies:
     - "00-dynamodb-state"
+    - "20-ial-github-oidc-provider"
   resources_count: 1
   estimated_time: "5 minutes"
 
@@ -187,7 +188,8 @@ notes:
     estimated_monthly_cost: "$2-4 (50-100 builds)"
   
   prerequisites:
-    - "GitHubActionsECRDeployRole must exist"
+    - "GitHub OIDC Provider must be created (Phase 20)"
+    - "GitHub Actions role must exist"
     - "Bedrock model access must be enabled in AWS account"
     - "Region must support Bedrock (us-east-1, us-west-2, etc)"
   

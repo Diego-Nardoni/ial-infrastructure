@@ -1,0 +1,376 @@
+phase_name: "IAL Enterprise Observability & SLOs"
+description: "Enterprise-grade observability with SLO monitoring and comprehensive metrics"
+resource_count: 8
+
+Resources:
+  # Enterprise CloudWatch Dashboard
+  EnterpriseObservabilityDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${ProjectName}-enterprise-observability'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "IAL/Creation", "Completeness" ],
+                  [ "IAL/Drift", "AutoHeal", "Duration" ],
+                  [ "IAL/LLM", "CostPerConversation" ],
+                  [ "IAL/LLM", "LatencyP95" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "IAL SLO Metrics",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "IAL/FinOps", "BudgetUtilization" ],
+                  [ "IAL/FinOps", "CostEstimateAccuracy" ]
+                ],
+                "view": "timeSeries",
+                "region": "${AWS::Region}",
+                "title": "FinOps Metrics",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 6,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "IAL/Compliance", "ViolationCount" ],
+                  [ "IAL/MCP", "HealthCheck", "Status" ]
+                ],
+                "view": "timeSeries",
+                "region": "${AWS::Region}",
+                "title": "Compliance & MCP Health",
+                "period": 300
+              }
+            }
+          ]
+        }
+
+  # SLO Monitoring Lambda
+  SLOMonitoringLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-slo-monitoring'
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt SLOMonitoringLambdaRole.Arn
+      Timeout: 300
+      Environment:
+        Variables:
+          DASHBOARD_NAME: !Ref EnterpriseObservabilityDashboard
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from datetime import datetime, timedelta
+          from typing import Dict, Any, List
+
+          cloudwatch = boto3.client('cloudwatch')
+
+          def lambda_handler(event: Dict[str, Any], context) -> Dict[str, Any]:
+              try:
+                  # Calculate SLO metrics
+                  slo_results = calculate_slos()
+                  
+                  # Publish SLO metrics
+                  publish_slo_metrics(slo_results)
+                  
+                  return {
+                      'statusCode': 200,
+                      'slo_results': slo_results,
+                      'timestamp': datetime.utcnow().isoformat()
+                  }
+                  
+              except Exception as e:
+                  return {
+                      'statusCode': 500,
+                      'error': str(e)
+                  }
+
+          def calculate_slos() -> Dict[str, Any]:
+              """Calculate SLO metrics"""
+              end_time = datetime.utcnow()
+              start_time = end_time - timedelta(hours=24)
+              
+              slos = {}
+              
+              # SLO 1: Creation/Completeness p95 = 100%
+              completeness_p95 = get_metric_percentile('IAL/Creation', 'Completeness', 95, start_time, end_time)
+              slos['creation_completeness_p95'] = {
+                  'value': completeness_p95,
+                  'target': 100.0,
+                  'status': 'PASS' if completeness_p95 >= 100.0 else 'FAIL'
+              }
+              
+              # SLO 2: Auto-heal (safe) p90 ≤ 10 min
+              autoheal_p90 = get_metric_percentile('IAL/Drift', 'AutoHealDuration', 90, start_time, end_time)
+              slos['autoheal_duration_p90'] = {
+                  'value': autoheal_p90,
+                  'target': 600.0,  # 10 minutes in seconds
+                  'status': 'PASS' if autoheal_p90 <= 600.0 else 'FAIL'
+              }
+              
+              # SLO 3: LLM Cost/conversation ≤ $0.15
+              llm_cost_avg = get_metric_average('IAL/LLM', 'CostPerConversation', start_time, end_time)
+              slos['llm_cost_per_conversation'] = {
+                  'value': llm_cost_avg,
+                  'target': 0.15,
+                  'status': 'PASS' if llm_cost_avg <= 0.15 else 'FAIL'
+              }
+              
+              # SLO 4: LLM Latency p95 ≤ 2000ms
+              llm_latency_p95 = get_metric_percentile('IAL/LLM', 'LatencyP95', 95, start_time, end_time)
+              slos['llm_latency_p95'] = {
+                  'value': llm_latency_p95,
+                  'target': 2000.0,
+                  'status': 'PASS' if llm_latency_p95 <= 2000.0 else 'FAIL'
+              }
+              
+              return slos
+
+          def get_metric_percentile(namespace: str, metric_name: str, percentile: int, start_time: datetime, end_time: datetime) -> float:
+              """Get metric percentile value"""
+              try:
+                  response = cloudwatch.get_metric_statistics(
+                      Namespace=namespace,
+                      MetricName=metric_name,
+                      StartTime=start_time,
+                      EndTime=end_time,
+                      Period=3600,  # 1 hour
+                      Statistics=[f'p{percentile}']
+                  )
+                  
+                  if response['Datapoints']:
+                      return max(dp[f'p{percentile}'] for dp in response['Datapoints'])
+                  return 0.0
+                  
+              except Exception:
+                  return 0.0
+
+          def get_metric_average(namespace: str, metric_name: str, start_time: datetime, end_time: datetime) -> float:
+              """Get metric average value"""
+              try:
+                  response = cloudwatch.get_metric_statistics(
+                      Namespace=namespace,
+                      MetricName=metric_name,
+                      StartTime=start_time,
+                      EndTime=end_time,
+                      Period=3600,  # 1 hour
+                      Statistics=['Average']
+                  )
+                  
+                  if response['Datapoints']:
+                      return sum(dp['Average'] for dp in response['Datapoints']) / len(response['Datapoints'])
+                  return 0.0
+                  
+              except Exception:
+                  return 0.0
+
+          def publish_slo_metrics(slos: Dict[str, Any]):
+              """Publish SLO metrics to CloudWatch"""
+              metric_data = []
+              
+              for slo_name, slo_data in slos.items():
+                  # Publish SLO value
+                  metric_data.append({
+                      'MetricName': f'SLO_{slo_name}',
+                      'Value': slo_data['value'],
+                      'Unit': 'None',
+                      'Timestamp': datetime.utcnow()
+                  })
+                  
+                  # Publish SLO status (1 for PASS, 0 for FAIL)
+                  metric_data.append({
+                      'MetricName': f'SLO_{slo_name}_status',
+                      'Value': 1 if slo_data['status'] == 'PASS' else 0,
+                      'Unit': 'Count',
+                      'Timestamp': datetime.utcnow()
+                  })
+              
+              # Publish metrics in batches
+              for i in range(0, len(metric_data), 20):
+                  batch = metric_data[i:i+20]
+                  cloudwatch.put_metric_data(
+                      Namespace='IAL/SLO',
+                      MetricData=batch
+                  )
+
+  # SLO Monitoring Lambda IAM Role
+  SLOMonitoringLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-slo-monitoring-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SLOMonitoringPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:GetMetricStatistics
+                  - cloudwatch:PutMetricData
+                  - cloudwatch:ListMetrics
+                Resource: '*'
+
+  # SLO Violation Alarms
+  CreationCompletenessAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-slo-creation-completeness'
+      AlarmDescription: 'SLO violation: Creation completeness < 100%'
+      MetricName: 'SLO_creation_completeness_p95_status'
+      Namespace: 'IAL/SLO'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      AlarmActions:
+        - !Ref SLOViolationTopic
+
+  AutoHealDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-slo-autoheal-duration'
+      AlarmDescription: 'SLO violation: Auto-heal duration > 10 minutes'
+      MetricName: 'SLO_autoheal_duration_p90_status'
+      Namespace: 'IAL/SLO'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      AlarmActions:
+        - !Ref SLOViolationTopic
+
+  LLMCostAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-slo-llm-cost'
+      AlarmDescription: 'SLO violation: LLM cost per conversation > $0.15'
+      MetricName: 'SLO_llm_cost_per_conversation_status'
+      Namespace: 'IAL/SLO'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      AlarmActions:
+        - !Ref SLOViolationTopic
+
+  LLMLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-slo-llm-latency'
+      AlarmDescription: 'SLO violation: LLM latency p95 > 2000ms'
+      MetricName: 'SLO_llm_latency_p95_status'
+      Namespace: 'IAL/SLO'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      AlarmActions:
+        - !Ref SLOViolationTopic
+
+  # SNS Topic for SLO Violations
+  SLOViolationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-slo-violations'
+      DisplayName: 'IAL SLO Violation Alerts'
+
+  # EventBridge Rule for SLO Monitoring
+  SLOMonitoringSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-slo-monitoring-schedule'
+      Description: 'Schedule for SLO monitoring'
+      ScheduleExpression: 'rate(5 minutes)'
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt SLOMonitoringLambda.Arn
+          Id: 'SLOMonitoringTarget'
+
+  # Permission for EventBridge to invoke Lambda
+  SLOMonitoringLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SLOMonitoringLambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt SLOMonitoringSchedule.Arn
+
+# Outputs
+Outputs:
+  EnterpriseObservabilityDashboardURL:
+    Description: 'URL of the Enterprise Observability Dashboard'
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ProjectName}-enterprise-observability'
+    Export:
+      Name: !Sub '${ProjectName}-enterprise-dashboard-url'
+
+  SLOMonitoringLambdaArn:
+    Description: 'ARN of the SLO Monitoring Lambda'
+    Value: !GetAtt SLOMonitoringLambda.Arn
+    Export:
+      Name: !Sub '${ProjectName}-slo-monitoring-lambda-arn'
+
+  SLOViolationTopicArn:
+    Description: 'ARN of the SLO Violation SNS Topic'
+    Value: !Ref SLOViolationTopic
+    Export:
+      Name: !Sub '${ProjectName}-slo-violation-topic-arn'
+
+# Metadata
+metadata:
+  estimated_monthly_cost: '$25.00'
+  cost_breakdown:
+    cloudwatch_dashboard: '$3.00'
+    lambda_invocations: '$5.00'
+    cloudwatch_alarms: '$10.00'
+    cloudwatch_metrics: '$5.00'
+    sns_notifications: '$2.00'
+  slos:
+    creation_completeness_p95: '100%'
+    autoheal_duration_p90: '≤ 10 minutes'
+    llm_cost_per_conversation: '≤ $0.15'
+    llm_latency_p95: '≤ 2000ms'
+
+# Parameters
+parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming

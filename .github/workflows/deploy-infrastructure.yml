@@ -1,0 +1,283 @@
+name: 'IaL Infrastructure Deployment'
+
+on:
+  push:
+    branches: [ main, master ]
+    paths: [ 'phases/**' ]
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: 'Domain to deploy'
+        required: true
+        type: choice
+        options:
+          - security
+          - networking
+          - compute
+          - data
+          - application
+          - observability
+          - ai-ml
+          - governance
+      dry_run:
+        description: 'Dry run deployment'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: us-east-1
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Configure AWS credentials via OIDC
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+        role-session-name: GitHubActions-${{ github.run_id }}
+        
+    - name: Verify AWS identity
+      run: |
+        echo "🔍 Verifying AWS identity..."
+        aws sts get-caller-identity
+        
+    - name: Validate repository authorization
+      run: |
+        echo "🔐 Validating repository authorization..."
+        REPO_NAME="${{ github.repository }}"
+        echo "Repository: $REPO_NAME"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Actor: ${{ github.actor }}"
+        
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        
+    - name: Run infrastructure deployment
+      env:
+        DOMAIN: ${{ github.event.inputs.domain || 'auto-detect' }}
+        DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+      run: |
+        echo "🚀 Starting infrastructure deployment..."
+        echo "Domain: $DOMAIN"
+        echo "Dry Run: $DRY_RUN"
+        
+        if [ "$DRY_RUN" = "true" ]; then
+          python3 setup_enhanced.py --deployment-type control_plane --dry-run
+        else
+          python3 setup_enhanced.py --deployment-type control_plane
+        fi
+        
+    - name: Run post-deployment validation
+      if: success()
+      run: |
+        echo "✅ Running post-deployment validation..."
+        python3 core/audit_validator.py --validate-completeness
+        
+    - name: Upload deployment artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-artifacts
+        path: |
+          reports/
+          logs/
+          
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let comment = '## 🚀 IAL Deployment Results\n\n';
+          
+          try {
+            // Read deployment results
+            if (fs.existsSync('reports/creation_audit.json')) {
+              const audit = JSON.parse(fs.readFileSync('reports/creation_audit.json', 'utf8'));
+              comment += `### Audit Results\n`;
+              comment += `- **Completeness**: ${audit.completeness_percentage}%\n`;
+              comment += `- **Resources Created**: ${audit.resources_created || 0}\n`;
+              comment += `- **Status**: ${audit.completeness_percentage === 100 ? '✅ PASSED' : '❌ FAILED'}\n\n`;
+            }
+            
+            // Add cost information if available
+            if (fs.existsSync('reports/finops/cost_estimate.json')) {
+              const cost = JSON.parse(fs.readFileSync('reports/finops/cost_estimate.json', 'utf8'));
+              comment += `### Cost Estimate\n`;
+              comment += `- **Monthly Cost**: $${cost.monthly_estimate || 'N/A'}\n`;
+              comment += `- **Budget Status**: ${cost.within_budget ? '✅ Within Budget' : '⚠️ Over Budget'}\n\n`;
+            }
+            
+            comment += `### Deployment Info\n`;
+            comment += `- **Repository**: ${context.repo.owner}/${context.repo.repo}\n`;
+            comment += `- **Branch**: ${context.ref}\n`;
+            comment += `- **Commit**: ${context.sha.substring(0, 7)}\n`;
+            comment += `- **Actor**: ${context.actor}\n`;
+            
+          } catch (error) {
+            comment += `⚠️ Could not read deployment results: ${error.message}\n`;
+          }
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@v4
+      
+      - name: 'Configure AWS Credentials'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: 'Setup Python'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 'Install Dependencies'
+        run: |
+          pip install boto3 pyyaml
+      
+      - name: 'Detect Deployment Context'
+        id: context
+        run: |
+          echo "🔍 Detecting deployment context..."
+          
+          # Determine domain to deploy
+          if [ "${{ github.event.inputs.domain }}" != "" ]; then
+            DOMAIN="${{ github.event.inputs.domain }}"
+          else
+            # Auto-detect from changed files
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep "phases/" | head -1)
+            if [[ $CHANGED_FILES == *"10-security"* ]]; then
+              DOMAIN="security"
+            elif [[ $CHANGED_FILES == *"20-network"* ]]; then
+              DOMAIN="networking"
+            elif [[ $CHANGED_FILES == *"30-compute"* ]]; then
+              DOMAIN="compute"
+            elif [[ $CHANGED_FILES == *"40-data"* ]]; then
+              DOMAIN="data"
+            elif [[ $CHANGED_FILES == *"50-application"* ]]; then
+              DOMAIN="application"
+            elif [[ $CHANGED_FILES == *"60-observability"* ]]; then
+              DOMAIN="observability"
+            elif [[ $CHANGED_FILES == *"70-ai-ml"* ]]; then
+              DOMAIN="ai-ml"
+            elif [[ $CHANGED_FILES == *"90-governance"* ]]; then
+              DOMAIN="governance"
+            else
+              DOMAIN="all"
+            fi
+          fi
+          
+          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+          echo "🎯 Detected domain: $DOMAIN"
+      
+      - name: 'Validate Templates'
+        run: |
+          echo "🔍 Validating CloudFormation templates..."
+          
+          DOMAIN="${{ steps.context.outputs.domain }}"
+          
+          if [ "$DOMAIN" = "all" ]; then
+            find phases/ -name "*.yaml" -exec aws cloudformation validate-template --template-body file://{} \;
+          else
+            find phases/ -path "*$DOMAIN*" -name "*.yaml" -exec aws cloudformation validate-template --template-body file://{} \;
+          fi
+      
+      - name: 'Deploy Infrastructure'
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          echo "🚀 Deploying infrastructure..."
+          
+          DOMAIN="${{ steps.context.outputs.domain }}"
+          
+          # Deploy based on domain
+          case $DOMAIN in
+            "security")
+              echo "🔐 Deploying Security Domain..."
+              aws cloudformation deploy --template-file phases/10-security/01-kms-security.yaml --stack-name ial-security-kms --capabilities CAPABILITY_IAM
+              aws cloudformation deploy --template-file phases/10-security/02-security-services.yaml --stack-name ial-security-services --capabilities CAPABILITY_IAM
+              aws cloudformation deploy --template-file phases/10-security/03-secrets-manager.yaml --stack-name ial-security-secrets --capabilities CAPABILITY_IAM
+              aws cloudformation deploy --template-file phases/10-security/04-iam-roles.yaml --stack-name ial-security-iam --capabilities CAPABILITY_IAM
+              ;;
+            "networking")
+              echo "🌐 Deploying Networking Domain..."
+              aws cloudformation deploy --template-file phases/20-network/01-networking.yaml --stack-name ial-networking --capabilities CAPABILITY_IAM
+              aws cloudformation deploy --template-file phases/20-network/02-vpc-flow-logs.yaml --stack-name ial-networking-logs --capabilities CAPABILITY_IAM
+              ;;
+            "compute")
+              echo "💻 Deploying Compute Domain..."
+              aws cloudformation deploy --template-file phases/30-compute/01-ecr.yaml --stack-name ial-compute-ecr --capabilities CAPABILITY_IAM
+              aws cloudformation deploy --template-file phases/30-compute/02-ecs-cluster.yaml --stack-name ial-compute-ecs --capabilities CAPABILITY_IAM
+              ;;
+            *)
+              echo "🚀 Deploying All Domains..."
+              # Deploy in dependency order
+              aws cloudformation deploy --template-file phases/00-foundation/07-conversation-memory.yaml --stack-name ial-conversation-memory --capabilities CAPABILITY_IAM
+              ;;
+          esac
+      
+      - name: 'Dry Run Report'
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: |
+          echo "🔍 Dry Run - No resources deployed"
+          echo "Domain: ${{ steps.context.outputs.domain }}"
+          echo "Templates validated successfully"
+      
+      - name: 'Post-Deployment Validation'
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          echo "✅ Validating deployment..."
+          
+          # Wait for stacks to complete
+          sleep 30
+          
+          # Check stack status
+          aws cloudformation describe-stacks --query 'Stacks[?contains(StackName, `ial`)].{Name:StackName,Status:StackStatus}' --output table
+      
+      - name: 'Post-Deploy Well-Architected Review'
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          echo "🏗️ Running Well-Architected review..."
+          python3 mcp/well_architected.py "ial-${{ steps.context.outputs.domain }}"
+          
+      - name: 'Update Deployment Status'
+        run: |
+          echo "📊 Deployment completed via GitHub Actions"
+          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Domain: ${{ steps.context.outputs.domain }}"
+          echo "Dry Run: ${{ github.event.inputs.dry_run }}"

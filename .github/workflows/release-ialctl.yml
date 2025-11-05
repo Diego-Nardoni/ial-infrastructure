@@ -1,0 +1,305 @@
+name: 🚀 Release ialctl
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-linux:
+    name: 🐧 Build Linux
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install -r requirements.txt || echo "No requirements.txt found"
+        
+        # Install FPM for package generation
+        sudo apt-get update
+        sudo apt-get install -y ruby ruby-dev rubygems build-essential
+        sudo gem install --no-document fpm
+    
+    - name: 🔨 Build Linux binary
+      run: |
+        chmod +x build/build_linux.sh
+        ./build/build_linux.sh
+    
+    - name: 🧪 Run smoke tests
+      run: |
+        chmod +x scripts/smoke_test.sh
+        ./scripts/smoke_test.sh dist/linux/ialctl
+    
+    - name: 📤 Upload Linux artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-artifacts
+        path: |
+          dist/linux/
+          dist/packages/
+        retention-days: 7
+
+  build-windows:
+    name: 🪟 Build Windows
+    runs-on: windows-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install -r requirements.txt
+      continue-on-error: true
+    
+    - name: 🔨 Build Windows binary
+      run: |
+        .\build\build_windows.ps1
+      shell: powershell
+    
+    - name: 🧪 Run smoke tests
+      run: |
+        if (Test-Path "dist\windows\ialctl.exe") {
+          Write-Host "✅ Windows binary created successfully"
+          $size = (Get-Item "dist\windows\ialctl.exe").Length
+          Write-Host "📋 Binary size: $([math]::Round($size/1MB, 2))MB"
+        } else {
+          Write-Host "❌ Windows binary not found"
+          exit 1
+        }
+      shell: powershell
+    
+    - name: 📤 Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-artifacts
+        path: dist/windows/
+        retention-days: 7
+
+  sign-and-release:
+    name: 🔐 Sign & Release
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: 📥 Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist/
+    
+    - name: 📋 Organize artifacts
+      run: |
+        # Reorganize downloaded artifacts
+        mkdir -p dist/release
+        
+        # Copy Linux artifacts
+        if [ -d "dist/linux-artifacts" ]; then
+          cp -r dist/linux-artifacts/* dist/
+        fi
+        
+        # Copy Windows artifacts  
+        if [ -d "dist/windows-artifacts" ]; then
+          cp -r dist/windows-artifacts/* dist/
+        fi
+        
+        # List all artifacts
+        echo "📦 Available artifacts:"
+        find dist/ -type f -name "*" | sort
+    
+    - name: 🔐 Import GPG key
+      if: ${{ secrets.GPG_PRIVATE_KEY }}
+      run: |
+        echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+        echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --sign --armor --detach-sign --output /tmp/test.sig <(echo "test")
+      env:
+        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+    
+    - name: 🔐 Sign artifacts and generate checksums
+      run: |
+        python build/sign_artifacts.py
+      env:
+        GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+    
+    - name: 📋 Prepare release assets
+      run: |
+        # Create release directory
+        mkdir -p release-assets
+        
+        # Copy all distributable files
+        find dist/ -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.exe" -o -name "*.msi" -o -name "ialctl" | while read file; do
+          if [ -f "$file" ]; then
+            cp "$file" release-assets/
+          fi
+        done
+        
+        # Copy checksums and signatures
+        if [ -f "dist/checksums.txt" ]; then
+          cp dist/checksums.txt release-assets/
+        fi
+        
+        if [ -f "dist/checksums.txt.asc" ]; then
+          cp dist/checksums.txt.asc release-assets/
+        fi
+        
+        # List release assets
+        echo "🎁 Release assets:"
+        ls -la release-assets/
+    
+    - name: 🏷️ Get version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION=${GITHUB_REF#refs/tags/}
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "📋 Version: $VERSION"
+    
+    - name: 📝 Generate release notes
+      id: release_notes
+      run: |
+        cat > release_notes.md << EOF
+        # 🚀 ialctl ${{ steps.version.outputs.version }}
+        
+        Infrastructure as Language CLI - Natural language AWS infrastructure management
+        
+        ## 📦 Installation
+        
+        ### Linux (One-line installer)
+        \`\`\`bash
+        curl -s https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.sh | bash
+        \`\`\`
+        
+        ### Windows (PowerShell)
+        \`\`\`powershell
+        iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.ps1'))
+        \`\`\`
+        
+        ## 📋 Available Downloads
+        
+        | Platform | Package Type | Download |
+        |----------|--------------|----------|
+        | Linux | .deb (Debian/Ubuntu) | \`ialctl_*_amd64.deb\` |
+        | Linux | .rpm (RHEL/CentOS/Fedora) | \`ialctl-*-1.x86_64.rpm\` |
+        | Linux | AppImage (Universal) | \`ialctl-*-x86_64.AppImage\` |
+        | Linux | Binary | \`ialctl\` (Linux) |
+        | Windows | MSI Installer | \`ialctl-*.msi\` |
+        | Windows | Executable | \`ialctl.exe\` |
+        
+        ## 🔐 Verification
+        
+        All artifacts are signed with GPG. Verify integrity:
+        
+        \`\`\`bash
+        # Download checksums
+        wget checksums.txt checksums.txt.asc
+        
+        # Verify signature
+        gpg --verify checksums.txt.asc checksums.txt
+        
+        # Verify file integrity
+        sha256sum -c checksums.txt
+        \`\`\`
+        
+        ## 🚀 Getting Started
+        
+        \`\`\`bash
+        # Interactive mode
+        ialctl interactive
+        
+        # Direct commands
+        ialctl "Deploy a secure web application"
+        ialctl status
+        \`\`\`
+        
+        ## 📚 Documentation
+        
+        - [Installation Guide](docs/INSTALL.md)
+        - [User Guide](README.md)
+        - [Architecture](ARCHITECTURE.md)
+        
+        ---
+        
+        **Full Changelog**: https://github.com/${{ github.repository }}/compare/previous-tag...${{ steps.version.outputs.version }}
+        EOF
+    
+    - name: 🎁 Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: "ialctl ${{ steps.version.outputs.version }}"
+        body_path: release_notes.md
+        files: release-assets/*
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 📊 Release Summary
+      run: |
+        echo "## 🎉 Release Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Assets:** $(ls release-assets/ | wc -l) files" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Released Assets" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+        cd release-assets && ls -la | tail -n +2 | awk '{print "| " $9 " | " $5 " bytes |"}' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔗 Quick Install" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Linux:**" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo "curl -s https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.sh | bash" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Windows:**" >> $GITHUB_STEP_SUMMARY
+        echo '```powershell' >> $GITHUB_STEP_SUMMARY
+        echo "iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.ps1'))" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY

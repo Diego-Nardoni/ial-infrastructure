@@ -1,0 +1,44 @@
+apiVersion: ial/v1
+kind: Phase
+metadata:
+  name: "99-test-valid"
+  domain: "testing"
+  priority: 999
+  wa_pillars: [security, reliability, cost-optimization]
+spec:
+  description: "Test phase for validating Phase Builder Pro implementation"
+  parameters:
+    env: "${ENVIRONMENT}"
+    region: "${AWS_DEFAULT_REGION}"
+  prerequisites: []
+  artifacts:
+    cloudformation:
+      template: "templates/test/test.yaml"
+      parameters_file: "params/test/test-${ENVIRONMENT}.json"
+      policies:
+        - "policies/test/test.guard"
+controls:
+  security:
+    test_security: true
+  cost:
+    max_monthly_usd: 1
+  reliability:
+    test_reliability: true
+  tagging:
+    required: ["ial:managed", "env:${ENVIRONMENT}"]
+outputs_contract:
+  must_exist: ["TestOutput"]
+  must_be_encrypted: []
+  tags_must_include: ["ial:managed"]
+tests:
+  lint: [cfn-lint]
+  acceptance:
+    natural_validation:
+      prompts:
+        - "Is this a valid test phase?"
+      llm_provider: "${LLM_PROVIDER}"
+gitops:
+  repo: "${GITHUB_REPOSITORY}"
+  base_branch: "${GITHUB_BASE_REF}"
+  require_reviews: true
+  required_checks: ["lint", "policy", "plan", "apply"]

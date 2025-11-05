@@ -1,0 +1,119 @@
+[
+  {
+    "logicalName": "ial-plan-lambda",
+    "file": "lambdas/wrappers/plan_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "Plan/ChangeSet",
+    "status": "MISSING",
+    "existing_module": "scripts/phase_manager.py",
+    "integration_notes": "Reutilizar lógica de phase_manager para plan/changeset"
+  },
+  {
+    "logicalName": "ial-policy-opa-lambda",
+    "file": "lambdas/wrappers/policy_checks_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "OPA/Conftest",
+    "status": "MISSING",
+    "existing_module": "tools/policy-validation/lint_policies.py",
+    "integration_notes": "Wrapper para conftest/OPA validation"
+  },
+  {
+    "logicalName": "ial-policy-cfnguard-lambda",
+    "file": "lambdas/wrappers/policy_checks_wrapper.py",
+    "handler": "app.guard_handler",
+    "purpose": "CFN-Guard",
+    "status": "MISSING",
+    "existing_module": "tools/policy-validation/validate-policies.sh",
+    "integration_notes": "Wrapper para CFN-Guard validation"
+  },
+  {
+    "logicalName": "ial-apply-lambda",
+    "file": "lambdas/wrappers/apply_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "ExecuteChangeSet",
+    "status": "MISSING",
+    "existing_module": "scripts/reconcile.py",
+    "integration_notes": "Reutilizar lógica de reconcile para apply"
+  },
+  {
+    "logicalName": "ial-audit-validator-lambda",
+    "file": "lambdas/wrappers/audit_validator_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "Creation Completeness",
+    "status": "MISSING",
+    "existing_module": "core/audit_validator.py",
+    "integration_notes": "Wrapper direto para audit_validator existente"
+  },
+  {
+    "logicalName": "ial-wa-mcp-wrapper-lambda",
+    "file": "lambdas/wrappers/wa_mcp_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "Well-Architected MCP",
+    "status": "MISSING",
+    "existing_module": "mcp/well_architected.py",
+    "integration_notes": "Wrapper para MCP Well-Architected"
+  },
+  {
+    "logicalName": "ial-finops-mcp-wrapper-lambda",
+    "file": "lambdas/wrappers/finops_mcp_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "FinOps MCP",
+    "status": "MISSING",
+    "existing_module": "mcp/finops/server.py",
+    "integration_notes": "Wrapper para MCP FinOps"
+  },
+  {
+    "logicalName": "ial-compliance-runner-lambda",
+    "file": "lambdas/wrappers/compliance_runner_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "IaL Config Rules",
+    "status": "MISSING",
+    "existing_module": "compliance/ial_config_rules.py",
+    "integration_notes": "Wrapper para compliance rules"
+  },
+  {
+    "logicalName": "ial-drift-detect-lambda",
+    "file": "lambdas/wrappers/drift_detect_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "Detect Drift",
+    "status": "MISSING",
+    "existing_module": "core/drift/drift_detector.py",
+    "integration_notes": "Wrapper para drift detection"
+  },
+  {
+    "logicalName": "ial-drift-reconcile-lambda",
+    "file": "lambdas/wrappers/drift_reconcile_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "Auto-Reconcile Safe",
+    "status": "MISSING",
+    "existing_module": "lambdas/drift_reconciler.py",
+    "integration_notes": "Wrapper para drift reconciler existente"
+  },
+  {
+    "logicalName": "ial-reverse-sync-lambda",
+    "file": "lambdas/wrappers/reverse_sync_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "Discover → Draft → PR",
+    "status": "MISSING",
+    "existing_module": "core/drift/reverse_sync.py",
+    "integration_notes": "Wrapper para reverse sync"
+  },
+  {
+    "logicalName": "ial-circuit-guard-lambda",
+    "file": "lambdas/wrappers/circuit_guard_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "SSM Circuit Breaker",
+    "status": "MISSING",
+    "existing_module": null,
+    "integration_notes": "Novo módulo para circuit breaker via SSM"
+  },
+  {
+    "logicalName": "ial-rollback-orchestrator-lambda",
+    "file": "lambdas/wrappers/rollback_wrapper.py",
+    "handler": "app.lambda_handler",
+    "purpose": "SAGA Rollback",
+    "status": "MISSING",
+    "existing_module": "utils/rollback_manager.py",
+    "integration_notes": "Wrapper para rollback manager"
+  }
+]

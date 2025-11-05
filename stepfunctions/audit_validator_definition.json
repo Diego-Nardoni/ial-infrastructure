@@ -1,0 +1,125 @@
+{
+  "Comment": "IAL Audit Validator - Step Functions Implementation",
+  "StartAt": "InitializeAudit",
+  "States": {
+    "InitializeAudit": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "ial-audit-initializer",
+        "Payload": {
+          "desired_spec_path.$": "$.desired_spec_path",
+          "correlation_id.$": "$.correlation_id"
+        }
+      },
+      "ResultPath": "$.audit_config",
+      "Next": "ParallelValidation"
+    },
+    "ParallelValidation": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "ValidateCloudFormation",
+          "States": {
+            "ValidateCloudFormation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-cf-validator",
+                "Payload": {
+                  "audit_config.$": "$.audit_config.Payload",
+                  "correlation_id.$": "$.correlation_id"
+                }
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "ValidateAWSReal",
+          "States": {
+            "ValidateAWSReal": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-aws-validator",
+                "Payload": {
+                  "audit_config.$": "$.audit_config.Payload",
+                  "correlation_id.$": "$.correlation_id"
+                }
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "ValidateKnowledgeGraph",
+          "States": {
+            "ValidateKnowledgeGraph": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-graph-validator",
+                "Payload": {
+                  "audit_config.$": "$.audit_config.Payload",
+                  "correlation_id.$": "$.correlation_id"
+                }
+              },
+              "End": true
+            }
+          }
+        }
+      ],
+      "ResultPath": "$.validation_results",
+      "Next": "AggregateAuditResults"
+    },
+    "AggregateAuditResults": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "ial-audit-aggregator",
+        "Payload": {
+          "validation_results.$": "$.validation_results",
+          "correlation_id.$": "$.correlation_id"
+        }
+      },
+      "ResultPath": "$.final_audit",
+      "Next": "CheckComplianceThreshold"
+    },
+    "CheckComplianceThreshold": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.final_audit.Payload.completeness_percentage",
+          "NumericLessThan": 100,
+          "Next": "EnforceCompliance"
+        }
+      ],
+      "Default": "AuditPassed"
+    },
+    "EnforceCompliance": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "ial-compliance-enforcer",
+        "Payload": {
+          "audit_results.$": "$.final_audit.Payload",
+          "correlation_id.$": "$.correlation_id"
+        }
+      },
+      "Next": "AuditFailed"
+    },
+    "AuditFailed": {
+      "Type": "Fail",
+      "Cause": "Audit validation failed - completeness < 100%"
+    },
+    "AuditPassed": {
+      "Type": "Pass",
+      "Result": {
+        "status": "passed",
+        "message": "Audit validation successful - 100% completeness"
+      },
+      "End": true
+    }
+  }
+}

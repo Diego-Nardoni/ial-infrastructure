@@ -1,0 +1,107 @@
+# IAL Step Functions Configuration
+stepfunctions:
+  region: us-east-1
+  
+  state_machines:
+    healing_orchestrator:
+      name: ial-healing-orchestrator
+      definition_file: healing_orchestrator_definition.json
+      timeout_seconds: 3600
+      
+    phase_manager:
+      name: ial-phase-manager
+      definition_file: phase_manager_definition.json
+      timeout_seconds: 7200
+      
+    audit_validator:
+      name: ial-audit-validator
+      definition_file: audit_validator_definition.json
+      timeout_seconds: 1800
+
+  lambda_functions:
+    healing_initializer:
+      name: ial-healing-initializer
+      handler: healing_orchestrator_stepfunctions.HealingInitializer.lambda_handler
+      timeout: 300
+      memory: 512
+      
+    resource_healer:
+      name: ial-resource-healer
+      handler: healing_orchestrator_stepfunctions.ResourceHealer.lambda_handler
+      timeout: 600
+      memory: 1024
+      
+    healing_aggregator:
+      name: ial-healing-aggregator
+      handler: healing_orchestrator_stepfunctions.HealingAggregator.lambda_handler
+      timeout: 180
+      memory: 256
+      
+    phase_discoverer:
+      name: ial-phase-discoverer
+      handler: phase_manager_stepfunctions.PhaseDiscoverer.lambda_handler
+      timeout: 120
+      memory: 256
+      
+    dependency_inferrer:
+      name: ial-dependency-inferrer
+      handler: phase_manager_stepfunctions.DependencyInferrer.lambda_handler
+      timeout: 300
+      memory: 512
+      
+    execution_planner:
+      name: ial-execution-planner
+      handler: phase_manager_stepfunctions.ExecutionPlanner.lambda_handler
+      timeout: 180
+      memory: 256
+      
+    phase_executor:
+      name: ial-phase-executor
+      handler: phase_manager_stepfunctions.PhaseExecutor.lambda_handler
+      timeout: 900
+      memory: 1024
+      
+    audit_initializer:
+      name: ial-audit-initializer
+      handler: audit_validator_stepfunctions.AuditInitializer.lambda_handler
+      timeout: 120
+      memory: 256
+      
+    cf_validator:
+      name: ial-cf-validator
+      handler: audit_validator_stepfunctions.CloudFormationValidator.lambda_handler
+      timeout: 300
+      memory: 512
+      
+    aws_validator:
+      name: ial-aws-validator
+      handler: audit_validator_stepfunctions.AWSRealValidator.lambda_handler
+      timeout: 300
+      memory: 512
+      
+    graph_validator:
+      name: ial-graph-validator
+      handler: audit_validator_stepfunctions.KnowledgeGraphValidator.lambda_handler
+      timeout: 300
+      memory: 512
+      
+    audit_aggregator:
+      name: ial-audit-aggregator
+      handler: audit_validator_stepfunctions.AuditAggregator.lambda_handler
+      timeout: 180
+      memory: 256
+      
+    compliance_enforcer:
+      name: ial-compliance-enforcer
+      handler: audit_validator_stepfunctions.ComplianceEnforcer.lambda_handler
+      timeout: 120
+      memory: 256
+
+# Migration settings
+migration:
+  enable_stepfunctions: true
+  fallback_to_legacy: true
+  feature_flags:
+    healing_orchestrator_sf: true
+    phase_manager_sf: true
+    audit_validator_sf: true

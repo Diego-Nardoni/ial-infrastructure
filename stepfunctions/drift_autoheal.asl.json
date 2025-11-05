@@ -1,0 +1,161 @@
+{
+  "Comment": "IAL Drift Auto-Heal Express Workflow",
+  "StartAt": "CheckDriftFlag",
+  "States": {
+    "CheckDriftFlag": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_DRIFT_FLAG_CHECK_ARN}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.driftFlag",
+      "Next": "DriftFlagChoice"
+    },
+    "DriftFlagChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.driftFlag.Payload.state",
+          "StringEquals": "DISABLED",
+          "Next": "DriftDisabled"
+        },
+        {
+          "Variable": "$.driftFlag.Payload.state",
+          "StringEquals": "PAUSED",
+          "Next": "DetectOnly"
+        }
+      ],
+      "Default": "DetectDrift"
+    },
+    "DriftDisabled": {
+      "Type": "Pass",
+      "Result": "Drift detection disabled",
+      "End": true
+    },
+    "DetectOnly": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_DRIFT_DETECT_ARN}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.drift",
+      "Next": "LogPausedDrift"
+    },
+    "LogPausedDrift": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_REVERSE_SYNC_ARN}",
+        "Payload": {
+          "action": "generate_pr",
+          "drift.$": "$.drift.Payload",
+          "reason": "Drift detected while paused"
+        }
+      },
+      "End": true
+    },
+    "DetectDrift": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_DRIFT_DETECT_ARN}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.drift",
+      "Next": "ClassifyDrift"
+    },
+    "ClassifyDrift": {
+      "Type": "Pass",
+      "Next": "DriftChoice"
+    },
+    "DriftChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.drift.Payload.safe",
+          "BooleanEquals": true,
+          "Next": "AutoReconcileSafe"
+        },
+        {
+          "Variable": "$.drift.Payload.detected",
+          "BooleanEquals": false,
+          "Next": "NoDriftDetected"
+        }
+      ],
+      "Default": "OpenPRForRisky"
+    },
+    "NoDriftDetected": {
+      "Type": "Pass",
+      "Result": "No drift detected",
+      "End": true
+    },
+    "AutoReconcileSafe": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_DRIFT_RECONCILE_ARN}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.reconcile",
+      "Next": "PublishReconcileMetrics"
+    },
+    "PublishReconcileMetrics": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cloudwatch:putMetricData",
+      "Parameters": {
+        "Namespace": "IAL/Drift",
+        "MetricData": [
+          {
+            "MetricName": "Reconciled",
+            "Value": 1,
+            "Unit": "Count",
+            "Dimensions": [
+              {
+                "Name": "Type",
+                "Value": "Safe"
+              }
+            ]
+          }
+        ]
+      },
+      "End": true
+    },
+    "OpenPRForRisky": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_REVERSE_SYNC_ARN}",
+        "Payload": {
+          "action": "generate_pr",
+          "drift.$": "$.drift.Payload",
+          "reason": "Risky drift detected - manual review required"
+        }
+      },
+      "ResultPath": "$.pr",
+      "Next": "PublishRiskyMetrics"
+    },
+    "PublishRiskyMetrics": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cloudwatch:putMetricData",
+      "Parameters": {
+        "Namespace": "IAL/Drift",
+        "MetricData": [
+          {
+            "MetricName": "Detected",
+            "Value": 1,
+            "Unit": "Count",
+            "Dimensions": [
+              {
+                "Name": "Type",
+                "Value": "Risky"
+              }
+            ]
+          }
+        ]
+      },
+      "End": true
+    }
+  }
+}

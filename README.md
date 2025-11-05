@@ -1,6 +1,6 @@
 # 🚀 IaL - Infrastructure as Language v3.0
 
-**The world's first 100% natural language infrastructure management framework**
+**Natural language interface for AWS CloudFormation deployment and management**
 
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-green)](./PRODUCTION_READY.md)
 [![AWS](https://img.shields.io/badge/AWS-Bedrock%20Powered-orange)](https://aws.amazon.com/bedrock/)
@@ -10,7 +10,7 @@
 
 ## 🎯 **What is IaL?**
 
-IaL transforms infrastructure management through **natural conversation**. Instead of learning complex commands, you simply talk to your infrastructure:
+IaL provides a conversational interface for AWS infrastructure management. Using AWS Bedrock (Claude models), it processes natural language requests and executes pre-defined CloudFormation templates organized in deployment phases.
 
 ```bash
 👤 "Deploy security infrastructure for production"
@@ -27,29 +27,24 @@ IaL transforms infrastructure management through **natural conversation**. Inste
 
 ## ✨ **Key Features**
 
-### **🧠 AI-Powered Conversations**
-- **Bedrock Integration** - Claude 3.5 Sonnet & Haiku models
-- **Context Memory** - Remembers your conversation history
-- **Multi-turn Conversations** - Natural back-and-forth dialogue
-- **Cost Optimized** - Intelligent model selection
+### **🧠 Conversational Interface**
+- **AWS Bedrock Integration** - Uses Claude 3.5 Sonnet & Haiku models
+- **DeepSeek Fallback** - Free intelligent fallback when Bedrock unavailable
+- **Natural Language Processing** - Converts requests to infrastructure actions
+- **Conversation History** - Maintains context in DynamoDB
+- **Cost Optimization** - Intelligent model selection based on query complexity
 
-### **🏗️ Real Infrastructure Management**
-- **Deploy** - Real CloudFormation deployments
-- **Monitor** - Live AWS resource status
-- **Rollback** - Safe infrastructure rollbacks
-- **Validate** - Template validation before deployment
+### **🏗️ Infrastructure Management**
+- **CloudFormation Execution** - Deploys pre-defined templates
+- **Phase-based Organization** - 48 phases across 9 infrastructure domains
+- **Dependency Management** - Automated deployment ordering
+- **State Tracking** - Resource status monitoring
 
-### **💾 Enterprise Optimization**
-- **Response Caching** - 40% faster responses
-- **Rate Limiting** - Prevents abuse and cost spikes
-- **Cost Monitoring** - Real-time usage tracking
-- **Performance Metrics** - Complete observability
-
-### **🧠 Knowledge Base & RAG**
-- **AWS Best Practices** - Built-in expertise
-- **Troubleshooting Guides** - AI-powered problem solving
-- **Documentation Search** - Semantic knowledge retrieval
-- **Cost Optimization** - Automated recommendations
+### **💾 Performance Optimization**
+- **Response Caching** - Reduces redundant API calls
+- **Rate Limiting** - Prevents API abuse
+- **Cost Monitoring** - Tracks Bedrock usage costs
+- **Observability** - CloudWatch metrics and dashboards
 
 ---
 
@@ -258,17 +253,27 @@ Scale: ~$115/month (high usage)
 
 ## 🏆 **Why IaL?**
 
-### **vs Traditional IaC Tools:**
-- **No learning curve** - natural conversation vs complex syntax
-- **AI assistance** - intelligent guidance vs manual documentation
-- **Cost optimization** - automatic recommendations vs manual analysis
-- **Error prevention** - validation and confirmation vs trial-and-error
+### **What it provides:**
+- **Natural language interface** - Easier than remembering CloudFormation syntax
+- **Pre-built templates** - Common AWS patterns ready to deploy
+- **Organized deployment** - Structured phases with dependency management
+- **Cost awareness** - Built-in monitoring of Bedrock usage costs
 
-### **Unique Advantages:**
-- **100% natural language** - first in the industry
-- **Real infrastructure integration** - not just documentation
-- **Enterprise-grade optimization** - caching, monitoring, security
-- **Context-aware AI** - remembers your infrastructure needs
+### **What it is:**
+- A Python wrapper around AWS CloudFormation
+- Uses AWS Bedrock for natural language processing
+- Executes pre-defined infrastructure templates
+- Provides caching and optimization for better performance
+
+### **What it's not:**
+- **Not flexible** - Limited to 48 pre-defined phases and templates
+- **Not customizable** - Cannot modify resource configurations outside templates
+- **Not multi-cloud** - AWS CloudFormation only, no Terraform/CDK support
+- **Not architecture-agnostic** - Forces specific patterns (ECS+Redis+RDS)
+- **Not autonomous** - Requires AWS Bedrock and fails without it
+- **Not cost-optimized** - May over-provision resources for simple needs
+- **Not enterprise-ready** - Limited compliance controls and audit capabilities
+- **Not suitable for complex custom requirements** - Rigid template structure
 
 ---
 

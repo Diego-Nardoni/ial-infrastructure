@@ -1,0 +1,140 @@
+# Configuração de Políticas de Validação de Intenção
+# IAL v3.1 - Sistema de Validação Integrado
+
+version: "1.0"
+updated: "2025-11-04"
+
+# Configurações globais
+global_settings:
+  # Fase 2: Avisos habilitados por padrão
+  warnings_enabled: true
+  
+  # Fase 3: Enforcement desabilitado por padrão (opt-in)
+  enforcement_enabled: false
+  
+  # Configurações de performance
+  max_processing_time_seconds: 5.0
+  cache_validation_results: true
+  cache_ttl_minutes: 5
+
+# Políticas de validação
+policies:
+  production_resources:
+    description: "Detecta recursos de produção"
+    risk_threshold: "HIGH"
+    triggers:
+      patterns: ["production", "prod", "live"]
+      services: ["rds", "dynamodb", "ecs"]
+    warnings:
+      enabled: true
+      message: "⚠️ Recursos de produção detectados. Certifique-se de seguir práticas de segurança."
+    enforcement:
+      enabled: false  # Fase 3 - opt-in
+      message: "🚫 Criação de recursos de produção requer aprovação."
+    recommendations:
+      - "Revisar políticas de segurança antes de prosseguir"
+      - "Considerar executar em ambiente de teste primeiro"
+
+  destructive_operations:
+    description: "Detecta operações destrutivas"
+    risk_threshold: "CRITICAL"
+    triggers:
+      operations: ["delete", "destroy", "terminate", "remove"]
+      patterns: ["production", "prod"]
+    warnings:
+      enabled: true
+      message: "🚨 Operação destrutiva detectada. Esta ação pode causar perda de dados."
+    enforcement:
+      enabled: false  # Pode ser habilitado para CRITICAL
+      message: "🚫 Operações destrutivas em produção são bloqueadas."
+    recommendations:
+      - "Fazer backup antes de operações destrutivas"
+      - "Confirmar com equipe antes de prosseguir"
+
+  security_services:
+    description: "Detecta modificações de segurança"
+    risk_threshold: "CRITICAL"
+    triggers:
+      services: ["iam", "kms", "secrets"]
+      operations: ["create", "update", "delete"]
+    warnings:
+      enabled: true
+      message: "🔐 Modificações de segurança detectadas. Revisar políticas de acesso."
+    enforcement:
+      enabled: false  # Fase 3 - opt-in
+      message: "🚫 Modificações de segurança requerem aprovação de administrador."
+    recommendations:
+      - "Revisar princípio de menor privilégio"
+      - "Documentar mudanças para auditoria"
+
+  high_cost_services:
+    description: "Detecta serviços de alto custo"
+    risk_threshold: "MEDIUM"
+    triggers:
+      services: ["rds", "redshift", "sagemaker", "eks"]
+      operations: ["create", "scale"]
+    warnings:
+      enabled: true
+      message: "💰 Serviços de alto custo detectados. Revisar orçamento."
+    enforcement:
+      enabled: false
+      message: "🚫 Criação de recursos de alto custo requer aprovação financeira."
+    recommendations:
+      - "Verificar limites de orçamento"
+      - "Considerar alternativas mais econômicas"
+
+# Configurações por ambiente
+environments:
+  development:
+    enforcement_enabled: false
+    warning_threshold: "MEDIUM"
+    
+  staging:
+    enforcement_enabled: false
+    warning_threshold: "HIGH"
+    
+  production:
+    enforcement_enabled: true  # Pode ser habilitado em prod
+    warning_threshold: "LOW"
+    block_destructive_operations: true
+
+# Configurações por usuário/role
+user_overrides:
+  admin_users:
+    - "admin"
+    - "devops-lead"
+    bypass_enforcement: true
+    
+  restricted_users:
+    - "intern"
+    - "contractor"
+    additional_warnings: true
+    lower_risk_threshold: "LOW"
+
+# Métricas e auditoria
+metrics:
+  enabled: true
+  track_validation_decisions: true
+  track_blocked_operations: true
+  track_warning_acknowledgments: true
+  
+audit:
+  log_all_validations: true
+  log_policy_changes: true
+  retention_days: 90
+
+# Integração com sistemas externos
+integrations:
+  slack:
+    enabled: false
+    webhook_url: ""
+    notify_on_blocks: true
+    
+  email:
+    enabled: false
+    smtp_server: ""
+    notify_admins: true
+    
+  jira:
+    enabled: false
+    create_tickets_for_blocks: false

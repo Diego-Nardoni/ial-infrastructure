@@ -1,0 +1,59 @@
+{
+  "governance": {
+    "compliance": {
+      "fail_on_violation": true,
+      "auto_remediate_safe": true,
+      "block_deployment_on_fail": true,
+      "required_rules": [
+        "s3-encryption-check",
+        "sg-restrict-inbound",
+        "ebs-encrypted"
+      ]
+    },
+    "budget": {
+      "enforce_limits": true,
+      "block_deployment_on_exceed": true,
+      "warning_threshold_percent": 80,
+      "default_monthly_limit": 100.0,
+      "phase_limits": {
+        "foundation": 25,
+        "security": 30,
+        "network": 50,
+        "compute": 120,
+        "data": 80,
+        "application": 60
+      }
+    },
+    "security": {
+      "block_on_critical": true,
+      "auto_remediate_safe": true,
+      "required_checks": [
+        "no_public_access",
+        "encryption_enabled",
+        "secure_protocols"
+      ]
+    },
+    "well_architected": {
+      "minimum_score": 80,
+      "required_pillars": [
+        "security",
+        "reliability",
+        "performance",
+        "cost",
+        "operational_excellence"
+      ]
+    }
+  },
+  "pipeline": {
+    "pr_comments": true,
+    "status_checks": true,
+    "cloudwatch_metrics": true,
+    "decision_ledger": true,
+    "post_deploy_validation": true
+  },
+  "notifications": {
+    "slack_webhook": null,
+    "email_alerts": false,
+    "teams_webhook": null
+  }
+}

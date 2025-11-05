@@ -1,0 +1,176 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/States", "ExecutionsSucceeded", "StateMachineArn", "arn:aws:states:us-east-1:ACCOUNT_ID:stateMachine:ial-phase-pipeline"],
+          [".", "ExecutionsFailed", ".", "."],
+          [".", "ExecutionsAborted", ".", "."]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Phase Pipeline Executions",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/States", "ExecutionsSucceeded", "StateMachineArn", "arn:aws:states:us-east-1:ACCOUNT_ID:stateMachine:ial-drift-autoheal"],
+          [".", "ExecutionsFailed", ".", "."]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Drift Auto-Heal Executions",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 6,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["IAL/Creation", "Completeness"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Creation Completeness %",
+        "period": 300,
+        "stat": "Average",
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "max": 100
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 6,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["IAL/Drift", "Detected", "Type", "Safe"],
+          [".", ".", ".", "Risky"],
+          [".", "Reconciled", ".", "Safe"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Drift Detection & Reconciliation",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 6,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["IAL/Circuit", "State"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Circuit Breaker State",
+        "period": 300,
+        "stat": "Maximum",
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Open",
+              "value": 2
+            },
+            {
+              "label": "Half-Open", 
+              "value": 1
+            },
+            {
+              "label": "Closed",
+              "value": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Lambda", "Duration", "FunctionName", "ial-plan-lambda"],
+          [".", ".", ".", "ial-apply-lambda"],
+          [".", ".", ".", "ial-audit-validator-lambda"],
+          [".", ".", ".", "ial-drift-detect-lambda"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Lambda Function Duration",
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Lambda", "Errors", "FunctionName", "ial-plan-lambda"],
+          [".", ".", ".", "ial-apply-lambda"],
+          [".", ".", ".", "ial-audit-validator-lambda"],
+          [".", ".", ".", "ial-drift-detect-lambda"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Lambda Function Errors",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "log",
+      "x": 0,
+      "y": 18,
+      "width": 24,
+      "height": 6,
+      "properties": {
+        "query": "SOURCE '/aws/stepfunctions/ial-phase-pipeline'\n| fields @timestamp, @message\n| filter @message like /ERROR/\n| sort @timestamp desc\n| limit 20",
+        "region": "us-east-1",
+        "title": "Recent Step Functions Errors",
+        "view": "table"
+      }
+    }
+  ]
+}

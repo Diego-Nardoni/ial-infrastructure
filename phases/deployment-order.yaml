@@ -1,48 +1,104 @@
 metadata:
-  version: '3.0'
+  version: '3.1'
   architecture: dag-cognitive
   generated_by: phase_manager_ai
-  total_phases: 37
-  generated_at: '2025-10-27 11:56:03.959231'
+  total_phases: 48
+  generated_at: '2025-11-03T20:54:00.000+00:00'
+  control_plane_phases: 20
+  workload_phases: 28
+  finops:
+    enabled: true
+    budget_enforcement: true
+    default_monthly_budget_usd: 100.0
+    control_plane_budget_usd: 200.0
+    workloads_budget_usd: 500.0
+  enterprise_hardening:
+    feature_flags_enabled: true
+    slo_monitoring_enabled: true
+    circuit_breaker_enabled: true
+    audit_enforcement_enabled: true
+  github_integration:
+    oidc_provider_enabled: true
+    gitops_required: true
+    multi_repo_support: true
 execution_order:
-- 30-compute/01-ecr
-- 50-application/03-sns-topics
-- 20-network/01-networking
-- 60-observability/01-enhanced-observability
-- 60-observability/03-drift-detection
-- 90-governance/01-well-architected-assessment
-- 90-governance/02-budgets-resources
+- 00-foundation/01-dynamodb-state
+- 00-foundation/02-logging-infrastructure
+- 00-foundation/03-reconciliation-engine
 - 00-foundation/04-backup-strategy
 - 00-foundation/05-chaos-engineering
+- 00-foundation/06-reconciliation-wrapper
+- 00-foundation/07-conversation-memory
+- 00-foundation/08-rag-storage
+- 00-foundation/09-stepfunctions-orchestrator
+- 00-foundation/10-ial-dynamodb-tables
+- 00-foundation/11-ial-s3-storage
+- 00-foundation/12-ial-rag-infrastructure
+- 00-foundation/13-ial-drift-detection
+- 00-foundation/14-ial-lambda-functions
+- 00-foundation/15-ial-bedrock-github-iam
+- 00-foundation/16-ial-test-validation
+- 00-foundation/17-ial-finops-budget-enforcement
+- 00-foundation/18-ial-feature-flags
+- 00-foundation/19-ial-enterprise-observability
+- 00-foundation/20-ial-github-oidc-provider
 - 10-security/01-kms-security
 - 10-security/04-iam-roles
-- 30-compute/02-ecs-cluster
+- 20-network/01-networking
 - 20-network/02-vpc-flow-logs
 - 40-data/01-redis
 - 40-data/04-dynamodb-tables
 - 40-data/05-s3-storage
 - 10-security/02-security-services
-- 10-security/06-waf-cloudfront
-- 60-observability/02-observability
-- 90-governance/03-cost-guardrails
-- 90-governance/04-cost-performance-dashboard
-- 40-data/02-aurora-postgresql
 - 10-security/03-secrets-manager
 - 10-security/05-iam-bedrock-github
+- 10-security/06-waf-cloudfront
+- 30-compute/01-ecr
+- 30-compute/02-ecs-cluster
 - 30-compute/03-ecs-task-service
-- 00-foundation/02-logging-infrastructure
-- 00-foundation/07-conversation-memory
-- 00-foundation/01-dynamodb-state
-- 70-ai-ml/01-rag-s3-tables
-- 40-data/03-aurora-postgresql-secure
-- 50-application/01-lambda-functions
-- 50-application/04-parameter-store
 - 30-compute/04-ecs-autoscaling
 - 30-compute/05-alb
-- 00-foundation/03-reconciliation-engine
-- 50-application/02-step-functions
-- 00-foundation/06-reconciliation-wrapper
+- 40-data/02-aurora-postgresql
+- 40-data/03-aurora-postgresql-secure
+- 50-application/01-lambda-functions
+- 50-application/03-sns-topics
+- 50-application/04-parameter-store
+- 60-observability/01-enhanced-observability
+- 60-observability/02-observability
+- 60-observability/03-drift-detection
+- 70-ai-ml/01-rag-s3-tables
+- 90-governance/01-well-architected-assessment
+- 90-governance/02-budgets-resources
+- 90-governance/03-cost-guardrails
+- 90-governance/04-cost-performance-dashboard
 dependencies:
+  00-foundation/01-dynamodb-state:
+    depends_on: []
+    reasoning: "Bootstrap resource - DynamoDB table for state tracking"
+  00-foundation/02-logging-infrastructure:
+    depends_on: []
+    reasoning: "Independent logging infrastructure setup"
+  00-foundation/03-reconciliation-engine:
+    depends_on: ["00-foundation/01-dynamodb-state"]
+    reasoning: "Reconciliation engine depends on state table"
+  00-foundation/04-backup-strategy:
+    depends_on: ["00-foundation/01-dynamodb-state"]
+    reasoning: "Backup strategy depends on DynamoDB state table"
+  00-foundation/05-chaos-engineering:
+    depends_on: []
+    reasoning: "Independent chaos engineering setup"
+  00-foundation/06-reconciliation-wrapper:
+    depends_on: ["00-foundation/03-reconciliation-engine"]
+    reasoning: "Wrapper depends on reconciliation engine"
+  00-foundation/07-conversation-memory:
+    depends_on: []
+    reasoning: "Independent conversation memory setup"
+  00-foundation/08-rag-storage:
+    depends_on: []
+    reasoning: "Independent RAG storage setup"
+  00-foundation/09-stepfunctions-orchestrator:
+    depends_on: ["00-foundation/01-dynamodb-state", "00-foundation/02-logging-infrastructure"]
+    reasoning: "Step Functions orchestrator depends on state table and logging infrastructure"
   30-compute/01-ecr:
     depends_on: []
     reasoning: "O ECR (Elastic Container Registry) n\xE3o depende de nenhuma outra\

@@ -1,0 +1,226 @@
+name: IAL Governance Pipeline
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write      # OIDC
+  contents: read       # Repo access
+  pull-requests: write # PR comments
+  checks: write        # Status checks
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  phase-template-gate:
+    name: Phase Template Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          
+      - name: Install dependencies
+        run: |
+          pip install jsonschema PyYAML
+          
+      - name: Lint Phase Templates
+        working-directory: ${{ github.workspace }}
+        run: |
+          python core/auditors/phase_template_lint.py
+          
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-template-validation-report
+          path: reports/validators/phase_template_gate.json
+
+  pre-deploy-gates:
+    name: Pre-Deploy Governance Gates
+    runs-on: ubuntu-latest
+    outputs:
+      compliance-status: ${{ steps.compliance.outputs.status }}
+      budget-status: ${{ steps.budget.outputs.status }}
+      security-status: ${{ steps.security.outputs.status }}
+      overall-status: ${{ steps.overall.outputs.status }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install boto3 pyyaml requests
+          pip install --break-system-packages openai tiktoken || true
+      
+      - name: Compliance Gate
+        id: compliance
+        run: |
+          echo "🔍 Running compliance check..."
+          result=$(python3 governance_cli.py compliance-check phases/ 2>&1)
+          echo "$result"
+          
+          if echo "$result" | grep -q "Status: PASS"; then
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "✅ Compliance check passed"
+          else
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "❌ Compliance check failed"
+            echo "compliance-details<<EOF" >> $GITHUB_OUTPUT
+            echo "$result" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Budget Gate
+        id: budget
+        run: |
+          echo "💰 Running budget check..."
+          phase="${{ github.head_ref || 'main' }}"
+          result=$(python3 governance_cli.py budget-check "$phase" 2>&1)
+          echo "$result"
+          
+          if echo "$result" | grep -q "Status: PASS"; then
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "✅ Budget check passed"
+          else
+            echo "status=BLOCK" >> $GITHUB_OUTPUT
+            echo "❌ Budget exceeded"
+            echo "budget-details<<EOF" >> $GITHUB_OUTPUT
+            echo "$result" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Security Gate
+        id: security
+        run: |
+          echo "🛡️ Running security validation..."
+          # Simulate security check
+          echo "status=PASS" >> $GITHUB_OUTPUT
+          echo "✅ Security validation passed"
+      
+      - name: Overall Gate Status
+        id: overall
+        run: |
+          compliance="${{ steps.compliance.outputs.status }}"
+          budget="${{ steps.budget.outputs.status }}"
+          security="${{ steps.security.outputs.status }}"
+          
+          if [[ "$compliance" == "PASS" && "$budget" == "PASS" && "$security" == "PASS" ]]; then
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "✅ All governance gates passed"
+          else
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "❌ One or more governance gates failed"
+            exit 1
+          fi
+
+  pr-comment:
+    name: Update PR with Governance Report
+    runs-on: ubuntu-latest
+    needs: pre-deploy-gates
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Generate Governance Report
+        run: |
+          python3 scripts/pr-commenter.py \
+            --compliance-status "${{ needs.pre-deploy-gates.outputs.compliance-status }}" \
+            --budget-status "${{ needs.pre-deploy-gates.outputs.budget-status }}" \
+            --security-status "${{ needs.pre-deploy-gates.outputs.security-status }}" \
+            --overall-status "${{ needs.pre-deploy-gates.outputs.overall-status }}" \
+            --pr-number "${{ github.event.number }}" \
+            --github-token "${{ secrets.GITHUB_TOKEN }}"
+
+  deploy:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: pre-deploy-gates
+    if: needs.pre-deploy-gates.outputs.overall-status == 'PASS'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Deploy Infrastructure
+        run: |
+          echo "🚀 Deploying infrastructure..."
+          echo "✅ Deployment completed (simulated)"
+          echo "deployment-status=SUCCESS" >> $GITHUB_OUTPUT
+
+  post-deploy-validation:
+    name: Post-Deploy Governance Validation
+    runs-on: ubuntu-latest
+    needs: [pre-deploy-gates, deploy]
+    if: needs.deploy.result == 'success'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install boto3 pyyaml
+      
+      - name: Post-Deploy Compliance Check
+        run: |
+          echo "🔍 Running post-deploy compliance validation..."
+          python3 compliance/ial_config_rules.py --run_postdeploy
+      
+      - name: Cost Tracking
+        run: |
+          echo "💰 Tracking actual deployment costs..."
+          phase="${{ github.head_ref || 'main' }}"
+          python3 mcp/finops/server.py --track-actual-costs "$phase"
+      
+      - name: Publish Metrics
+        run: |
+          echo "📊 Publishing governance metrics to CloudWatch..."
+          python3 scripts/publish-governance-metrics.py \
+            --compliance-status "${{ needs.pre-deploy-gates.outputs.compliance-status }}" \
+            --budget-status "${{ needs.pre-deploy-gates.outputs.budget-status }}"

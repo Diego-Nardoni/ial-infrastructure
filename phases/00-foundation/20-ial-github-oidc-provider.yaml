@@ -1,0 +1,251 @@
+phase_name: "IAL GitHub OIDC Provider"
+description: "OIDC Identity Provider for GitHub Actions integration with AWS"
+resource_count: 6
+
+Resources:
+  # OIDC Identity Provider for GitHub Actions
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCIdentityProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+      Tags:
+        - Key: Purpose
+          Value: GitHubActions
+        - Key: Component
+          Value: IAL-ControlPlane
+
+  # Base IAM Role for GitHub Actions
+  GitHubActionsECRDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-github-actions-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOIDCProvider
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com'
+              StringLike:
+                'token.actions.githubusercontent.com:sub': !Split
+                  - ','
+                  - !Ref AllowedRepositories
+      PermissionsBoundary: !Ref GitHubActionsPermissionsBoundary
+      ManagedPolicyArns:
+        - !Ref GitHubActionsBasePolicy
+      Tags:
+        - Key: Purpose
+          Value: GitHubActions
+        - Key: Component
+          Value: IAL-ControlPlane
+
+  # Base Policy for GitHub Actions
+  GitHubActionsBasePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub '${ProjectName}-github-actions-base-policy'
+      Description: 'Base permissions for GitHub Actions'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: STSPermissions
+            Effect: Allow
+            Action:
+              - sts:GetCallerIdentity
+              - sts:TagSession
+            Resource: '*'
+          - Sid: CloudFormationRead
+            Effect: Allow
+            Action:
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DescribeStackResources
+              - cloudformation:GetTemplate
+              - cloudformation:ListStacks
+            Resource: '*'
+          - Sid: CloudWatchLogs
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/github-actions/*'
+          - Sid: ParameterStoreRead
+            Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - ssm:GetParametersByPath
+            Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ial/github/*'
+
+  # Permissions Boundary for GitHub Actions
+  GitHubActionsPermissionsBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub '${ProjectName}-github-actions-boundary'
+      Description: 'Permissions boundary for GitHub Actions role'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowedServices
+            Effect: Allow
+            Action:
+              - cloudformation:*
+              - iam:PassRole
+              - logs:*
+              - dynamodb:*
+              - s3:*
+              - ec2:*
+              - ecs:*
+              - lambda:*
+              - apigateway:*
+              - events:*
+              - sns:*
+              - sqs:*
+              - ssm:*
+              - kms:Decrypt
+              - kms:DescribeKey
+              - bedrock:InvokeModel
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'aws:RequestedRegion': 
+                  - !Ref 'AWS::Region'
+                  - 'us-east-1'
+                  - 'us-west-2'
+          - Sid: DenyDangerousActions
+            Effect: Deny
+            Action:
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:CreateUser
+              - iam:DeleteUser
+              - iam:AttachUserPolicy
+              - iam:DetachUserPolicy
+              - iam:CreateAccessKey
+              - iam:DeleteAccessKey
+              - organizations:*
+              - account:*
+            Resource: '*'
+          - Sid: AllowPassRoleOnlyForIAL
+            Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ProjectName}-*'
+
+  # Parameter Store for Allowed Repositories
+  AllowedRepositoriesParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/ial/github/allowed_repos'
+      Type: StringList
+      Value: !Ref AllowedRepositories
+      Description: 'List of GitHub repositories allowed to assume the IAL role'
+      Tags:
+        Purpose: GitHubActions
+        Component: IAL-ControlPlane
+
+  # Parameter Store for OIDC Provider ARN
+  OIDCProviderArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/ial/github/oidc_provider_arn'
+      Type: String
+      Value: !Ref GitHubOIDCProvider
+      Description: 'ARN of the GitHub OIDC Provider'
+      Tags:
+        Purpose: GitHubActions
+        Component: IAL-ControlPlane
+
+# Parameters
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+  AllowedRepositories:
+    Type: CommaDelimitedList
+    Default: "repo:*/ial-infrastructure:ref:refs/heads/main,repo:*/ial-infrastructure:environment:production"
+    Description: 'Comma-delimited list of allowed GitHub repository patterns'
+
+# Outputs
+Outputs:
+  GitHubOIDCProviderArn:
+    Description: 'ARN of the GitHub OIDC Provider'
+    Value: !Ref GitHubOIDCProvider
+    Export:
+      Name: !Sub '${ProjectName}-github-oidc-provider-arn'
+
+  GitHubActionsRoleArn:
+    Description: 'ARN of the GitHub Actions IAM Role'
+    Value: !GetAtt GitHubActionsECRDeployRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-github-actions-role-arn'
+
+  GitHubActionsRoleName:
+    Description: 'Name of the GitHub Actions IAM Role'
+    Value: !Ref GitHubActionsECRDeployRole
+    Export:
+      Name: !Sub '${ProjectName}-github-actions-role-name'
+
+  GitHubActionsBasePolicyArn:
+    Description: 'ARN of the GitHub Actions Base Policy'
+    Value: !Ref GitHubActionsBasePolicy
+    Export:
+      Name: !Sub '${ProjectName}-github-actions-base-policy-arn'
+
+  PermissionsBoundaryArn:
+    Description: 'ARN of the GitHub Actions Permissions Boundary'
+    Value: !Ref GitHubActionsPermissionsBoundary
+    Export:
+      Name: !Sub '${ProjectName}-github-actions-boundary-arn'
+
+# Metadata
+metadata:
+  estimated_monthly_cost: '$2.00'
+  cost_breakdown:
+    oidc_provider: '$0.00'
+    iam_role: '$0.00'
+    parameter_store: '$2.00'
+  security:
+    oidc_enabled: true
+    permissions_boundary: true
+    multi_repo_support: true
+    condition_validation: true
+
+# Trust Policy Template for Reference
+trust_policy_template: |
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": {
+          "Federated": "arn:aws:iam::ACCOUNT:oidc-provider/token.actions.githubusercontent.com"
+        },
+        "Action": "sts:AssumeRole",
+        "Condition": {
+          "StringEquals": {
+            "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+          },
+          "StringLike": {
+            "token.actions.githubusercontent.com:sub": [
+              "repo:USER/ial-infrastructure:ref:refs/heads/main",
+              "repo:USER/ial-infrastructure:environment:production"
+            ]
+          }
+        }
+      }
+    ]
+  }

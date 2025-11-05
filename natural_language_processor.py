@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-IaL Natural Language Processor v3.0
-Complete system with all phases integrated
+IaL Natural Language Processor v3.1
+Complete system with all phases integrated + Intelligent MCP Router + Intent Validation
 """
 
 import sys
@@ -9,6 +9,7 @@ import os
 import uuid
 import json
 import readline
+import asyncio
 from typing import Dict, List, Optional
 
 # Configure readline for better input handling
@@ -19,7 +20,10 @@ def clear_screen():
 # Set up readline key bindings
 readline.parse_and_bind('Control-l: clear-screen')
 
-# Try to import Master Engine
+# Add core path for intelligent router
+sys.path.append(os.path.join(os.path.dirname(__file__), 'core'))
+
+# Try to import Master Engine and Intelligent Router
 try:
     sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
     from ial_master_engine import IaLMasterEngine
@@ -28,18 +32,60 @@ except ImportError as e:
     print(f"⚠️ Master Engine not available: {e}")
     MASTER_ENGINE_AVAILABLE = False
 
+# Try to import Intelligent MCP Router
+try:
+    from intelligent_mcp_router import IntelligentMCPRouter
+    INTELLIGENT_ROUTER_AVAILABLE = True
+    print("🧠 Intelligent MCP Router disponível")
+except ImportError as e:
+    print(f"⚠️ Intelligent MCP Router not available: {e}")
+    INTELLIGENT_ROUTER_AVAILABLE = False
+
+# Try to import Intent Validation System
+try:
+    from intent_validation import ValidationSystem
+    VALIDATION_SYSTEM_AVAILABLE = True
+    print("🛡️ Sistema de Validação de Intenção disponível")
+except ImportError as e:
+    print(f"⚠️ Intent Validation System not available: {e}")
+    VALIDATION_SYSTEM_AVAILABLE = False
+
 class IaLNaturalProcessor:
     def __init__(self):
+        # Initialize Intent Validation System first
+        self.validation_system = None
+        if VALIDATION_SYSTEM_AVAILABLE:
+            try:
+                self.validation_system = ValidationSystem()
+                print("✅ Sistema de Validação de Intenção inicializado")
+            except Exception as e:
+                print(f"⚠️ Erro inicializando Validation System: {e}")
+                self.validation_system = None
+        
+        # Initialize Intelligent MCP Router
+        self.intelligent_router = None
+        if INTELLIGENT_ROUTER_AVAILABLE:
+            try:
+                self.intelligent_router = IntelligentMCPRouter()
+                print("✅ Intelligent MCP Router inicializado")
+            except Exception as e:
+                print(f"⚠️ Erro inicializando Intelligent Router: {e}")
+                self.intelligent_router = None
+        
         if MASTER_ENGINE_AVAILABLE:
             try:
                 self.master_engine = IaLMasterEngine()
                 self.advanced_mode = True
-                print("🚀 IaL v3.0 - Advanced Mode: ALL SYSTEMS OPERATIONAL")
+                print("🚀 IaL v3.1 - Advanced Mode: ALL SYSTEMS OPERATIONAL")
                 print("✅ Bedrock Conversational AI")
                 print("✅ Infrastructure Integration") 
                 print("✅ Response Caching & Optimization")
                 print("✅ Knowledge Base & RAG")
                 print("✅ Cost Monitoring & Rate Limiting")
+                if self.intelligent_router:
+                    print("✅ Intelligent MCP Router")
+                if self.validation_system:
+                    print("✅ Intent Validation System")
             except Exception as e:
                 print(f"⚠️ Master Engine initialization failed: {e}")
                 self.advanced_mode = False
@@ -72,11 +118,73 @@ class IaLNaturalProcessor:
         }
 
     def process_command(self, user_input: str, user_id: str = None, session_id: str = None) -> str:
-        """Main processing function"""
+        """Main processing function with intent validation and intelligent MCP routing"""
         
         if not user_id:
             user_id = "anonymous-user"
         
+        # ===== NOVA INSERÇÃO: SISTEMA DE VALIDAÇÃO DE INTENÇÃO =====
+        pending_warnings = []
+        cost_info = ""
+        if self.validation_system:
+            try:
+                validation_context = {
+                    'user_id': user_id,
+                    'session_id': session_id,
+                    'timestamp': __import__('time').time()
+                }
+                
+                validation_result = self.validation_system.validate_intent(user_input, validation_context)
+                
+                # Verificar se deve bloquear
+                if validation_result.should_block:
+                    return f"{validation_result.block_message}\n\n📋 Para prosseguir, entre em contato com o administrador."
+                
+                # Preparar avisos para adicionar à resposta final
+                pending_warnings = validation_result.warnings if validation_result.has_warnings else []
+                
+                # NOVO: Preparar informações de custo
+                if validation_result.cost_estimation_used and validation_result.estimated_cost:
+                    cost_info = f"\n💰 Custo estimado: ${validation_result.estimated_cost:.2f}/mês"
+                    
+                    if validation_result.cost_breakdown and len(validation_result.cost_breakdown) > 1:
+                        breakdown = ", ".join([
+                            f"{k}: ${v:.2f}" 
+                            for k, v in validation_result.cost_breakdown.items()
+                        ])
+                        cost_info += f" ({breakdown})"
+                
+            except Exception as e:
+                # Fallback silencioso - não quebrar sistema existente
+                print(f"⚠️ Erro na validação de intenção: {e}")
+                pending_warnings = []
+                cost_info = ""
+        # ===== FIM DA INSERÇÃO =====
+        
+        # Try intelligent MCP routing first if available
+        if self.intelligent_router and self.should_use_intelligent_routing(user_input):
+            try:
+                print("🧠 Usando Intelligent MCP Router")
+                response = self.process_with_intelligent_router(user_input, user_id, session_id)
+            except Exception as e:
+                print(f"⚠️ Erro no Intelligent Router: {e}, usando fallback")
+                response = self._process_fallback_path(user_input, user_id, session_id)
+        else:
+            response = self._process_fallback_path(user_input, user_id, session_id)
+        
+        # Adicionar avisos de validação à resposta final
+        if pending_warnings:
+            warnings_text = "\n\n" + "\n".join(pending_warnings)
+            response += warnings_text
+        
+        # NOVO: Adicionar informações de custo à resposta final
+        if cost_info:
+            response += cost_info
+        
+        return response
+
+    def _process_fallback_path(self, user_input: str, user_id: str, session_id: str) -> str:
+        """Processa usando Master Engine ou fallback básico"""
         if self.advanced_mode:
             try:
                 # Use Master Engine for full functionality
@@ -101,9 +209,130 @@ class IaLNaturalProcessor:
         else:
             return self.fallback_processing(user_input)
 
-    def fallback_processing(self, user_input: str) -> str:
-        """Fallback processing when advanced features are unavailable"""
+    def should_use_intelligent_routing(self, user_input: str) -> bool:
+        """Determina se deve usar roteamento inteligente"""
+        # Usar router inteligente para solicitações de infraestrutura
+        infrastructure_keywords = [
+            'deploy', 'create', 'setup', 'build', 'provision',
+            'ecs', 'lambda', 'rds', 'elb', 'vpc', 's3', 'dynamodb',
+            'infrastructure', 'architecture', 'serverless', 'container'
+        ]
         
+        user_lower = user_input.lower()
+        return any(keyword in user_lower for keyword in infrastructure_keywords)
+
+    def process_with_intelligent_router(self, user_input: str, user_id: str, session_id: str) -> str:
+        """Processa usando o router inteligente"""
+        context = {
+            'user_id': user_id,
+            'session_id': session_id or str(uuid.uuid4()),
+            'timestamp': __import__('time').time()
+        }
+        
+        # Executar roteamento inteligente (síncrono)
+        try:
+            # Usar asyncio para executar função async
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(
+                self.intelligent_router.route_request(user_input, context)
+            )
+            loop.close()
+            
+            # Processar resultado
+            return self.format_intelligent_router_response(result, user_input)
+            
+        except Exception as e:
+            print(f"❌ Erro na execução do router: {e}")
+            raise
+
+    def format_intelligent_router_response(self, result: Dict, user_input: str) -> str:
+        """Formata resposta do router inteligente para o usuário"""
+        if not result.get('success'):
+            error_msg = result.get('error', 'Erro desconhecido')
+            if result.get('fallback_used'):
+                return f"⚠️ {error_msg}\n🔄 Usando modo básico para processar sua solicitação."
+            else:
+                return f"❌ {error_msg}"
+        
+        # Construir resposta baseada no resultado
+        response_parts = []
+        
+        # Cabeçalho com informações da execução
+        if 'routing_decision' in result:
+            decision = result['routing_decision']
+            services = decision.get('detected_services', [])
+            mcps = decision.get('mcps_used', [])
+            confidence = decision.get('confidence', 0)
+            
+            response_parts.append(f"🎯 **Análise da Solicitação:**")
+            response_parts.append(f"   • Serviços detectados: {', '.join(services) if services else 'Nenhum'}")
+            response_parts.append(f"   • MCPs utilizados: {len(mcps)}")
+            response_parts.append(f"   • Confiança: {confidence:.0%}")
+        
+        # Informações das fases executadas
+        if 'phases' in result:
+            phases = result['phases']
+            successful_phases = [name for name, phase in phases.items() if phase.get('success')]
+            
+            response_parts.append(f"\n🚀 **Execução:**")
+            response_parts.append(f"   • Fases executadas: {len(successful_phases)}/{len(phases)}")
+            response_parts.append(f"   • Fases: {', '.join(successful_phases)}")
+            
+            # Mostrar resultados por fase
+            for phase_name, phase_result in phases.items():
+                if phase_result.get('success') and phase_result.get('results'):
+                    response_parts.append(f"\n   📋 **{phase_name.title()}:**")
+                    for mcp_name, mcp_result in phase_result['results'].items():
+                        if mcp_result.get('success'):
+                            action = mcp_result.get('result', {}).get('action', 'ação executada')
+                            resources = mcp_result.get('result', {}).get('resources', [])
+                            response_parts.append(f"      ✅ {mcp_name}: {action}")
+                            if resources:
+                                response_parts.append(f"         Recursos: {', '.join(resources)}")
+        
+        # Performance e estatísticas
+        exec_time = result.get('execution_time', 0)
+        total_mcps = result.get('total_mcps', 0)
+        
+        response_parts.append(f"\n📊 **Performance:**")
+        response_parts.append(f"   • Tempo de execução: {exec_time:.2f}s")
+        response_parts.append(f"   • MCPs coordenados: {total_mcps}")
+        
+        # Fallback usado
+        if result.get('fallback_used'):
+            reason = result.get('fallback_reason', 'Motivo não especificado')
+            response_parts.append(f"\n⚠️ **Fallback:** {reason}")
+        
+        # Erros se houver
+        if result.get('errors'):
+            response_parts.append(f"\n❌ **Avisos:**")
+            for error in result['errors'][:3]:  # Mostrar apenas os 3 primeiros
+                response_parts.append(f"   • {error}")
+        
+        # Próximos passos sugeridos
+        if result.get('success') and not result.get('fallback_used'):
+            response_parts.append(f"\n✅ **Infraestrutura configurada com sucesso!**")
+            response_parts.append(f"💡 **Próximos passos:**")
+            response_parts.append(f"   • Verificar recursos no AWS Console")
+            response_parts.append(f"   • Configurar monitoramento se necessário")
+            response_parts.append(f"   • Testar conectividade entre componentes")
+        
+        return '\n'.join(response_parts)
+
+    def fallback_processing(self, user_input: str) -> str:
+        """Enhanced fallback processing with DeepSeek"""
+        
+        # Initialize fallback mappings if not available
+        if not hasattr(self, 'action_mapping'):
+            self.init_fallback_mode()
+        
+        # Try DeepSeek first (intelligent fallback)
+        deepseek_response = self.try_deepseek_fallback(user_input)
+        if deepseek_response:
+            return deepseek_response
+        
+        # Fallback to basic pattern matching
         intent = self.extract_intent(user_input)
         return self.generate_fallback_response(intent)
 
@@ -180,7 +409,42 @@ class IaLNaturalProcessor:
         
         return "🤔 I understand you want to perform an action, but I'm running in basic mode. For full conversational AI capabilities with Bedrock, infrastructure integration, caching, and knowledge base, please configure the Master Engine."
 
-    def get_domain_info(self, domain: str) -> dict:
+    def try_deepseek_fallback(self, user_input: str) -> Optional[str]:
+        """Try DeepSeek as intelligent fallback"""
+        
+        # Check if DeepSeek is configured
+        if not os.getenv('DEEPSEEK_API_KEY'):
+            return None
+        
+        try:
+            # Import DeepSeek provider
+            sys.path.append(os.path.join(os.path.dirname(__file__), 'core', 'providers'))
+            from deepseek_provider import chat
+            
+            # Create infrastructure-aware prompt
+            prompt = f"""You are IAL (Infrastructure as Language) Assistant running in fallback mode.
+            
+User request: "{user_input}"
+
+You help with AWS infrastructure management. Respond conversationally and helpfully.
+
+If the user wants to:
+- Deploy/create infrastructure: Explain what would be created and suggest next steps
+- Check status: Explain what you would check and how
+- Get help: Provide AWS best practices and guidance
+- Rollback: Explain the rollback process
+
+Keep responses concise but informative. Always mention this is fallback mode.
+"""
+            
+            response, latency = chat(prompt)
+            
+            # Add fallback indicator
+            return f"🧠 **DeepSeek Fallback Mode**\n\n{response}\n\n💡 *For full functionality, ensure AWS Bedrock is configured*"
+            
+        except Exception as e:
+            print(f"DeepSeek fallback error: {e}")
+            return None
         """Get information about a domain"""
         domain_details = {
             'security': {'phases': 6, 'duration': '30 minutes'},
@@ -196,17 +460,22 @@ class IaLNaturalProcessor:
         return domain_details.get(domain, {'phases': 'several', 'duration': 'some time'})
 
     def get_system_status(self) -> dict:
-        """Get system status"""
-        
-        if self.advanced_mode and hasattr(self, 'master_engine'):
-            return self.master_engine.get_system_status()
-        else:
-            return {
-                'mode': 'basic',
-                'advanced_features': False,
-                'master_engine': 'unavailable',
-                'fallback_mode': True
+        """Get comprehensive system status including validation system"""
+        base_status = {
+            'version': '3.1',
+            'mode': 'advanced' if self.advanced_mode else 'basic',
+            'components': {
+                'master_engine': MASTER_ENGINE_AVAILABLE and self.advanced_mode,
+                'intelligent_router': INTELLIGENT_ROUTER_AVAILABLE and self.intelligent_router is not None,
+                'validation_system': VALIDATION_SYSTEM_AVAILABLE and self.validation_system is not None
             }
+        }
+        
+        # Add validation system status if available
+        if self.validation_system:
+            base_status['validation'] = self.validation_system.get_system_status()
+        
+        return base_status
 
     def get_usage_report(self, user_id: str) -> dict:
         """Get usage and cost report for a user"""

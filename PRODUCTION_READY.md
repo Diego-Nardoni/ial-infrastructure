@@ -1,20 +1,20 @@
 # 🚀 IaL - Infrastructure as Language v3.0
 
-## **PRODUCTION READY SYSTEM**
+## **CONVERSATIONAL AWS INFRASTRUCTURE MANAGEMENT**
 
-**The world's first 100% natural language infrastructure management framework with AI-powered conversation, real infrastructure integration, and enterprise-grade optimization.**
+**A Python-based system that provides natural language interface for AWS CloudFormation deployment using AWS Bedrock AI models.**
 
 ---
 
 ## 🎯 **SYSTEM OVERVIEW**
 
-IaL v3.0 is a complete conversational AI system that manages AWS infrastructure through natural language, featuring:
+IaL v3.0 is a conversational interface for AWS infrastructure management that:
 
-- **🧠 Bedrock Conversational AI** - Real conversations with Claude 3.5 Sonnet/Haiku
-- **🏗️ Infrastructure Integration** - Real deployment, status, rollback, validation
-- **💾 Response Caching & Optimization** - Intelligent caching and rate limiting
-- **🧠 Knowledge Base & RAG** - AWS best practices and troubleshooting
-- **💰 Cost Monitoring** - Real-time cost tracking and optimization
+- **🧠 Uses AWS Bedrock** - Processes natural language via Claude 3.5 Sonnet/Haiku
+- **🏗️ Executes CloudFormation** - Deploys pre-defined infrastructure templates
+- **💾 Provides Optimization** - Caching, rate limiting, and cost monitoring
+- **🧠 Includes Knowledge Base** - RAG system for AWS best practices
+- **💰 Monitors Costs** - Tracks and optimizes Bedrock usage
 
 ---
 

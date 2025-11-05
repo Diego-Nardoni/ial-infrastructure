@@ -1,9 +1,9 @@
 domain:
   name: "foundation"
-  description: "Core infrastructure foundation - state management, logging, reconciliation"
+  description: "Core infrastructure foundation - state management, logging, reconciliation, orchestration"
   dependencies: []
   parallel_safe: false
-  estimated_duration: "25min"
+  estimated_duration: "30min"
   team_owner: "platform-team"
   risk_level: "low"
   phases:
@@ -13,5 +13,8 @@ domain:
     - "04-backup-strategy.yaml"
     - "05-chaos-engineering.yaml"
     - "06-reconciliation-wrapper.yaml"
+    - "07-conversation-memory.yaml"
+    - "08-rag-storage.yaml"
+    - "09-stepfunctions-orchestrator.yaml"
   execution_order: "sequential"
   priority: 1

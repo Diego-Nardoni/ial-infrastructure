@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IaL RAG Storage - S3 bucket for knowledge base and vector indices'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: 'dev'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: Environment name
+
+Resources:
+  # S3 Bucket for RAG Knowledge Base
+  RAGStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'ial-rag-store-${Environment}-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref RAGKMSKey
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      NotificationConfiguration:
+        CloudWatchConfigurations:
+          - Event: s3:ObjectCreated:*
+            CloudWatchConfiguration:
+              LogGroupName: !Ref RAGLogGroup
+
+  # KMS Key for RAG encryption
+  RAGKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS Key for IaL RAG storage encryption'
+      KeyPolicy:
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow RAG service access
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt RAGServiceRole.Arn
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey
+              - kms:ReEncrypt*
+            Resource: '*'
+
+  # KMS Key Alias
+  RAGKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/ial-rag-encryption
+      TargetKeyId: !Ref RAGKMSKey
+
+  # IAM Role for RAG services
+  RAGServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'IaL-RAG-ServiceRole-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: RAGStorageAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt RAGStorageBucket.Arn
+                  - !Sub '${RAGStorageBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:ListFoundationModels
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                  - kms:Encrypt
+                  - kms:GenerateDataKey
+                Resource: !GetAtt RAGKMSKey.Arn
+
+  # CloudWatch Log Group for RAG operations
+  RAGLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/ial/rag/${Environment}'
+      RetentionInDays: 30
+
+Outputs:
+  RAGBucketName:
+    Description: 'S3 bucket name for RAG storage'
+    Value: !Ref RAGStorageBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-RAGBucket'
+
+  RAGBucketArn:
+    Description: 'S3 bucket ARN for RAG storage'
+    Value: !GetAtt RAGStorageBucket.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-RAGBucketArn'
+
+  RAGKMSKeyId:
+    Description: 'KMS Key ID for RAG encryption'
+    Value: !Ref RAGKMSKey
+    Export:
+      Name: !Sub '${AWS::StackName}-RAGKMSKey'
+
+  RAGServiceRoleArn:
+    Description: 'IAM Role ARN for RAG services'
+    Value: !GetAtt RAGServiceRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-RAGServiceRole'
+
+  RAGLogGroupName:
+    Description: 'CloudWatch Log Group for RAG operations'
+    Value: !Ref RAGLogGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-RAGLogGroup'

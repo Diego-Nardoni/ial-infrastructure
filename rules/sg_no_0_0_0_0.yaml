@@ -1,0 +1,15 @@
+apiVersion: ial/v1
+kind: ConfigRule
+metadata:
+  name: sg-restrict-inbound
+  description: Security Groups não devem expor portas críticas a 0.0.0.0/0.
+spec:
+  type: opa
+  rule: |
+    package sg_rules
+    deny[msg] {
+      input.Type == "AWS::EC2::SecurityGroup"
+      some i
+      input.Properties.SecurityGroupIngress[i].CidrIp == "0.0.0.0/0"
+      msg := "Porta aberta para o mundo detectada."
+    }

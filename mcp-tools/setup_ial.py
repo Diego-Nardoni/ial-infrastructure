@@ -384,6 +384,80 @@ def create_eventbridge_rule(account_id, region):
         --targets "Id"="1","Arn"="arn:aws:lambda:{region}:{account_id}:function:{function_name}" \
         --region {region}""", shell=True, check=True)
 
+def create_kms_key_ial_data(account_id, region):
+    """Cria CMK com alias/ial-data para criptografia padrão"""
+    alias_name = "alias/ial-data"
+    
+    # Verificar se alias já existe
+    check = subprocess.run(
+        f'aws kms describe-key --key-id {alias_name} --region {region}',
+        shell=True, capture_output=True, text=True
+    )
+    
+    if check.returncode == 0:
+        key_info = json.loads(check.stdout)
+        key_id = key_info['KeyMetadata']['KeyId']
+        print(f"✅ CMK {alias_name} já existe: {key_id}")
+        return key_id
+    
+    print(f"🔐 Criando CMK {alias_name}...")
+    
+    # Criar KMS key
+    key_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "Enable IAM User Permissions",
+                "Effect": "Allow",
+                "Principal": {"AWS": f"arn:aws:iam::{account_id}:root"},
+                "Action": "kms:*",
+                "Resource": "*"
+            },
+            {
+                "Sid": "Allow use of the key for IAL services",
+                "Effect": "Allow",
+                "Principal": {"Service": ["s3.amazonaws.com", "dynamodb.amazonaws.com", "secretsmanager.amazonaws.com"]},
+                "Action": [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:ReEncrypt*",
+                    "kms:GenerateDataKey*",
+                    "kms:DescribeKey"
+                ],
+                "Resource": "*"
+            }
+        ]
+    }
+    
+    # Criar key
+    result = subprocess.run(f"""aws kms create-key \
+        --description "IAL Data Encryption Key" \
+        --key-usage ENCRYPT_DECRYPT \
+        --key-spec SYMMETRIC_DEFAULT \
+        --origin AWS_KMS \
+        --policy '{json.dumps(key_policy)}' \
+        --region {region} \
+        --query 'KeyMetadata.KeyId' \
+        --output text""", shell=True, capture_output=True, text=True, check=True)
+    
+    key_id = result.stdout.strip()
+    
+    # Criar alias
+    subprocess.run(f"""aws kms create-alias \
+        --alias-name {alias_name} \
+        --target-key-id {key_id} \
+        --region {region}""", shell=True, check=True)
+    
+    # Habilitar rotação automática
+    subprocess.run(f"""aws kms enable-key-rotation \
+        --key-id {key_id} \
+        --region {region}""", shell=True, check=True)
+    
+    print(f"🔐 CMK criado: {key_id}")
+    print(f"🔄 Rotação automática habilitada")
+    
+    return key_id
+
 def create_sns_topic(account_id, region):
     """Cria SNS topic para notificações"""
     topic_name = "ial-alerts-critical"
@@ -438,10 +512,13 @@ def setup_ial():
         # 2. IAM Role para GitHub Actions (com repo específico)
         github_role = create_github_actions_role(account_id, region, github_repo)
         
-        # 3. DynamoDB State Table
+        # 3. KMS Key para criptografia padrão
+        kms_key_id = create_kms_key_ial_data(account_id, region)
+        
+        # 4. DynamoDB State Table
         create_dynamodb_table(account_id, region)
         
-        # 4. SNS Topic (para alertas)
+        # 5. SNS Topic (para alertas)
         topic_arn = create_sns_topic(account_id, region)
         
         print("\n" + "="*60)
@@ -473,6 +550,7 @@ def setup_ial():
             'github_repo': github_repo,
             'github_role': github_role,
             'oidc_arn': oidc_arn,
+            'kms_key_id': kms_key_id,
             'topic_arn': topic_arn
         }
     except Exception as e:

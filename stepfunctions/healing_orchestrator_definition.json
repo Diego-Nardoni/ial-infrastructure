@@ -1,0 +1,92 @@
+{
+  "Comment": "IAL Healing Orchestrator - Step Functions Implementation",
+  "StartAt": "InitializeHealing",
+  "States": {
+    "InitializeHealing": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "ial-healing-initializer",
+        "Payload": {
+          "failed_resources.$": "$.failed_resources",
+          "region.$": "$.region",
+          "correlation_id.$": "$.correlation_id"
+        }
+      },
+      "ResultPath": "$.healing_plan",
+      "Next": "CheckHealingPlan",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ]
+    },
+    "CheckHealingPlan": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.healing_plan.Payload.has_resources",
+          "BooleanEquals": false,
+          "Next": "NoHealingNeeded"
+        }
+      ],
+      "Default": "ProcessHealingBatches"
+    },
+    "NoHealingNeeded": {
+      "Type": "Pass",
+      "Result": {
+        "status": "success",
+        "message": "No healing required",
+        "healed_resources": []
+      },
+      "End": true
+    },
+    "ProcessHealingBatches": {
+      "Type": "Map",
+      "ItemsPath": "$.healing_plan.Payload.healing_batches",
+      "MaxConcurrency": 3,
+      "Iterator": {
+        "StartAt": "HealResourceBatch",
+        "States": {
+          "HealResourceBatch": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "ial-resource-healer",
+              "Payload": {
+                "batch.$": "$",
+                "correlation_id.$": "$.correlation_id"
+              }
+            },
+            "End": true,
+            "Retry": [
+              {
+                "ErrorEquals": ["States.TaskFailed"],
+                "IntervalSeconds": 5,
+                "MaxAttempts": 2,
+                "BackoffRate": 2.0
+              }
+            ]
+          }
+        }
+      },
+      "ResultPath": "$.healing_results",
+      "Next": "AggregateResults"
+    },
+    "AggregateResults": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "ial-healing-aggregator",
+        "Payload": {
+          "healing_results.$": "$.healing_results",
+          "correlation_id.$": "$.correlation_id"
+        }
+      },
+      "End": true
+    }
+  }
+}

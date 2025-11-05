@@ -25,6 +25,9 @@ class IaLBootstrapAssistant:
         self.aws_configured = False
         self.bedrock_available = False
         self.dynamodb_ready = False
+        self.s3_rag_ready = False
+        self.iam_roles_ready = False
+        self.kms_keys_ready = False
         self.github_configured = False
         self.environment_type = 'development'
         
@@ -84,6 +87,18 @@ class IaLBootstrapAssistant:
             
         elif any(word in user_lower for word in ['tabelas', 'dynamodb', 'banco']):
             return self.setup_dynamodb()
+            
+        elif any(word in user_lower for word in ['s3', 'rag', 'bucket', 'storage']):
+            return self.setup_s3_rag()
+            
+        elif any(word in user_lower for word in ['roles', 'iam', 'permissões']):
+            return self.setup_iam_roles()
+            
+        elif any(word in user_lower for word in ['kms', 'encryption', 'chaves']):
+            return self.setup_kms_keys()
+            
+        elif any(word in user_lower for word in ['deepseek', 'gratuito', 'free']):
+            return self.setup_deepseek()
             
         elif any(word in user_lower for word in ['testar', 'verificar', 'status']):
             return self.check_system_status()
@@ -185,6 +200,45 @@ class IaLBootstrapAssistant:
         else:
             checks['DynamoDB Tables'] = False
         
+        # Verifica S3 bucket RAG
+        if self.aws_configured:
+            try:
+                result = subprocess.run(['aws', 's3api', 'head-bucket', 
+                                       '--bucket', 'ial-rag-store'], 
+                                      capture_output=True, text=True)
+                self.s3_rag_ready = result.returncode == 0
+                checks['S3 RAG Bucket'] = self.s3_rag_ready
+            except:
+                checks['S3 RAG Bucket'] = False
+        else:
+            checks['S3 RAG Bucket'] = False
+            
+        # Verifica IAM roles
+        if self.aws_configured:
+            try:
+                result = subprocess.run(['aws', 'iam', 'get-role', 
+                                       '--role-name', 'IaL-ExecutionRole'], 
+                                      capture_output=True, text=True)
+                self.iam_roles_ready = result.returncode == 0
+                checks['IAM Roles'] = self.iam_roles_ready
+            except:
+                checks['IAM Roles'] = False
+        else:
+            checks['IAM Roles'] = False
+            
+        # Verifica KMS keys
+        if self.aws_configured:
+            try:
+                result = subprocess.run(['aws', 'kms', 'describe-key', 
+                                       '--key-id', 'alias/ial-encryption'], 
+                                      capture_output=True, text=True)
+                self.kms_keys_ready = result.returncode == 0
+                checks['KMS Keys'] = self.kms_keys_ready
+            except:
+                checks['KMS Keys'] = False
+        else:
+            checks['KMS Keys'] = False
+        
         return checks
 
     def continue_installation(self):
@@ -213,7 +267,34 @@ class IaLBootstrapAssistant:
             else:
                 return "❌ Erro ao criar tabelas DynamoDB. Verifique permissões."
         
-        # 4. Configurar Bedrock
+        # 4. Deploy S3 RAG bucket
+        if not self.s3_rag_ready:
+            print("📦 Criando S3 bucket para RAG...")
+            if self.deploy_s3_rag_bucket():
+                steps_completed.append("✅ S3 RAG bucket criado")
+                self.s3_rag_ready = True
+            else:
+                return "❌ Erro ao criar S3 bucket RAG. Verifique permissões."
+        
+        # 5. Deploy IAM roles
+        if not self.iam_roles_ready:
+            print("🔐 Criando IAM roles...")
+            if self.deploy_iam_roles():
+                steps_completed.append("✅ IAM roles criadas")
+                self.iam_roles_ready = True
+            else:
+                return "❌ Erro ao criar IAM roles. Verifique permissões."
+        
+        # 6. Deploy KMS keys
+        if not self.kms_keys_ready:
+            print("🔑 Criando KMS keys...")
+            if self.deploy_kms_keys():
+                steps_completed.append("✅ KMS keys criadas")
+                self.kms_keys_ready = True
+            else:
+                return "❌ Erro ao criar KMS keys. Verifique permissões."
+        
+        # 7. Configurar Bedrock
         if not self.bedrock_available:
             bedrock_result = self.setup_bedrock_models()
             steps_completed.append(bedrock_result)
@@ -260,6 +341,97 @@ class IaLBootstrapAssistant:
             return result.returncode == 0
         except:
             return False
+
+    def deploy_s3_rag_bucket(self):
+        """Deploy do S3 bucket para RAG"""
+        try:
+            result = subprocess.run([
+                'aws', 'cloudformation', 'deploy',
+                '--template-file', 'phases/00-foundation/08-rag-storage.yaml',
+                '--stack-name', 'ial-rag-storage',
+                '--capabilities', 'CAPABILITY_IAM'
+            ], capture_output=True, text=True, timeout=300)
+            
+            return result.returncode == 0
+        except:
+            return False
+
+    def deploy_iam_roles(self):
+        """Deploy das IAM roles"""
+        try:
+            result = subprocess.run([
+                'aws', 'cloudformation', 'deploy',
+                '--template-file', 'phases/10-security/04-iam-roles.yaml',
+                '--stack-name', 'ial-security-iam',
+                '--capabilities', 'CAPABILITY_IAM'
+            ], capture_output=True, text=True, timeout=300)
+            
+            return result.returncode == 0
+        except:
+            return False
+
+    def deploy_kms_keys(self):
+        """Deploy das KMS keys"""
+        try:
+            result = subprocess.run([
+                'aws', 'cloudformation', 'deploy',
+                '--template-file', 'phases/10-security/01-kms-security.yaml',
+                '--stack-name', 'ial-security-kms',
+                '--capabilities', 'CAPABILITY_IAM'
+            ], capture_output=True, text=True, timeout=300)
+            
+            return result.returncode == 0
+        except:
+            return False
+
+    def setup_s3_rag(self):
+        """Configura S3 bucket para RAG"""
+        if not self.aws_configured:
+            return "⚠️ Configure AWS CLI primeiro"
+        
+        if self.deploy_s3_rag_bucket():
+            self.s3_rag_ready = True
+            return "✅ S3 RAG bucket configurado com sucesso"
+        else:
+            return "❌ Erro ao configurar S3 RAG bucket"
+
+    def setup_iam_roles(self):
+        """Configura IAM roles"""
+        if not self.aws_configured:
+            return "⚠️ Configure AWS CLI primeiro"
+        
+        if self.deploy_iam_roles():
+            self.iam_roles_ready = True
+            return "✅ IAM roles configuradas com sucesso"
+        else:
+            return "❌ Erro ao configurar IAM roles"
+
+    def setup_deepseek(self):
+        """Configura DeepSeek API (opcional)"""
+        print("🔧 DeepSeek é um LLM gratuito que pode ser usado como alternativa.")
+        print("Quer configurar agora? É opcional e gratuito.")
+        
+        response = input("Configurar DeepSeek? (y/n): ").strip().lower()
+        if response in ['y', 'yes', 'sim', 's']:
+            try:
+                result = subprocess.run(['./scripts/setup_deepseek.sh'], 
+                                      capture_output=False, text=True)
+                return "✅ Script DeepSeek executado"
+            except:
+                return "⚠️ Execute manualmente: ./scripts/setup_deepseek.sh"
+        else:
+            return "⏭️ DeepSeek configuração pulada. Para configurar depois: ./scripts/setup_deepseek.sh"
+
+    def setup_kms_keys(self):
+        """Configura KMS keys"""
+        if not self.aws_configured:
+            return "⚠️ Configure AWS CLI primeiro"
+        
+        if self.deploy_kms_keys():
+            self.kms_keys_ready = True
+            return "✅ KMS keys configuradas com sucesso"
+        else:
+            return "❌ Erro ao configurar KMS keys"
 
     def setup_bedrock_models(self):
         """Configura modelos Bedrock"""
@@ -383,7 +555,7 @@ echo "📋 Ou use: cd {ial_path} && python3 natural_language_processor.py intera
         """Verifica se setup está completo"""
         checks = self.run_environment_checks()
         # Bedrock é opcional, então não bloqueia
-        required_checks = ['Python 3.11+', 'AWS CLI', 'AWS Credenciais', 'DynamoDB Tables']
+        required_checks = ['Python 3.11+', 'AWS CLI', 'AWS Credenciais', 'DynamoDB Tables', 'S3 RAG Bucket', 'IAM Roles', 'KMS Keys']
         return all(checks.get(check, False) for check in required_checks)
 
     def start_main_system(self):

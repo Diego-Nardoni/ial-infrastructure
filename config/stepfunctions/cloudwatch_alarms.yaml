@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudWatch Alarms for IAL Step Functions'
+
+Resources:
+  # Circuit Breaker Open Alarm
+  CircuitBreakerOpenAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: 'IAL-CircuitBreaker-Open'
+      AlarmDescription: 'Circuit breaker has been open for more than 5 minutes'
+      MetricName: 'CircuitState'
+      Namespace: 'IAL/Circuit'
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  # Creation Completeness Low Alarm
+  CreationCompletenessAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: 'IAL-CreationCompleteness-Low'
+      AlarmDescription: 'Creation completeness below 100%'
+      MetricName: 'Completeness'
+      Namespace: 'IAL/Creation'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 100
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+
+  # Step Functions Failures Alarm
+  StepFunctionsFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: 'IAL-StepFunctions-Failures'
+      AlarmDescription: 'Step Functions executions failing'
+      MetricName: 'ExecutionsFailed'
+      Namespace: 'AWS/States'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:ial-phase-pipeline'
+
+  # Drift Detection High Volume Alarm
+  DriftDetectionHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: 'IAL-DriftDetection-High'
+      AlarmDescription: 'High volume of drift detections'
+      MetricName: 'Detected'
+      Namespace: 'IAL/Drift'
+      Statistic: Sum
+      Period: 900
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+Outputs:
+  CircuitBreakerAlarmArn:
+    Description: 'ARN of the circuit breaker alarm'
+    Value: !Ref CircuitBreakerOpenAlarm
+  
+  CompletenessAlarmArn:
+    Description: 'ARN of the completeness alarm'
+    Value: !Ref CreationCompletenessAlarm

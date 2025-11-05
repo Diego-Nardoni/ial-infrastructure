@@ -1,0 +1,167 @@
+{
+  "Comment": "IAL Reverse Sync Controlled Workflow",
+  "StartAt": "DiscoverResources",
+  "States": {
+    "DiscoverResources": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_REVERSE_SYNC_ARN}",
+        "Payload": {
+          "action": "discover",
+          "scope.$": "$.scope",
+          "region.$": "$.region"
+        }
+      },
+      "ResultPath": "$.discover",
+      "Next": "CheckDiscoveredResources",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 5,
+          "BackoffRate": 2.0,
+          "MaxAttempts": 3
+        }
+      ]
+    },
+    "CheckDiscoveredResources": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.discover.Payload.resources_found",
+          "NumericGreaterThan": 0,
+          "Next": "GenerateYAML"
+        }
+      ],
+      "Default": "NoResourcesFound"
+    },
+    "NoResourcesFound": {
+      "Type": "Pass",
+      "Result": "No unmanaged resources found",
+      "End": true
+    },
+    "GenerateYAML": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_REVERSE_SYNC_ARN}",
+        "Payload": {
+          "action": "generate_yaml",
+          "resources.$": "$.discover.Payload.resources"
+        }
+      },
+      "ResultPath": "$.yaml",
+      "Next": "OpenPR",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 5,
+          "BackoffRate": 2.0,
+          "MaxAttempts": 3
+        }
+      ]
+    },
+    "OpenPR": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_GITHUB_MCP_WRAPPER_ARN}",
+        "Payload": {
+          "action": "create_pr",
+          "title": "Reverse Sync: Import unmanaged resources",
+          "body": "Automatically generated PR to import resources discovered outside of GitOps",
+          "yaml_content.$": "$.yaml.Payload.content",
+          "branch": "reverse-sync/auto-import"
+        }
+      },
+      "ResultPath": "$.pr",
+      "Next": "WaitForChecks"
+    },
+    "WaitForChecks": {
+      "Type": "Wait",
+      "Seconds": 60,
+      "Next": "CheckPRStatus"
+    },
+    "CheckPRStatus": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_GITHUB_MCP_WRAPPER_ARN}",
+        "Payload": {
+          "action": "check_pr_status",
+          "pr_number.$": "$.pr.Payload.pr_number"
+        }
+      },
+      "ResultPath": "$.pr_status",
+      "Next": "PRStatusChoice"
+    },
+    "PRStatusChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.pr_status.Payload.checks_passed",
+          "BooleanEquals": true,
+          "Next": "MergeIfGreen"
+        },
+        {
+          "Variable": "$.pr_status.Payload.checks_failed",
+          "BooleanEquals": true,
+          "Next": "PRChecksFailed"
+        }
+      ],
+      "Default": "WaitForChecks"
+    },
+    "MergeIfGreen": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_GITHUB_MCP_WRAPPER_ARN}",
+        "Payload": {
+          "action": "merge_pr",
+          "pr_number.$": "$.pr.Payload.pr_number",
+          "merge_method": "squash"
+        }
+      },
+      "ResultPath": "$.merge",
+      "Next": "ReAudit"
+    },
+    "PRChecksFailed": {
+      "Type": "Pass",
+      "Result": "PR checks failed - manual intervention required",
+      "End": true
+    },
+    "ReAudit": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_AUDIT_VALIDATOR_ARN}",
+        "Payload": {
+          "phase": "reverse-sync",
+          "region.$": "$.region"
+        }
+      },
+      "ResultPath": "$.audit",
+      "Next": "PublishSyncMetrics"
+    },
+    "PublishSyncMetrics": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cloudwatch:putMetricData",
+      "Parameters": {
+        "Namespace": "IAL/ReverseSync",
+        "MetricData": [
+          {
+            "MetricName": "ResourcesImported",
+            "Value.$": "$.discover.Payload.resources_found",
+            "Unit": "Count"
+          },
+          {
+            "MetricName": "PRsCreated",
+            "Value": 1,
+            "Unit": "Count"
+          }
+        ]
+      },
+      "End": true
+    }
+  }
+}

@@ -1,0 +1,13 @@
+apiVersion: ial/v1
+kind: ConfigRule
+metadata:
+  name: s3-encryption-check
+  description: S3 buckets devem usar SSE-KMS e Block Public Access.
+spec:
+  type: cfn-guard
+  rule: |
+    rule bucket_encryption_check when %resourceType == 'AWS::S3::Bucket' {
+      Properties.BucketEncryption.ServerSideEncryptionConfiguration exists
+      Properties.PublicAccessBlockConfiguration.BlockPublicAcls == true
+      Properties.PublicAccessBlockConfiguration.BlockPublicPolicy == true
+    }

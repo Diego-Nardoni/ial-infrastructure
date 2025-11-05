@@ -1,0 +1,65 @@
+# IAL Configuration - Infrastructure as Language
+# Configuração centralizada do sistema IAL
+
+version: "1.0"
+updated: "2025-11-04"
+
+# ===== COST GUARDRAILS CONFIGURATION =====
+cost_guardrails:
+  # Estimativa de custo (habilitada por padrão)
+  estimation:
+    enabled: true                    # Sempre mostrar estimativas
+    show_breakdown: true             # Mostrar breakdown por serviço
+    cache_ttl_minutes: 60           # Cache de preços por 1 hora
+    timeout_seconds: 3              # Timeout para APIs externas
+    
+  # Budget enforcement (desabilitado por padrão)
+  enforcement:
+    enabled: false                   # Opt-in para bloqueio
+    strict_mode: false              # Permite override do usuário
+    default_monthly_budget_usd: 150 # Budget padrão
+    allow_user_override: true       # Usuário pode fazer override
+    
+  # Configurações técnicas
+  technical:
+    fallback_estimation: true       # Usar heurística se MCP falhar
+    log_all_estimations: true       # Log no Decision Ledger
+    mcp_retry_attempts: 2           # Tentativas de retry para MCPs
+    
+  # MCPs utilizados (referência ao mcp-mesh.yaml)
+  mcp_settings:
+    pricing_mcp: "aws-pricing-mcp"
+    cost_explorer_mcp: "aws-cost-explorer-mcp"
+    billing_mcp: "aws-billing-mcp"
+
+# ===== BUDGETS POR USUÁRIO/PROJETO =====
+# Configuração opcional de budgets específicos
+budgets:
+  # Exemplo de configuração por usuário
+  users:
+    # "user123": 200.0
+    # "admin": 500.0
+    
+  # Exemplo de configuração por projeto  
+  projects:
+    # "production": 1000.0
+    # "development": 100.0
+    # "testing": 50.0
+
+# ===== FEATURE FLAGS =====
+features:
+  cost_guardrails_enabled: true     # Master switch
+  intent_validation_enabled: true   # Sistema de validação de intenção
+  intelligent_mcp_router_enabled: true # Router inteligente
+  
+# ===== LOGGING CONFIGURATION =====
+logging:
+  cost_validation_logs: true        # Log de validações de custo
+  decision_ledger_enabled: true     # Decision Ledger ativo
+  performance_metrics: true         # Métricas de performance
+
+# ===== SYSTEM DEFAULTS =====
+defaults:
+  region: "us-east-1"
+  timeout_seconds: 30
+  max_retries: 3

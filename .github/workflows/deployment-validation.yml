@@ -9,15 +9,115 @@ on:
     # Run validation every hour
     - cron: '0 * * * *'
   workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'phases/**/*.yaml'
 
 env:
   PROJECT_NAME: ial
   AWS_REGION: us-east-1
+  MIN_SECURITY_SCORE: 80
+  MIN_RELIABILITY_SCORE: 80
+  S3_REPORTS_BUCKET: ial-reports-bucket
 
 jobs:
+  policy-lint:
+    name: 🔒 Policy Linter
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install boto3 pyyaml
+      
+      - name: Run Policy Linter
+        id: policy_lint
+        run: |
+          python3 tools/policy-validation/lint_policies.py
+          echo "policy_exit_code=$?" >> $GITHUB_OUTPUT
+      
+      - name: Upload Policy Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: policy-lint-report
+          path: reports/policy_lint_report.json
+      
+      - name: Fail on High Severity Violations
+        if: steps.policy_lint.outputs.policy_exit_code != '0'
+        run: |
+          echo "❌ Policy linting failed with high severity violations"
+          echo "Review the policy lint report for details"
+          exit 1
+
+  well-architected-gate:
+    name: 🏗️ Well-Architected Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: policy-lint
+    
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install boto3 pyyaml
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Run Well-Architected Assessment
+        id: wa_assessment
+        env:
+          MIN_SECURITY_SCORE: ${{ env.MIN_SECURITY_SCORE }}
+          MIN_RELIABILITY_SCORE: ${{ env.MIN_RELIABILITY_SCORE }}
+          S3_REPORTS_BUCKET: ${{ env.S3_REPORTS_BUCKET }}
+        run: |
+          python3 scripts/mcp_well_architected_security.py
+          echo "wa_exit_code=$?" >> $GITHUB_OUTPUT
+      
+      - name: Upload WA Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: well-architected-report
+          path: reports/well-architected-*.json
+      
+      - name: Fail on Low Security/Reliability Scores
+        if: steps.wa_assessment.outputs.wa_exit_code != '0'
+        run: |
+          echo "❌ Well-Architected assessment failed"
+          echo "Security or Reliability scores below threshold"
+          exit 1
+
   validate-deployment:
+    name: 📋 Deployment Validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: [policy-lint, well-architected-gate]
     
     permissions:
       id-token: write

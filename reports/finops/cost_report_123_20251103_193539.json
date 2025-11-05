@@ -1,0 +1,30 @@
+{
+  "pr_number": "123",
+  "total_estimated_monthly_cost": 70.0,
+  "phase_count": 2,
+  "phase_estimates": [
+    {
+      "phase": "00-foundation/01-dynamodb-state",
+      "estimated_monthly_cost": 20.0,
+      "confidence": "medium",
+      "optimization_suggestions": [],
+      "potential_savings": "15%"
+    },
+    {
+      "phase": "30-compute/01-ecr",
+      "estimated_monthly_cost": 50.0,
+      "confidence": "medium",
+      "optimization_suggestions": [
+        "Consider using Spot Instances for non-critical workloads",
+        "Evaluate instance types - t3.micro may be sufficient for development"
+      ],
+      "potential_savings": "15%"
+    }
+  ],
+  "report_timestamp": "2025-11-03T19:35:39.026136",
+  "summary": {
+    "high_cost_phases": [],
+    "optimization_opportunities": 1,
+    "total_potential_savings": "$10.50/month"
+  }
+}

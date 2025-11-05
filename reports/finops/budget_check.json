@@ -1,0 +1,9 @@
+{
+  "phase": "00-foundation/20-ial-github-oidc-provider",
+  "estimated_cost": 20.0,
+  "budget_limit": 100.0,
+  "within_budget": true,
+  "status": "PASS",
+  "overage": 0,
+  "utilization_percent": 20.0
+}

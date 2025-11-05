@@ -1,0 +1,39 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EventBridge Rules for IAL Drift Scanning'
+
+Parameters:
+  StepFunctionsRoleArn:
+    Type: String
+    Description: 'ARN of the Step Functions execution role'
+
+Resources:
+  IALDriftScannerRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ial-drift-scanner
+      Description: 'Trigger drift detection every 15 minutes'
+      ScheduleExpression: 'rate(15 minutes)'
+      State: ENABLED
+      Targets:
+        - Arn: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:ial-drift-autoheal'
+          Id: 'IALDriftAutoHealTarget'
+          RoleArn: !Ref StepFunctionsRoleArn
+          Input: |
+            {
+              "scope": "global",
+              "region": "us-east-1",
+              "source": "eventbridge-scheduler"
+            }
+
+  IALDriftScannerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: '/aws/events/ial-drift-scanner'
+      RetentionInDays: 7
+
+Outputs:
+  DriftScannerRuleArn:
+    Description: 'ARN of the drift scanner EventBridge rule'
+    Value: !GetAtt IALDriftScannerRule.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DriftScannerRuleArn'

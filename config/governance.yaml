@@ -1,0 +1,31 @@
+budget:
+  default_monthly_usd: 100.00
+  by_phase:
+    foundation: 25
+    security: 30
+    network: 50
+    compute: 120
+    data: 80
+    application: 60
+
+compliance:
+  fail_on_violation: true
+  auto_remediate_safe: true
+  backends:
+    - cfn-guard
+    - opa
+
+security:
+  triage_model: bedrock
+  auto_remediate_safe: true
+  create_pr_for_risky: true
+
+finops:
+  use_cost_explorer: false
+  rightsizing_enabled: true
+  budget_alerts: true
+
+reporting:
+  save_reports: true
+  pr_comments: true
+  cloudwatch_metrics: true

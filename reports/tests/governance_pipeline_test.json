@@ -1,0 +1,37 @@
+{
+  "timestamp": "2025-11-03T17:02:30.536563",
+  "duration_seconds": 8.755924,
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "warnings": 0,
+    "errors": 0
+  },
+  "results": [
+    {
+      "test": "compliance_engine",
+      "status": "PASS"
+    },
+    {
+      "test": "budget_enforcement",
+      "status": "PASS"
+    },
+    {
+      "test": "security_sentinel",
+      "status": "PASS"
+    },
+    {
+      "test": "pr_commenter",
+      "status": "PASS"
+    },
+    {
+      "test": "metrics_publisher",
+      "status": "PASS"
+    },
+    {
+      "test": "full_governance_flow",
+      "status": "PASS"
+    }
+  ]
+}

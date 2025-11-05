@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'X-Ray Tracing Configuration for IAL Step Functions'
+
+Resources:
+  # Enable X-Ray tracing for existing state machines
+  PhasesPipelineLogging:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: ial-phase-pipeline-with-logging
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL Phase Pipeline with Enhanced Logging",
+          "StartAt": "LogStart",
+          "States": {
+            "LogStart": {
+              "Type": "Pass",
+              "Result": "Pipeline started",
+              "Next": "CircuitBreakerCheck"
+            }
+          }
+        }
+      RoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/IAL-StepFunctions-ExecutionRole'
+      LoggingConfiguration:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt StepFunctionsLogGroup.Arn
+      TracingConfiguration:
+        Enabled: true
+
+  # CloudWatch Log Group for Step Functions
+  StepFunctionsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: '/aws/stepfunctions/ial-phase-pipeline'
+      RetentionInDays: 14
+
+  # X-Ray Service Map for Lambda functions
+  XRayServiceMap:
+    Type: AWS::XRay::SamplingRule
+    Properties:
+      SamplingRule:
+        RuleName: IAL-StepFunctions-Sampling
+        Priority: 9000
+        FixedRate: 0.1
+        ReservoirSize: 1
+        ServiceName: ial-*
+        ServiceType: '*'
+        Host: '*'
+        HTTPMethod: '*'
+        URLPath: '*'
+        Version: 1
+
+Outputs:
+  LogGroupArn:
+    Description: 'ARN of the Step Functions log group'
+    Value: !GetAtt StepFunctionsLogGroup.Arn
+  
+  XRayServiceMapUrl:
+    Description: 'URL to X-Ray service map'
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/xray/home?region=${AWS::Region}#/service-map'

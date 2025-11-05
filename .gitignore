@@ -100,3 +100,17 @@ secrets.json
 # Test outputs
 test-results/
 coverage/
+
+# ialctl build artifacts (DO NOT COMMIT)
+dist/
+build/dist/
+build/build/
+*.deb
+*.rpm
+*.AppImage
+*.msi
+*.exe
+checksums.txt
+checksums.txt.asc
+*.sig
+*.asc

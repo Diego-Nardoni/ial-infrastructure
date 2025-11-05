@@ -1,0 +1,125 @@
+{
+  "Comment": "IAL - Drift Detection and Auto-Reconciliation",
+  "StartAt": "DetectDrift",
+  "States": {
+    "DetectDrift": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "ial-drift-reconciler",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.driftResult",
+      "Next": "CheckDriftResults",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "DriftDetectionFailed",
+          "ResultPath": "$.error"
+        }
+      ]
+    },
+    
+    "CheckDriftResults": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.driftResult.Payload.body",
+          "StringMatches": "*no_drift*",
+          "Next": "NoDriftDetected"
+        },
+        {
+          "Variable": "$.driftResult.Payload.statusCode",
+          "NumericEquals": 200,
+          "Next": "ProcessDriftResults"
+        }
+      ],
+      "Default": "DriftDetectionFailed"
+    },
+    
+    "NoDriftDetected": {
+      "Type": "Pass",
+      "Result": {
+        "status": "success",
+        "message": "No drift detected - infrastructure is in sync"
+      },
+      "End": true
+    },
+    
+    "ProcessDriftResults": {
+      "Type": "Pass",
+      "Parameters": {
+        "driftData.$": "$.driftResult.Payload.body"
+      },
+      "Next": "PublishSummaryMetrics"
+    },
+    
+    "PublishSummaryMetrics": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cloudwatch:putMetricData",
+      "Parameters": {
+        "Namespace": "IaL/StepFunctions",
+        "MetricData": [
+          {
+            "MetricName": "DriftReconciliationExecutions",
+            "Value": 1,
+            "Unit": "Count"
+          }
+        ]
+      },
+      "Next": "DriftReconciliationComplete",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "DriftReconciliationComplete",
+          "Comment": "Continue even if metrics fail"
+        }
+      ]
+    },
+    
+    "DriftReconciliationComplete": {
+      "Type": "Pass",
+      "Result": {
+        "status": "success",
+        "message": "Drift reconciliation completed successfully"
+      },
+      "End": true
+    },
+    
+    "DriftDetectionFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cloudwatch:putMetricData",
+      "Parameters": {
+        "Namespace": "IaL/StepFunctions",
+        "MetricData": [
+          {
+            "MetricName": "DriftReconciliationFailures",
+            "Value": 1,
+            "Unit": "Count"
+          }
+        ]
+      },
+      "Next": "FailureState",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "FailureState"
+        }
+      ]
+    },
+    
+    "FailureState": {
+      "Type": "Fail",
+      "Cause": "Drift detection and reconciliation failed",
+      "Error": "DriftReconciliationError"
+    }
+  }
+}

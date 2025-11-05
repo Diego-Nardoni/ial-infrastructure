@@ -1,0 +1,82 @@
+metadata:
+  name: "IAL Control Plane Deployment Order"
+  description: "Deployment sequence for IAL platform infrastructure components"
+  version: "1.0"
+  created: "2025-11-03"
+  total_phases: 20
+  deployment_type: "control_plane"
+
+execution_order:
+  - 00-foundation/01-dynamodb-state
+  - 00-foundation/02-logging-infrastructure
+  - 00-foundation/03-reconciliation-engine
+  - 00-foundation/04-backup-strategy
+  - 00-foundation/05-chaos-engineering
+  - 00-foundation/06-reconciliation-wrapper
+  - 00-foundation/07-conversation-memory
+  - 00-foundation/08-rag-storage
+  - 00-foundation/09-stepfunctions-orchestrator
+  - 00-foundation/10-ial-dynamodb-tables
+  - 00-foundation/11-ial-s3-storage
+  - 00-foundation/12-ial-rag-infrastructure
+  - 00-foundation/13-ial-drift-detection
+  - 00-foundation/14-ial-lambda-functions
+  - 00-foundation/15-ial-bedrock-github-iam
+  - 00-foundation/16-ial-test-validation
+  - 00-foundation/17-ial-finops-budget-enforcement
+  - 00-foundation/18-ial-feature-flags
+  - 00-foundation/19-ial-enterprise-observability
+  - 00-foundation/20-ial-github-oidc-provider
+
+dependencies:
+  00-foundation/01-dynamodb-state:
+    depends_on: []
+    reasoning: "Bootstrap resource - DynamoDB table for state tracking"
+  00-foundation/02-logging-infrastructure:
+    depends_on: []
+    reasoning: "Independent logging infrastructure setup"
+  00-foundation/03-reconciliation-engine:
+    depends_on: ["00-foundation/01-dynamodb-state"]
+    reasoning: "Reconciliation engine depends on state table"
+  00-foundation/04-backup-strategy:
+    depends_on: ["00-foundation/01-dynamodb-state"]
+    reasoning: "Backup strategy depends on DynamoDB state table"
+  00-foundation/05-chaos-engineering:
+    depends_on: []
+    reasoning: "Independent chaos engineering setup"
+  00-foundation/06-reconciliation-wrapper:
+    depends_on: ["00-foundation/03-reconciliation-engine"]
+    reasoning: "Wrapper depends on reconciliation engine"
+  00-foundation/07-conversation-memory:
+    depends_on: []
+    reasoning: "Independent conversation memory setup"
+  00-foundation/08-rag-storage:
+    depends_on: []
+    reasoning: "Independent RAG storage setup"
+  00-foundation/09-stepfunctions-orchestrator:
+    depends_on: ["00-foundation/01-dynamodb-state", "00-foundation/02-logging-infrastructure"]
+    reasoning: "Step Functions orchestrator depends on state table and logging infrastructure"
+  00-foundation/10-ial-dynamodb-tables:
+    depends_on: ["00-foundation/01-dynamodb-state"]
+    reasoning: "IAL DynamoDB tables depend on state tracking"
+  00-foundation/11-ial-s3-storage:
+    depends_on: []
+    reasoning: "Independent S3 storage for IAL platform"
+  00-foundation/12-ial-rag-infrastructure:
+    depends_on: ["00-foundation/11-ial-s3-storage"]
+    reasoning: "RAG infrastructure depends on S3 storage"
+  00-foundation/13-ial-drift-detection:
+    depends_on: ["00-foundation/02-logging-infrastructure"]
+    reasoning: "Drift detection depends on logging infrastructure"
+  00-foundation/14-ial-lambda-functions:
+    depends_on: ["00-foundation/10-ial-dynamodb-tables"]
+    reasoning: "Lambda functions depend on DynamoDB tables"
+  00-foundation/15-ial-bedrock-github-iam:
+    depends_on: []
+    reasoning: "Independent IAM setup for Bedrock and GitHub"
+  00-foundation/16-ial-test-validation:
+    depends_on: ["00-foundation/14-ial-lambda-functions"]
+    reasoning: "Test validation depends on Lambda functions"
+  00-foundation/17-ial-finops-budget-enforcement:
+    depends_on: ["00-foundation/09-stepfunctions-orchestrator", "00-foundation/10-ial-dynamodb-tables"]
+    reasoning: "FinOps enforcement depends on Step Functions orchestrator and DynamoDB tables"

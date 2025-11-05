@@ -1,0 +1,263 @@
+phase_name: "IAL Feature Flags with TTL"
+description: "Feature flags system with TTL for drift control and operational safety"
+resource_count: 5
+
+Resources:
+  # DynamoDB Table for Feature Flags with TTL
+  FeatureFlagsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-feature-flags'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: flag_name
+          AttributeType: S
+        - AttributeName: scope
+          AttributeType: S
+      KeySchema:
+        - AttributeName: flag_name
+          KeyType: HASH
+        - AttributeName: scope
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expire_at
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Purpose
+          Value: FeatureFlags
+        - Key: Component
+          Value: IAL-ControlPlane
+
+  # Feature Flag Management Lambda
+  FeatureFlagManagerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-feature-flag-manager'
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt FeatureFlagLambdaRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          FEATURE_FLAGS_TABLE: !Ref FeatureFlagsTable
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from datetime import datetime, timedelta
+          from typing import Dict, Any
+
+          dynamodb = boto3.resource('dynamodb')
+          table = dynamodb.Table(os.environ['FEATURE_FLAGS_TABLE'])
+
+          def lambda_handler(event: Dict[str, Any], context) -> Dict[str, Any]:
+              try:
+                  action = event.get('action', 'get')
+                  flag_name = event.get('flag_name', 'drift_detection')
+                  scope = event.get('scope', 'global')
+                  
+                  if action == 'get':
+                      return get_flag(flag_name, scope)
+                  elif action == 'set':
+                      state = event.get('state', 'ENABLED')
+                      ttl_hours = event.get('ttl_hours', 24)
+                      return set_flag(flag_name, scope, state, ttl_hours)
+                  elif action == 'list':
+                      return list_flags()
+                  else:
+                      return {'statusCode': 400, 'error': 'Invalid action'}
+                      
+              except Exception as e:
+                  return {'statusCode': 500, 'error': str(e)}
+
+          def get_flag(flag_name: str, scope: str) -> Dict[str, Any]:
+              try:
+                  response = table.get_item(
+                      Key={'flag_name': flag_name, 'scope': scope}
+                  )
+                  
+                  if 'Item' not in response:
+                      # Default to ENABLED if flag doesn't exist
+                      return {
+                          'statusCode': 200,
+                          'flag_name': flag_name,
+                          'scope': scope,
+                          'state': 'ENABLED',
+                          'exists': False
+                      }
+                  
+                  item = response['Item']
+                  return {
+                      'statusCode': 200,
+                      'flag_name': flag_name,
+                      'scope': scope,
+                      'state': item.get('state', 'ENABLED'),
+                      'created_at': item.get('created_at'),
+                      'expire_at': item.get('expire_at'),
+                      'exists': True
+                  }
+                  
+              except Exception as e:
+                  return {'statusCode': 500, 'error': str(e)}
+
+          def set_flag(flag_name: str, scope: str, state: str, ttl_hours: int) -> Dict[str, Any]:
+              try:
+                  now = datetime.utcnow()
+                  expire_at = int((now + timedelta(hours=ttl_hours)).timestamp())
+                  
+                  table.put_item(
+                      Item={
+                          'flag_name': flag_name,
+                          'scope': scope,
+                          'state': state,
+                          'created_at': now.isoformat(),
+                          'expire_at': expire_at,
+                          'ttl_hours': ttl_hours
+                      }
+                  )
+                  
+                  return {
+                      'statusCode': 200,
+                      'message': f'Flag {flag_name}:{scope} set to {state}',
+                      'expire_at': expire_at
+                  }
+                  
+              except Exception as e:
+                  return {'statusCode': 500, 'error': str(e)}
+
+          def list_flags() -> Dict[str, Any]:
+              try:
+                  response = table.scan()
+                  flags = []
+                  
+                  for item in response.get('Items', []):
+                      flags.append({
+                          'flag_name': item['flag_name'],
+                          'scope': item['scope'],
+                          'state': item['state'],
+                          'created_at': item.get('created_at'),
+                          'expire_at': item.get('expire_at')
+                      })
+                  
+                  return {
+                      'statusCode': 200,
+                      'flags': flags,
+                      'count': len(flags)
+                  }
+                  
+              except Exception as e:
+                  return {'statusCode': 500, 'error': str(e)}
+
+  # Feature Flag Lambda IAM Role
+  FeatureFlagLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-feature-flag-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: FeatureFlagDynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                Resource: !GetAtt FeatureFlagsTable.Arn
+
+  # API Gateway for Feature Flag Control
+  FeatureFlagAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub '${ProjectName}-feature-flags-api'
+      Description: 'API for managing IAL feature flags'
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # CloudWatch Alarm for Non-Enabled Flags
+  FeatureFlagAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-feature-flags-not-enabled'
+      AlarmDescription: 'Alert when feature flags are not in ENABLED state'
+      MetricName: 'FeatureFlagsNotEnabled'
+      Namespace: 'IAL/FeatureFlags'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref FeatureFlagAlertsTopic
+
+  # SNS Topic for Feature Flag Alerts
+  FeatureFlagAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-feature-flag-alerts'
+      DisplayName: 'IAL Feature Flag Alerts'
+
+# Outputs
+Outputs:
+  FeatureFlagsTableName:
+    Description: 'Name of the Feature Flags DynamoDB table'
+    Value: !Ref FeatureFlagsTable
+    Export:
+      Name: !Sub '${ProjectName}-feature-flags-table'
+
+  FeatureFlagManagerLambdaArn:
+    Description: 'ARN of the Feature Flag Manager Lambda'
+    Value: !GetAtt FeatureFlagManagerLambda.Arn
+    Export:
+      Name: !Sub '${ProjectName}-feature-flag-manager-arn'
+
+  FeatureFlagAPIId:
+    Description: 'ID of the Feature Flag API Gateway'
+    Value: !Ref FeatureFlagAPI
+    Export:
+      Name: !Sub '${ProjectName}-feature-flag-api-id'
+
+  FeatureFlagAlertsTopicArn:
+    Description: 'ARN of the Feature Flag Alerts SNS Topic'
+    Value: !Ref FeatureFlagAlertsTopic
+    Export:
+      Name: !Sub '${ProjectName}-feature-flag-alerts-topic'
+
+# Metadata
+metadata:
+  estimated_monthly_cost: '$8.00'
+  cost_breakdown:
+    dynamodb_requests: '$2.00'
+    lambda_invocations: '$1.00'
+    api_gateway_requests: '$3.00'
+    cloudwatch_alarms: '$1.00'
+    sns_notifications: '$1.00'
+  feature_flags:
+    supported_states: ['ENABLED', 'PAUSED', 'DISABLED']
+    default_ttl_hours: 24
+    max_ttl_hours: 168
+
+# Parameters
+parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming

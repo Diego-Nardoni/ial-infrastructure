@@ -1,0 +1,135 @@
+# Chaos Engineering Configuration
+# IMPORTANT: Chaos Engineering is DISABLED BY DEFAULT for safety
+
+# Global Enable/Disable
+enabled: false                    # DISABLED BY DEFAULT
+require_explicit_enable: true     # Must be explicitly enabled
+
+# Operating Mode
+mode: "disabled"                  # Options: disabled, game_day, continuous, simulation
+
+# Safety Controls
+safety_checks:
+  max_blast_radius: "minimal"     # Options: minimal, moderate, high, critical
+  require_approval: true          # Human approval required before experiments
+  rollback_timeout: 300           # Auto-rollback after 5 minutes
+  monitoring_required: true       # Monitoring must be available
+  simulation_first: true          # Run simulation before real chaos
+
+# Environment Controls
+allowed_environments:
+  - "development"                 # Safe for chaos experiments
+  - "staging"                     # Safe for chaos experiments
+  - "sandbox"                     # Safe for chaos experiments
+
+blocked_environments:
+  - "production"                  # BLOCKED by default
+  - "prod"                        # BLOCKED by default
+  - "live"                        # BLOCKED by default
+
+# Failure Types Allowed (Application-level only)
+allowed_failure_types:
+  - "configuration_drift"         # Safe: triggers existing auto-healing
+  - "service_degradation"         # Moderate: controlled performance impact
+  # Infrastructure chaos delegated to AWS FIS:
+  # - instance_termination, network_partition, resource_exhaustion
+
+# Game Day Configuration
+game_day:
+  enabled: false                  # Separate enable for game day mode
+  require_team_coordination: true # Team must be coordinated
+  notification_channels:
+    - "slack://chaos-engineering"
+    - "email://devops-team@company.com"
+  
+  # Game Day Specific Settings
+  max_experiment_duration: 1800   # 30 minutes max for game day
+  concurrent_experiments: 1       # Only one experiment at a time
+  recovery_validation: true       # Must validate recovery after each experiment
+
+# Monitoring and Alerting
+monitoring:
+  required_metrics:
+    - "system_health"
+    - "error_rate"
+    - "response_time"
+    - "availability"
+  
+  alert_thresholds:
+    critical_error_rate: 5.0      # Stop experiment if error rate > 5%
+    max_response_time: 5000       # Stop if response time > 5 seconds
+    min_availability: 95.0        # Stop if availability < 95%
+  
+  dashboards:
+    cloudwatch_dashboard: true    # Create CloudWatch dashboard
+    custom_dashboard_url: null    # Optional custom dashboard
+
+# Rollback Configuration
+rollback:
+  automatic: true                 # Enable automatic rollback
+  triggers:
+    - "experiment_timeout"        # Rollback on timeout
+    - "critical_metric_breach"    # Rollback on critical metrics
+    - "manual_trigger"            # Manual rollback capability
+    - "cascade_failure_detected"  # Rollback on cascade failure
+  
+  validation:
+    verify_system_health: true    # Verify system health after rollback
+    max_rollback_time: 600        # Max 10 minutes for rollback
+    notification_required: true   # Notify team of rollbacks
+
+# Experiment Limits
+limits:
+  max_concurrent_experiments: 1   # Only one experiment at a time
+  max_daily_experiments: 3        # Max 3 experiments per day
+  min_interval_between: 3600      # Min 1 hour between experiments
+  max_experiment_duration: 1800   # Max 30 minutes per experiment
+
+# Approval Workflow
+approval:
+  required: true                  # Approval required for all experiments
+  approvers:
+    - "devops-lead"
+    - "sre-team"
+  
+  approval_timeout: 3600          # Approval expires after 1 hour
+  emergency_override: false       # No emergency override by default
+
+# Logging and Audit
+logging:
+  decision_ledger: true           # Log all chaos activities
+  detailed_logging: true         # Detailed experiment logs
+  retention_days: 90              # Keep logs for 90 days
+  
+  audit_trail:
+    experiment_start: true        # Log experiment start
+    experiment_stop: true         # Log experiment stop
+    rollback_events: true         # Log rollback events
+    approval_events: true         # Log approval events
+
+# Integration Settings
+integration:
+  slack_notifications: false     # Slack integration disabled by default
+  pagerduty_integration: false   # PagerDuty integration disabled by default
+  jira_ticket_creation: false    # JIRA integration disabled by default
+  
+  # GitHub Integration
+  github_issues: false            # Don't create GitHub issues by default
+  pr_comments: false              # Don't comment on PRs by default
+
+# Emergency Controls
+emergency:
+  kill_switch: true               # Emergency kill switch available
+  kill_switch_contacts:
+    - "emergency-contact@company.com"
+  
+  escalation:
+    auto_escalate_after: 1800     # Auto-escalate after 30 minutes
+    escalation_contacts:
+      - "incident-commander@company.com"
+
+# Development and Testing
+development:
+  dry_run_mode: true              # Enable dry-run mode for testing
+  simulation_mode: true           # Enable simulation mode
+  verbose_logging: true           # Verbose logging for development

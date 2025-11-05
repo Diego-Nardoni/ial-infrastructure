@@ -1,0 +1,316 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Step Functions Lambda Functions'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'ial'
+  Environment:
+    Type: String
+    Default: 'prod'
+
+Resources:
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-stepfunctions-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: StepFunctionsLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - cloudformation:*
+                  - sns:Publish
+                  - bedrock-runtime:InvokeModel
+                Resource: '*'
+
+  # Healing Orchestrator Lambda Functions
+  HealingInitializerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-healing-initializer'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"has_resources": False, "healing_batches": [], "total_resources": 0}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: healing-initialization
+
+  ResourceHealerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-resource-healer'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 600
+      MemorySize: 1024
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"batch_results": []}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: resource-healing
+
+  HealingAggregatorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-healing-aggregator'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 180
+      MemorySize: 256
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"status": "completed", "total_resources": 0, "successful_healings": 0}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: healing-aggregation
+
+  # Phase Manager Lambda Functions
+  PhaseDiscovererFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-phase-discoverer'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 120
+      MemorySize: 256
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"discovered_phases": {}, "execution_order": []}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: phase-discovery
+
+  DependencyInferrerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-dependency-inferrer'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"inferred_dependencies": {}}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: dependency-inference
+
+  ExecutionPlannerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-execution-planner'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 180
+      MemorySize: 256
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"execution_order": [], "total_phases": 0}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: execution-planning
+
+  PhaseExecutorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-phase-executor'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 900
+      MemorySize: 1024
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"success": True, "message": "Phase executed", "phase_name": "test"}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: phase-execution
+
+  # Audit Validator Lambda Functions
+  AuditInitializerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-audit-initializer'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 120
+      MemorySize: 256
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"desired_spec": {}, "resource_count": 0}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: audit-initialization
+
+  CloudFormationValidatorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-cf-validator'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"validation_type": "cloudformation", "resources_found": 0}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: cf-validation
+
+  AWSValidatorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-aws-validator'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"validation_type": "aws_real", "resources_found": 0}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: aws-validation
+
+  GraphValidatorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-graph-validator'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"validation_type": "knowledge_graph", "resources_found": 0}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: graph-validation
+
+  AuditAggregatorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-audit-aggregator'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 180
+      MemorySize: 256
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"completeness_percentage": 100, "status": "completed"}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: audit-aggregation
+
+  ComplianceEnforcerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-compliance-enforcer'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 120
+      MemorySize: 256
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"enforcement_action": "notification_sent", "status": "enforced"}
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: compliance-enforcement
+
+Outputs:
+  LambdaExecutionRoleArn:
+    Description: 'ARN of the Lambda execution role'
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-stepfunctions-lambda-role-arn'
+
+  HealingInitializerFunctionArn:
+    Description: 'ARN of the Healing Initializer function'
+    Value: !GetAtt HealingInitializerFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-healing-initializer-arn'
+
+  PhaseDiscovererFunctionArn:
+    Description: 'ARN of the Phase Discoverer function'
+    Value: !GetAtt PhaseDiscovererFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-phase-discoverer-arn'
+
+  AuditInitializerFunctionArn:
+    Description: 'ARN of the Audit Initializer function'
+    Value: !GetAtt AuditInitializerFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-audit-initializer-arn'

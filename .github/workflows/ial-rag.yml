@@ -1,0 +1,47 @@
+name: IaL RAG — Build & Health
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch: {}
+jobs:
+  build_index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: |
+          pip install boto3 pyyaml
+      - name: Build RAG index
+        run: |
+          python - << 'PY'
+          import yaml, json
+          from services.rag.index_builder import build_index
+          cfg = yaml.safe_load(open('config/rag.yaml'))
+          print(build_index(cfg))
+          PY
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rag-index
+          path: |
+            .rag/index.faiss
+            .rag/index.json
+  health_check:
+    runs-on: ubuntu-latest
+    needs: [build_index]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Quick retrieve smoke test
+        run: |
+          python - << 'PY'
+          from services.rag.retriever import retrieve
+          r = retrieve(query='VPC privada multi-AZ', k=3, threshold=0.1, cfg={"local_path": ".rag/index.faiss"})
+          print(r[:1])
+          assert isinstance(r, list)
+          PY

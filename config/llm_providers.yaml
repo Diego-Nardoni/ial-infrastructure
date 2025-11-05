@@ -1,0 +1,32 @@
+default_provider: bedrock
+
+providers:
+  bedrock:
+    chat_model: anthropic.claude-3-sonnet-20240229-v1:0
+    embed_model: amazon.titan-embed-text-v2:0
+    region: us-east-1
+    cost_per_1k_tokens: 0.003
+    
+  deepseek:
+    chat_model: deepseek-chat
+    embed_model: null  # Not available yet
+    cost_per_1k_tokens: 0.001
+    fallback_priority: 1  # First fallback choice
+    
+  openai:
+    chat_model: gpt-4
+    embed_model: text-embedding-3-large
+    cost_per_1k_tokens: 0.01
+    fallback_priority: 2
+
+fallback_order:
+  - deepseek    # Free and intelligent
+  - openai      # Paid but reliable
+  - pattern     # Basic pattern matching
+
+metrics:
+  enabled: true
+  namespace: IaL
+  cost_tracking: true
+  latency_tracking: true
+  fallback_tracking: true

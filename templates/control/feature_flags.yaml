@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Feature Flags Table with TTL for Drift Control'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'ial'
+    Description: 'Project name for resource naming'
+  
+  Environment:
+    Type: String
+    Default: 'dev'
+    Description: 'Environment (dev, staging, prod)'
+
+Resources:
+  # DynamoDB Table for Feature Flags
+  FeatureFlagsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-feature-flags-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: scope
+          AttributeType: S
+        - AttributeName: flag_name
+          AttributeType: S
+        - AttributeName: created_timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: scope
+          KeyType: HASH
+        - AttributeName: flag_name
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expire_at
+        Enabled: true
+      GlobalSecondaryIndexes:
+        - IndexName: flag-history-index
+          KeySchema:
+            - AttributeName: flag_name
+              KeyType: HASH
+            - AttributeName: created_timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-feature-flags-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Component
+          Value: 'drift-control'
+        - Key: 'ial:managed'
+          Value: 'true'
+
+  # IAM Role for Lambda access to Feature Flags
+  FeatureFlagsAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-feature-flags-access-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - lambda.amazonaws.com
+                - ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: FeatureFlagsTableAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: 
+                  - !GetAtt FeatureFlagsTable.Arn
+                  - !Sub '${FeatureFlagsTable.Arn}/index/*'
+
+  # CloudWatch Log Group for Feature Flags operations
+  FeatureFlagsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/ial/${ProjectName}/feature-flags/${Environment}'
+      RetentionInDays: 30
+
+Outputs:
+  FeatureFlagsTableName:
+    Description: 'Name of the Feature Flags DynamoDB table'
+    Value: !Ref FeatureFlagsTable
+    Export:
+      Name: !Sub '${ProjectName}-feature-flags-table-${Environment}'
+
+  FeatureFlagsTableArn:
+    Description: 'ARN of the Feature Flags DynamoDB table'
+    Value: !GetAtt FeatureFlagsTable.Arn
+    Export:
+      Name: !Sub '${ProjectName}-feature-flags-table-arn-${Environment}'
+
+  FeatureFlagsAccessRoleArn:
+    Description: 'ARN of the Feature Flags access role'
+    Value: !GetAtt FeatureFlagsAccessRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-feature-flags-role-arn-${Environment}'
+
+  FeatureFlagsLogGroupName:
+    Description: 'Name of the Feature Flags log group'
+    Value: !Ref FeatureFlagsLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-feature-flags-logs-${Environment}'

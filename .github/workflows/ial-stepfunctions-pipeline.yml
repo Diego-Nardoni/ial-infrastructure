@@ -1,0 +1,165 @@
+name: IAL Step Functions Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths: ['phases/**']
+  pull_request:
+    branches: [main]
+    paths: ['phases/**']
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      phases: ${{ steps.changes.outputs.phases }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Detect changed phases
+        id: changes
+        run: |
+          CHANGED_PHASES=$(git diff --name-only HEAD~1 HEAD | grep '^phases/' | cut -d'/' -f2 | sort -u | jq -R -s -c 'split("\n")[:-1]')
+          echo "phases=$CHANGED_PHASES" >> $GITHUB_OUTPUT
+          echo "Changed phases: $CHANGED_PHASES"
+
+  execute-phase-pipeline:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.phases != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        phase: ${{ fromJson(needs.detect-changes.outputs.phases) }}
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Execute Phase Pipeline
+        id: execute
+        run: |
+          EXECUTION_NAME="github-${{ matrix.phase }}-$(date +%s)"
+          PAYLOAD=$(cat << EOF
+          {
+            "phase": "${{ matrix.phase }}",
+            "region": "${{ env.AWS_REGION }}",
+            "stack": "ial-${{ matrix.phase }}",
+            "source": "github-actions",
+            "commit_sha": "${{ github.sha }}",
+            "pr_number": "${{ github.event.number }}"
+          }
+          EOF
+          )
+          
+          echo "Starting execution: $EXECUTION_NAME"
+          EXECUTION_ARN=$(aws stepfunctions start-execution \
+            --state-machine-arn "arn:aws:states:${{ env.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:stateMachine:ial-phase-pipeline" \
+            --name "$EXECUTION_NAME" \
+            --input "$PAYLOAD" \
+            --query 'executionArn' \
+            --output text)
+          
+          echo "execution_arn=$EXECUTION_ARN" >> $GITHUB_OUTPUT
+          echo "Execution ARN: $EXECUTION_ARN"
+
+      - name: Wait for completion
+        run: |
+          EXECUTION_ARN="${{ steps.execute.outputs.execution_arn }}"
+          echo "Waiting for execution to complete..."
+          
+          for i in {1..60}; do
+            STATUS=$(aws stepfunctions describe-execution \
+              --execution-arn "$EXECUTION_ARN" \
+              --query 'status' \
+              --output text)
+            
+            echo "Status: $STATUS (attempt $i/60)"
+            
+            if [[ "$STATUS" == "SUCCEEDED" ]]; then
+              echo "✅ Execution completed successfully!"
+              break
+            elif [[ "$STATUS" == "FAILED" ]]; then
+              echo "❌ Execution failed!"
+              aws stepfunctions describe-execution --execution-arn "$EXECUTION_ARN"
+              exit 1
+            elif [[ "$STATUS" == "ABORTED" ]]; then
+              echo "⚠️ Execution aborted!"
+              exit 1
+            fi
+            
+            sleep 30
+          done
+          
+          if [[ "$STATUS" == "RUNNING" ]]; then
+            echo "⏰ Execution still running after 30 minutes"
+            exit 1
+          fi
+
+      - name: Upload execution artifacts
+        if: always()
+        run: |
+          EXECUTION_ARN="${{ steps.execute.outputs.execution_arn }}"
+          mkdir -p artifacts
+          
+          # Get execution history
+          aws stepfunctions get-execution-history \
+            --execution-arn "$EXECUTION_ARN" \
+            --output json > artifacts/execution-history-${{ matrix.phase }}.json
+          
+          # Get final output
+          aws stepfunctions describe-execution \
+            --execution-arn "$EXECUTION_ARN" \
+            --output json > artifacts/execution-result-${{ matrix.phase }}.json
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stepfunctions-execution-${{ matrix.phase }}
+          path: artifacts/
+          retention-days: 30
+
+  generate-report:
+    needs: [detect-changes, execute-phase-pipeline]
+    if: always() && needs.detect-changes.outputs.phases != '[]'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Generate deployment report
+        run: |
+          cat > deployment-report.json << EOF
+          {
+            "workflow_run": "${{ github.run_id }}",
+            "commit_sha": "${{ github.sha }}",
+            "phases_processed": ${{ needs.detect-changes.outputs.phases }},
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)",
+            "status": "${{ needs.execute-phase-pipeline.result }}",
+            "region": "${{ env.AWS_REGION }}"
+          }
+          EOF
+          
+          echo "Deployment report generated"
+          cat deployment-report.json
+
+      - name: Upload deployment report
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-report
+          path: deployment-report.json
+          retention-days: 90

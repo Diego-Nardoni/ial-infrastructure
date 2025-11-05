@@ -1,0 +1,55 @@
+apiVersion: ial/v1
+kind: Phase
+metadata:
+  name: "{{cookiecutter.phase_number}}-{{cookiecutter.phase_name}}"
+  domain: "{{cookiecutter.domain}}"
+  priority: "{{cookiecutter.priority}}"
+  wa_pillars: [security, reliability, cost-optimization, operational-excellence]
+spec:
+  description: "{{cookiecutter.description}}"
+  parameters:
+    env: "${ENVIRONMENT}"
+    region: "${AWS_DEFAULT_REGION}"
+    cidr_block: "{{cookiecutter.vpc_cidr | default('10.0.0.0/16')}}"
+    az_count: "{{cookiecutter.availability_zones | default(2)}}"
+    nat_gateways: "{{cookiecutter.nat_gateways | default(1)}}"
+  prerequisites: []
+  artifacts:
+    cloudformation:
+      template: "templates/{{cookiecutter.domain}}/{{cookiecutter.template_name}}.yaml"
+      parameters_file: "params/{{cookiecutter.domain}}/{{cookiecutter.template_name}}-${ENVIRONMENT}.json"
+      policies:
+        - "policies/cfn-guard/{{cookiecutter.domain}}.guard"
+        - "policies/opa/{{cookiecutter.domain}}.rego"
+controls:
+  security:
+    block_sg_0_0_0_0_0: true
+    enforce_kms_for_logs: true
+  cost:
+    max_monthly_usd: "{{cookiecutter.max_monthly_cost | default(50)}}"
+    fail_if_estimate_exceeds: true
+  reliability:
+    require_multi_az: true
+  tagging:
+    required: ["ial:managed", "env:${ENVIRONMENT}"]
+outputs_contract:
+  must_exist: ["{{cookiecutter.required_outputs}}"]
+  must_be_encrypted: ["{{cookiecutter.encrypted_outputs}}"]
+  tags_must_include: ["ial:managed", "env:${ENVIRONMENT}"]
+tests:
+  lint: [cfn-lint, conftest, cfn-guard]
+  acceptance:
+    natural_validation:
+      prompts:
+        - "{{cookiecutter.validation_prompt}}"
+      llm_provider: "${LLM_PROVIDER | default('bedrock')}"
+gitops:
+  repo: "${GITHUB_REPOSITORY}"
+  base_branch: "${GITHUB_BASE_REF | default('main')}"
+  require_reviews: true
+  required_checks: ["lint", "policy", "plan", "apply", "post-deploy"]
+post_deploy:
+  mcp_handlers:
+    - mcp: "well-architected-mcp"
+      tool: "review_workload"
+      params: { workloadId: "${metadata.name}" }

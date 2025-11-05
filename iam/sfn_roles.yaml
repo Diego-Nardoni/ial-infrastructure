@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAM Roles for IAL Step Functions - Least Privilege'
+
+Resources:
+  IALStepFunctionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: IAL-StepFunctions-ExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSXRayDaemonWriteAccess
+      Policies:
+        - PolicyName: IAL-StepFunctions-LambdaInvoke
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:ial-*'
+        - PolicyName: IAL-StepFunctions-Logs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/stepfunctions/ial-*'
+
+  IALEventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: IAL-EventBridge-StepFunctionsRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: IAL-EventBridge-StepFunctions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                Resource:
+                  - !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:ial-*'
+
+Outputs:
+  StepFunctionsRoleArn:
+    Description: 'ARN of the Step Functions execution role'
+    Value: !GetAtt IALStepFunctionsRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-StepFunctionsRoleArn'
+  
+  EventBridgeRoleArn:
+    Description: 'ARN of the EventBridge role'
+    Value: !GetAtt IALEventBridgeRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-EventBridgeRoleArn'

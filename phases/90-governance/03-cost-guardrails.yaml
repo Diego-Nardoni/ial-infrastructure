@@ -1,6 +1,6 @@
-phase_name: "Cost Guardrails - Budget Control & Anomaly Detection"
-description: "AWS Budgets and Cost Anomaly Detection for proactive cost management"
-resource_count: 4
+phase_name: "Cost Guardrails - Budget Control & Anomaly Detection with FinOps Enforcement"
+description: "AWS Budgets, Cost Anomaly Detection and automated FinOps enforcement for proactive cost management"
+resource_count: 6
 
 Resources:
   # Project Budget with Alerts
@@ -10,7 +10,7 @@ Resources:
       Budget:
         BudgetName: !Sub '${ProjectName}-monthly-budget'
         BudgetLimit:
-          Amount: 100
+          Amount: !Ref MonthlyBudgetLimit
           Unit: USD
         TimeUnit: MONTHLY
         BudgetType: COST
@@ -32,6 +32,32 @@ Resources:
             NotificationType: FORECASTED
             ComparisonOperator: GREATER_THAN
             Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+
+  # Control Plane Budget (separate from workloads)
+  ControlPlaneBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub '${ProjectName}-control-plane-budget'
+        BudgetLimit:
+          Amount: !Ref ControlPlaneBudgetLimit
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+        CostFilters:
+          TagKey:
+            - "ial:deployment-type"
+          TagValue:
+            - "control_plane"
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 90
             ThresholdType: PERCENTAGE
           Subscribers:
             - SubscriptionType: EMAIL
@@ -78,6 +104,16 @@ Resources:
       Frequency: DAILY
       Threshold: 10.0
 
+  # FinOps Enforcement SNS Topic
+  FinOpsAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-finops-alerts'
+      DisplayName: 'IAL FinOps Budget Enforcement Alerts'
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlertEmail
+
 # Outputs
 Outputs:
   BudgetName:
@@ -85,6 +121,12 @@ Outputs:
     Value: !Sub '${ProjectName}-monthly-budget'
     Export:
       Name: !Sub '${ProjectName}-budget-name'
+
+  ControlPlaneBudgetName:
+    Description: 'Name of the control plane budget'
+    Value: !Sub '${ProjectName}-control-plane-budget'
+    Export:
+      Name: !Sub '${ProjectName}-control-plane-budget-name'
 
   AnomalyDetectorArn:
     Description: 'ARN of the cost anomaly detector'
@@ -98,13 +140,25 @@ Outputs:
     Export:
       Name: !Sub '${ProjectName}-cost-monitor-arn'
 
-# Cost estimation
+  FinOpsAlertsTopicArn:
+    Description: 'ARN of the FinOps alerts SNS topic'
+    Value: !Ref FinOpsAlertsTopic
+    Export:
+      Name: !Sub '${ProjectName}-finops-alerts-topic-arn'
+
+# Cost estimation with FinOps integration
 metadata:
-  estimated_monthly_cost: '$2.00'
+  estimated_monthly_cost: '$3.50'
   cost_breakdown:
     budgets_api: '$0.60'
     cost_anomaly_detection: '$1.00'
     cost_explorer_api: '$0.40'
+    sns_notifications: '$0.50'
+    finops_enforcement: '$1.00'
+  finops:
+    enforcement_enabled: true
+    budget_validation: true
+    pr_commenting: true
 
 # Parameters
 parameters:
@@ -115,3 +169,11 @@ parameters:
     Type: String
     Default: admin@example.com
     Description: Email address for cost alerts
+  MonthlyBudgetLimit:
+    Type: Number
+    Default: 500
+    Description: Monthly budget limit in USD for workloads
+  ControlPlaneBudgetLimit:
+    Type: Number
+    Default: 200
+    Description: Monthly budget limit in USD for control plane

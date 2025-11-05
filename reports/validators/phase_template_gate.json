@@ -1,0 +1,2080 @@
+{
+  "timestamp": "2025-11-03T17:42:50Z",
+  "total_files": 49,
+  "total_errors": 320,
+  "errors": [
+    {
+      "file": "phases/00-foundation/01-dynamodb-state.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/01-dynamodb-state.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/01-dynamodb-state.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/01-dynamodb-state.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/01-dynamodb-state.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/01-dynamodb-state.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/01-dynamodb-state.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/01-dynamodb-state.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/02-logging-infrastructure.yaml",
+      "message": "Failed to parse YAML: could not determine a constructor for the tag '!GetAtt'\n  in \"phases/00-foundation/02-logging-infrastructure.yaml\", line 95, column 12",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/03-reconciliation-engine.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/03-reconciliation-engine.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/03-reconciliation-engine.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/03-reconciliation-engine.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/03-reconciliation-engine.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/03-reconciliation-engine.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/03-reconciliation-engine.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/03-reconciliation-engine.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/04-backup-strategy.yaml",
+      "message": "Failed to parse YAML: could not determine a constructor for the tag '!Ref'\n  in \"phases/00-foundation/04-backup-strategy.yaml\", line 388, column 12",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/05-chaos-engineering.yaml",
+      "message": "Failed to parse YAML: could not determine a constructor for the tag '!Equals'\n  in \"phases/00-foundation/05-chaos-engineering.yaml\", line 18, column 19",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/06-reconciliation-wrapper.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/06-reconciliation-wrapper.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/06-reconciliation-wrapper.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/06-reconciliation-wrapper.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/06-reconciliation-wrapper.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/06-reconciliation-wrapper.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/06-reconciliation-wrapper.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/06-reconciliation-wrapper.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/07-conversation-memory.yaml",
+      "message": "Failed to parse YAML: could not determine a constructor for the tag '!Ref'\n  in \"phases/00-foundation/07-conversation-memory.yaml\", line 275, column 12",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/08-rag-storage.yaml",
+      "message": "Failed to parse YAML: could not determine a constructor for the tag '!Ref'\n  in \"phases/00-foundation/08-rag-storage.yaml\", line 130, column 12",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/domain-metadata.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/domain-metadata.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/domain-metadata.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/domain-metadata.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/00-foundation/domain-metadata.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/domain-metadata.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/domain-metadata.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/00-foundation/domain-metadata.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/10-security/01-kms-security.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/01-kms-security.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/01-kms-security.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/01-kms-security.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/01-kms-security.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/10-security/01-kms-security.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/10-security/01-kms-security.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/10-security/01-kms-security.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/10-security/02-security-services.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/02-security-services.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/02-security-services.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/02-security-services.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/02-security-services.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/10-security/02-security-services.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/10-security/02-security-services.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/10-security/02-security-services.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/10-security/03-secrets-manager.yaml",
+      "message": "Failed to parse YAML: could not determine a constructor for the tag '!Ref'\n  in \"phases/10-security/03-secrets-manager.yaml\", line 280, column 12",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/04-iam-roles.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/04-iam-roles.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/04-iam-roles.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/04-iam-roles.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/04-iam-roles.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/10-security/04-iam-roles.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/10-security/04-iam-roles.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/10-security/04-iam-roles.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "'domain' is a required property",
+      "path": [
+        "metadata"
+      ]
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "'priority' is a required property",
+      "path": [
+        "metadata"
+      ]
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "'wa_pillars' is a required property",
+      "path": [
+        "metadata"
+      ]
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "'IAM Bedrock Policies for GitHub Actions' does not match '^[0-9]{2}-[a-z0-9-]+$'",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/10-security/05-iam-bedrock-github.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/10-security/06-waf-cloudfront.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/06-waf-cloudfront.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/06-waf-cloudfront.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/06-waf-cloudfront.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/06-waf-cloudfront.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/10-security/06-waf-cloudfront.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/10-security/06-waf-cloudfront.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/10-security/06-waf-cloudfront.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/10-security/domain-metadata.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/domain-metadata.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/domain-metadata.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/domain-metadata.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/10-security/domain-metadata.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/10-security/domain-metadata.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/10-security/domain-metadata.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/10-security/domain-metadata.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/20-network/01-networking.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/01-networking.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/01-networking.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/01-networking.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/01-networking.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/20-network/01-networking.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/20-network/01-networking.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/20-network/01-networking.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/20-network/02-vpc-flow-logs.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/02-vpc-flow-logs.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/02-vpc-flow-logs.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/02-vpc-flow-logs.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/02-vpc-flow-logs.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/20-network/02-vpc-flow-logs.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/20-network/02-vpc-flow-logs.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/20-network/02-vpc-flow-logs.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/20-network/domain-metadata.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/domain-metadata.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/domain-metadata.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/domain-metadata.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/20-network/domain-metadata.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/20-network/domain-metadata.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/20-network/domain-metadata.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/20-network/domain-metadata.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/30-compute/01-ecr.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/01-ecr.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/01-ecr.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/01-ecr.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/01-ecr.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/30-compute/01-ecr.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/30-compute/01-ecr.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/30-compute/01-ecr.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/30-compute/02-ecs-cluster.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/02-ecs-cluster.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/02-ecs-cluster.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/02-ecs-cluster.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/02-ecs-cluster.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/30-compute/02-ecs-cluster.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/30-compute/02-ecs-cluster.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/30-compute/02-ecs-cluster.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/30-compute/03-ecs-task-service.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/03-ecs-task-service.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/03-ecs-task-service.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/03-ecs-task-service.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/03-ecs-task-service.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/30-compute/03-ecs-task-service.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/30-compute/03-ecs-task-service.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/30-compute/03-ecs-task-service.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/30-compute/04-ecs-autoscaling.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/04-ecs-autoscaling.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/04-ecs-autoscaling.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/04-ecs-autoscaling.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/04-ecs-autoscaling.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/30-compute/04-ecs-autoscaling.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/30-compute/04-ecs-autoscaling.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/30-compute/04-ecs-autoscaling.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/30-compute/05-alb.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/05-alb.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/05-alb.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/05-alb.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/05-alb.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/30-compute/05-alb.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/30-compute/05-alb.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/30-compute/05-alb.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/30-compute/domain-metadata.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/domain-metadata.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/domain-metadata.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/domain-metadata.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/30-compute/domain-metadata.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/30-compute/domain-metadata.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/30-compute/domain-metadata.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/30-compute/domain-metadata.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/40-data/01-redis.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/01-redis.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/01-redis.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/01-redis.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/01-redis.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/40-data/01-redis.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/40-data/01-redis.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/40-data/01-redis.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/40-data/02-aurora-postgresql.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/02-aurora-postgresql.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/02-aurora-postgresql.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/02-aurora-postgresql.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/02-aurora-postgresql.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/40-data/02-aurora-postgresql.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/40-data/02-aurora-postgresql.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/40-data/02-aurora-postgresql.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/40-data/03-aurora-postgresql-secure.yaml",
+      "message": "Failed to parse YAML: could not determine a constructor for the tag '!GetAtt'\n  in \"phases/40-data/03-aurora-postgresql-secure.yaml\", line 171, column 13",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/04-dynamodb-tables.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/04-dynamodb-tables.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/04-dynamodb-tables.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/04-dynamodb-tables.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/04-dynamodb-tables.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/40-data/04-dynamodb-tables.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/40-data/04-dynamodb-tables.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/40-data/04-dynamodb-tables.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/40-data/05-s3-storage.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/05-s3-storage.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/05-s3-storage.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/05-s3-storage.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/05-s3-storage.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/40-data/05-s3-storage.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/40-data/05-s3-storage.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/40-data/05-s3-storage.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/40-data/domain-metadata.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/domain-metadata.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/domain-metadata.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/domain-metadata.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/40-data/domain-metadata.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/40-data/domain-metadata.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/40-data/domain-metadata.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/40-data/domain-metadata.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/50-application/01-lambda-functions.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/01-lambda-functions.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/01-lambda-functions.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/01-lambda-functions.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/01-lambda-functions.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/50-application/01-lambda-functions.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/50-application/01-lambda-functions.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/50-application/01-lambda-functions.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/50-application/02-step-functions.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/02-step-functions.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/02-step-functions.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/02-step-functions.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/02-step-functions.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/50-application/02-step-functions.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/50-application/02-step-functions.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/50-application/02-step-functions.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/50-application/03-sns-topics.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/03-sns-topics.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/03-sns-topics.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/03-sns-topics.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/03-sns-topics.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/50-application/03-sns-topics.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/50-application/03-sns-topics.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/50-application/03-sns-topics.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/50-application/04-parameter-store.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/04-parameter-store.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/04-parameter-store.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/04-parameter-store.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/04-parameter-store.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/50-application/04-parameter-store.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/50-application/04-parameter-store.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/50-application/04-parameter-store.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/50-application/domain-metadata.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/domain-metadata.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/domain-metadata.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/domain-metadata.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/50-application/domain-metadata.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/50-application/domain-metadata.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/50-application/domain-metadata.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/50-application/domain-metadata.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/60-observability/01-enhanced-observability.yaml",
+      "message": "Failed to parse YAML: could not determine a constructor for the tag '!Sub'\n  in \"phases/60-observability/01-enhanced-observability.yaml\", line 202, column 12",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/02-observability.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/02-observability.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/02-observability.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/02-observability.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/02-observability.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/60-observability/02-observability.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/60-observability/02-observability.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/60-observability/02-observability.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/60-observability/03-drift-detection.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/03-drift-detection.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/03-drift-detection.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/03-drift-detection.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/03-drift-detection.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/60-observability/03-drift-detection.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/60-observability/03-drift-detection.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/60-observability/03-drift-detection.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/60-observability/domain-metadata.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/domain-metadata.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/domain-metadata.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/domain-metadata.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/60-observability/domain-metadata.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/60-observability/domain-metadata.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/60-observability/domain-metadata.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/60-observability/domain-metadata.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/70-ai-ml/01-rag-s3-tables.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/70-ai-ml/01-rag-s3-tables.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/70-ai-ml/01-rag-s3-tables.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/70-ai-ml/01-rag-s3-tables.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/70-ai-ml/01-rag-s3-tables.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/70-ai-ml/01-rag-s3-tables.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/70-ai-ml/01-rag-s3-tables.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/70-ai-ml/01-rag-s3-tables.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/70-ai-ml/domain-metadata.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/70-ai-ml/domain-metadata.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/70-ai-ml/domain-metadata.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/70-ai-ml/domain-metadata.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/70-ai-ml/domain-metadata.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/70-ai-ml/domain-metadata.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/70-ai-ml/domain-metadata.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/70-ai-ml/domain-metadata.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/90-governance/01-well-architected-assessment.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/01-well-architected-assessment.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/01-well-architected-assessment.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/01-well-architected-assessment.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/01-well-architected-assessment.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/90-governance/01-well-architected-assessment.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/90-governance/01-well-architected-assessment.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/90-governance/01-well-architected-assessment.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/90-governance/02-budgets-resources.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/02-budgets-resources.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/02-budgets-resources.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/02-budgets-resources.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/02-budgets-resources.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/90-governance/02-budgets-resources.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/90-governance/02-budgets-resources.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/90-governance/02-budgets-resources.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/90-governance/03-cost-guardrails.yaml",
+      "message": "Failed to parse YAML: could not determine a constructor for the tag '!Sub'\n  in \"phases/90-governance/03-cost-guardrails.yaml\", line 85, column 12",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/04-cost-performance-dashboard.yaml",
+      "message": "Failed to parse YAML: could not determine a constructor for the tag '!Sub'\n  in \"phases/90-governance/04-cost-performance-dashboard.yaml\", line 394, column 12",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/domain-metadata.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/domain-metadata.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/domain-metadata.yaml",
+      "message": "'metadata' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/domain-metadata.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/90-governance/domain-metadata.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/90-governance/domain-metadata.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/90-governance/domain-metadata.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/90-governance/domain-metadata.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "'apiVersion' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "'kind' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "'spec' is a required property",
+      "path": []
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "'name' is a required property",
+      "path": [
+        "metadata"
+      ]
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "'domain' is a required property",
+      "path": [
+        "metadata"
+      ]
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "'priority' is a required property",
+      "path": [
+        "metadata"
+      ]
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "'wa_pillars' is a required property",
+      "path": [
+        "metadata"
+      ]
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "metadata.name deve come\u00e7ar com NN- (ex: 01-networking)",
+      "path": [
+        "metadata",
+        "name"
+      ]
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "m\u00ednimo de 3 pilares Well-Architected necess\u00e1rios",
+      "path": [
+        "metadata",
+        "wa_pillars"
+      ]
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "outputs_contract.must_exist precisa de pelo menos 1 item",
+      "path": [
+        "outputs_contract",
+        "must_exist"
+      ]
+    },
+    {
+      "file": "phases/deployment-order.yaml",
+      "message": "tags_must_include deve conter 'ial:managed'",
+      "path": [
+        "outputs_contract",
+        "tags_must_include"
+      ]
+    }
+  ]
+}

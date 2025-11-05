@@ -1,0 +1,9 @@
+bucket: "ial-rag-store"
+prefix: "v1"
+embed_model: "amazon.titan-embed-text-v2:0"
+k: 6
+threshold: 0.65
+local_path: ".rag/index.faiss"
+local_meta: ".rag/index.json"
+enable_metrics: true
+weekly_rebuild_cron: "0 3 * * 0"  # domingo 03:00

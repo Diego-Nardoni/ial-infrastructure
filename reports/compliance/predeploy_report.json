@@ -1,0 +1,21 @@
+{
+  "status": "FAIL",
+  "findings": [
+    {
+      "rule": "s3-encryption-check",
+      "resource": "TestBucket",
+      "message": "S3 bucket missing encryption configuration",
+      "risk_level": "safe",
+      "remediation": "Enable SSE-KMS encryption"
+    },
+    {
+      "rule": "sg-restrict-inbound",
+      "resource": "TestSecurityGroup",
+      "message": "Security Group allows inbound from 0.0.0.0/0",
+      "risk_level": "risky",
+      "remediation": "Restrict source to specific CIDR blocks"
+    }
+  ],
+  "rules_processed": 3,
+  "violations_count": 2
+}

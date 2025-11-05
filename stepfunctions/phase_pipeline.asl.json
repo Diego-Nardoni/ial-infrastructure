@@ -1,0 +1,208 @@
+{
+  "Comment": "IAL Phase Pipeline with SAGA Pattern",
+  "StartAt": "CircuitBreakerCheck",
+  "States": {
+    "CircuitBreakerCheck": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_CIRCUIT_GUARD_ARN}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.circuit",
+      "Next": "CircuitChoice",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2.0,
+          "MaxAttempts": 3
+        }
+      ]
+    },
+    "CircuitChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.circuit.Payload.circuit",
+          "StringEquals": "OPEN",
+          "Next": "CircuitOpen"
+        }
+      ],
+      "Default": "PlanPhase"
+    },
+    "CircuitOpen": {
+      "Type": "Fail",
+      "Cause": "Circuit breaker is open",
+      "Error": "CircuitBreakerOpen"
+    },
+    "PlanPhase": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_PLAN_ARN}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.plan",
+      "Next": "PolicyChecks",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 5,
+          "BackoffRate": 2.0,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "RollbackSaga"
+        }
+      ]
+    },
+    "PolicyChecks": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "OPA",
+          "States": {
+            "OPA": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${IAL_POLICY_OPA_ARN}",
+                "Payload.$": "$"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "CFNGuard",
+          "States": {
+            "CFNGuard": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${IAL_POLICY_CFN_GUARD_ARN}",
+                "Payload.$": "$"
+              },
+              "End": true
+            }
+          }
+        }
+      ],
+      "ResultPath": "$.policies",
+      "Next": "ApplyChangeSet",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "RollbackSaga"
+        }
+      ]
+    },
+    "ApplyChangeSet": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_APPLY_ARN}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.apply",
+      "Next": "AuditValidator",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 10,
+          "BackoffRate": 2.0,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "RollbackSaga"
+        }
+      ]
+    },
+    "AuditValidator": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_AUDIT_VALIDATOR_ARN}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.audit",
+      "Next": "PostDeployChecks",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "RollbackSaga"
+        }
+      ]
+    },
+    "PostDeployChecks": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "WellArchitected",
+          "States": {
+            "WellArchitected": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${IAL_WA_MCP_ARN}",
+                "Payload.$": "$"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "FinOps",
+          "States": {
+            "FinOps": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${IAL_FINOPS_MCP_ARN}",
+                "Payload.$": "$"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Compliance",
+          "States": {
+            "Compliance": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${IAL_COMPLIANCE_RUNNER_ARN}",
+                "Payload.$": "$"
+              },
+              "End": true
+            }
+          }
+        }
+      ],
+      "ResultPath": "$.postdeploy",
+      "Next": "PublishMetrics"
+    },
+    "PublishMetrics": {
+      "Type": "Pass",
+      "Result": "Pipeline completed successfully",
+      "End": true
+    },
+    "RollbackSaga": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IAL_ROLLBACK_ARN}",
+        "Payload.$": "$"
+      },
+      "End": true
+    }
+  }
+}

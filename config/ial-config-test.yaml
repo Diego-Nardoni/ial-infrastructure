@@ -1,0 +1,9 @@
+# Configuração de teste com enforcement habilitado
+cost_guardrails:
+  estimation:
+    enabled: true
+    show_breakdown: true
+    
+  enforcement:
+    enabled: true                    # HABILITADO para teste
+    default_monthly_budget_usd: 50   # Budget baixo para testar bloqueio

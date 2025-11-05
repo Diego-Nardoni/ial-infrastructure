@@ -1,0 +1,76 @@
+{
+  "Comment": "IAL Phase Manager - Step Functions Implementation",
+  "StartAt": "DiscoverPhases",
+  "States": {
+    "DiscoverPhases": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "ial-phase-discoverer",
+        "Payload": {
+          "correlation_id.$": "$.correlation_id"
+        }
+      },
+      "ResultPath": "$.phases",
+      "Next": "InferDependencies"
+    },
+    "InferDependencies": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "ial-dependency-inferrer",
+        "Payload": {
+          "phases.$": "$.phases.Payload",
+          "correlation_id.$": "$.correlation_id"
+        }
+      },
+      "ResultPath": "$.dependencies",
+      "Next": "BuildExecutionPlan"
+    },
+    "BuildExecutionPlan": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "ial-execution-planner",
+        "Payload": {
+          "phases.$": "$.phases.Payload",
+          "dependencies.$": "$.dependencies.Payload",
+          "correlation_id.$": "$.correlation_id"
+        }
+      },
+      "ResultPath": "$.execution_plan",
+      "Next": "ExecutePhases"
+    },
+    "ExecutePhases": {
+      "Type": "Map",
+      "ItemsPath": "$.execution_plan.Payload.execution_order",
+      "MaxConcurrency": 1,
+      "Iterator": {
+        "StartAt": "ExecutePhase",
+        "States": {
+          "ExecutePhase": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "ial-phase-executor",
+              "Payload": {
+                "phase.$": "$",
+                "correlation_id.$": "$.correlation_id"
+              }
+            },
+            "End": true,
+            "Retry": [
+              {
+                "ErrorEquals": ["States.TaskFailed"],
+                "IntervalSeconds": 10,
+                "MaxAttempts": 2,
+                "BackoffRate": 2.0
+              }
+            ]
+          }
+        }
+      },
+      "End": true
+    }
+  }
+}

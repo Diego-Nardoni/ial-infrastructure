@@ -1,0 +1,11 @@
+apiVersion: ial/v1
+kind: ConfigRule
+metadata:
+  name: ebs-encrypted
+  description: Volumes EBS devem estar com criptografia habilitada.
+spec:
+  type: cfn-guard
+  rule: |
+    rule ebs_encryption when %resourceType == 'AWS::EC2::Volume' {
+      Properties.Encrypted == true
+    }

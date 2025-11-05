@@ -1,0 +1,188 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IAL Phase Schema",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "enum": ["ial/v1"]
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["Phase"]
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name", "domain", "priority", "wa_pillars"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[0-9]{2}-[a-z0-9-]+$"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "wa_pillars": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "required": ["description", "parameters", "artifacts"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 10
+        },
+        "parameters": {
+          "type": "object"
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "artifacts": {
+          "type": "object",
+          "required": ["cloudformation"],
+          "properties": {
+            "cloudformation": {
+              "type": "object",
+              "required": ["template"],
+              "properties": {
+                "template": {
+                  "type": "string"
+                },
+                "parameters_file": {
+                  "type": "string"
+                },
+                "policies": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "controls": {
+      "type": "object",
+      "properties": {
+        "security": {
+          "type": "object"
+        },
+        "cost": {
+          "type": "object"
+        },
+        "reliability": {
+          "type": "object"
+        },
+        "tagging": {
+          "type": "object",
+          "properties": {
+            "required": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "outputs_contract": {
+      "type": "object",
+      "required": ["must_exist"],
+      "properties": {
+        "must_exist": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "must_be_encrypted": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags_must_include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "required": ["lint", "acceptance"],
+      "properties": {
+        "lint": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "acceptance": {
+          "type": "object",
+          "properties": {
+            "natural_validation": {
+              "type": "object",
+              "required": ["prompts", "llm_provider"],
+              "properties": {
+                "prompts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "llm_provider": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "gitops": {
+      "type": "object",
+      "required": ["repo", "base_branch", "require_reviews", "required_checks"],
+      "properties": {
+        "repo": {
+          "type": "string"
+        },
+        "base_branch": {
+          "type": "string"
+        },
+        "require_reviews": {
+          "type": "boolean"
+        },
+        "required_checks": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
