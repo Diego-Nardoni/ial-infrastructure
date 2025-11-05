@@ -51,8 +51,7 @@ class ServiceDetector:
                 'xray': ['xray', 'tracing', 'trace', 'distributed']
             },
             'devops': {
-                'github': ['github', 'git', 'repository', 'repo', 'pull request', 'pr', 'commit', 'branch', 'merge', 'issue', 'workflow', 'action', 'ci/cd', 'pipeline', 'deployment', 'release']
-            }
+                'github': ['github', 'git', 'repository', 'repo', 'pull request', 'pr', 'commit', 'branch', 'merge', 'issue', 'workflow', 'action', 'ci/cd', 'pipeline', 'deployment', 'release'],
                 'xray': ['xray', 'tracing', 'trace', 'distributed']
             },
             'finops': {
