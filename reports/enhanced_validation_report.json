@@ -1,0 +1,183 @@
+{
+  "timestamp": "2025-10-24T11:31:04.026892",
+  "account_id": "221082174220",
+  "region": "us-east-1",
+  "summary": {
+    "total_resources": 8,
+    "created_resources": 7,
+    "verified_resources": 0,
+    "failed_resources": 0
+  },
+  "resources": [
+    {
+      "name": "TestStateMachine",
+      "type": "AWS::StepFunctions::StateMachine",
+      "status": "Created",
+      "phase": "14-step-functions",
+      "service": "stepfunctions",
+      "properties": {},
+      "arn": "arn:aws:stepfunctions:us-east-1:221082174220:resource/TestStateMachine",
+      "console_link": "https://us-east-1.console.aws.amazon.com/console/home?region=us-east-1",
+      "estimated_monthly_cost": "$0.00 - $1.00"
+    },
+    {
+      "name": "TestTable",
+      "type": "AWS::DynamoDB::Table",
+      "status": "Created",
+      "phase": "12-dynamodb-tables",
+      "service": "dynamodb",
+      "properties": {},
+      "arn": "arn:aws:dynamodb:us-east-1:221082174220:table/TestTable",
+      "console_link": "https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#table?name=TestTable",
+      "estimated_monthly_cost": "$1.00 - $10.00"
+    },
+    {
+      "name": "drift-detector",
+      "type": "AWS::Lambda::Function",
+      "status": "Created",
+      "phase": "13-lambda-functions",
+      "service": "lambda",
+      "properties": {
+        "FunctionName": "drift-detector",
+        "Runtime": "python3.11"
+      },
+      "arn": "arn:aws:lambda:us-east-1:221082174220:function:drift-detector",
+      "console_link": "https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/drift-detector",
+      "estimated_monthly_cost": "$0.10 - $2.00"
+    },
+    {
+      "name": "ial-alerts-critical",
+      "type": "AWS::SNS::Topic",
+      "status": "Created",
+      "phase": "15-sns-topics",
+      "service": "sns",
+      "properties": {
+        "TopicName": "ial-alerts-critical"
+      },
+      "arn": "arn:aws:sns:us-east-1:221082174220:ial-alerts-critical",
+      "console_link": "https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn%3Aaws%3Asns%3Aus-east-1%3A221082174220%3Aial-alerts-critical",
+      "estimated_monthly_cost": "$0.01 - $1.00"
+    },
+    {
+      "name": "ial-aurora-master-secret",
+      "type": "AWS::Secretsmanager::Resource",
+      "status": "Created",
+      "phase": "04-secrets",
+      "service": "secretsmanager",
+      "properties": {},
+      "arn": "arn:aws:secretsmanager:us-east-1:221082174220:resource/ial-aurora-master-secret",
+      "console_link": "https://us-east-1.console.aws.amazon.com/console/home?region=us-east-1",
+      "estimated_monthly_cost": "$0.00 - $1.00"
+    },
+    {
+      "name": "ial-aurora-master-secret-04b",
+      "type": "AWS::Secretsmanager::Resource",
+      "status": "Created",
+      "phase": "04-secrets",
+      "service": "secretsmanager",
+      "properties": {},
+      "arn": "arn:aws:secretsmanager:us-east-1:221082174220:resource/ial-aurora-master-secret-04b",
+      "console_link": "https://us-east-1.console.aws.amazon.com/console/home?region=us-east-1",
+      "estimated_monthly_cost": "$0.00 - $1.00"
+    },
+    {
+      "name": "mcp-provisioning-checklist",
+      "type": "AWS::DynamoDB::Table",
+      "status": "Created",
+      "phase": "12-dynamodb-tables",
+      "service": "dynamodb",
+      "properties": {
+        "TableName": "mcp-provisioning-checklist"
+      },
+      "arn": "arn:aws:dynamodb:us-east-1:221082174220:table/mcp-provisioning-checklist",
+      "console_link": "https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#table?name=mcp-provisioning-checklist",
+      "estimated_monthly_cost": "$1.00 - $10.00"
+    },
+    {
+      "name": "test-auto-discovery-bucket-1761257199",
+      "type": "AWS::S3::Bucket",
+      "status": "Deleted",
+      "phase": "08-s3-storage",
+      "service": "s3",
+      "properties": {
+        "BucketName": "test-auto-discovery-bucket-1761257199"
+      },
+      "arn": "arn:aws:s3:::test-auto-discovery-bucket-1761257199",
+      "console_link": "https://us-east-1.console.aws.amazon.com/s3/buckets/test-auto-discovery-bucket-1761257199",
+      "estimated_monthly_cost": "$0.50 - $5.00"
+    }
+  ],
+  "cost_analysis": {
+    "total_monthly_cost": 184.0518337427,
+    "currency": "USD",
+    "top_services": [
+      {
+        "service": "Amazon Virtual Private Cloud",
+        "amount": 48.680925733,
+        "currency": "USD"
+      },
+      {
+        "service": "Amazon ElastiCache",
+        "amount": 37.47862675,
+        "currency": "USD"
+      },
+      {
+        "service": "Claude 3.7 Sonnet (Amazon Bedrock Edition)",
+        "amount": 26.042559,
+        "currency": "USD"
+      },
+      {
+        "service": "Tax",
+        "amount": 16.38,
+        "currency": "USD"
+      },
+      {
+        "service": "AWS WAF",
+        "amount": 13.9676489458,
+        "currency": "USD"
+      },
+      {
+        "service": "Amazon Q",
+        "amount": 12.8341932507,
+        "currency": "USD"
+      },
+      {
+        "service": "Amazon Elastic Container Service",
+        "amount": 6.9206155039,
+        "currency": "USD"
+      },
+      {
+        "service": "Amazon Elastic Load Balancing",
+        "amount": 6.9096024187,
+        "currency": "USD"
+      },
+      {
+        "service": "AmazonCloudWatch",
+        "amount": 4.2905893494,
+        "currency": "USD"
+      },
+      {
+        "service": "Claude 3.5 Sonnet v2 (Amazon Bedrock Edition)",
+        "amount": 4.040208,
+        "currency": "USD"
+      }
+    ],
+    "cost_trend": "stable"
+  },
+  "console_links": {
+    "cost_explorer": "https://console.aws.amazon.com/cost-management/home?region=us-east-1#/cost-explorer",
+    "cloudformation": "https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks",
+    "cloudwatch": "https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1",
+    "iam": "https://console.aws.amazon.com/iam/home#/home",
+    "billing": "https://console.aws.amazon.com/billing/home#/",
+    "support": "https://console.aws.amazon.com/support/home#/"
+  },
+  "recommendations": [
+    {
+      "type": "security",
+      "title": "Enable Encryption",
+      "description": "1 resources may not have encryption enabled",
+      "action": "Review and enable encryption for sensitive resources"
+    }
+  ]
+}

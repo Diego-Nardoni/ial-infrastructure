@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-10-23T21:42:12.289690",
+  "stuck_resources": [],
+  "failed_resources": [],
+  "progress": {
+    "total_resources": 0,
+    "created": 0,
+    "failed": 0,
+    "in_progress": 0,
+    "deleted": 0,
+    "progress_rate": 0,
+    "status_breakdown": {}
+  },
+  "status": "WARNING"
+}

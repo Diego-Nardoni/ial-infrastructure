@@ -1,0 +1,536 @@
+{
+  "timestamp": "2025-11-03T14:12:27.866331",
+  "audit_version": "3.1",
+  "desired_total": 122,
+  "catalog_total": 0,
+  "cfn_total": 0,
+  "completeness": 0,
+  "audit_passed": false,
+  "missing_resources": [
+    "90-governance/04-cost-performance-dashboard/PerformanceEfficiencyLambda",
+    "20-network/01-networking/public_subnet_1c_association",
+    "20-network/01-networking/internet_gateway",
+    "20-network/01-networking/sg_redis",
+    "00-foundation/07-conversation-memory/ConversationDashboard",
+    "60-observability/03-drift-detection/eventbridge_rule_scheduled",
+    "10-security/03-secrets-manager/SecretRotationLambda",
+    "20-network/01-networking/ecr_api_endpoint",
+    "40-data/02-aurora-postgresql/sg_database",
+    "20-network/01-networking/xray_endpoint",
+    "00-foundation/05-chaos-engineering/ChaosLogGroup",
+    "20-network/01-networking/s3_gateway_endpoint",
+    "50-application/04-parameter-store/redis-ssl",
+    "10-security/02-security-services/ebs-encryption",
+    "00-foundation/01-dynamodb-state/dynamodb_table",
+    "00-foundation/05-chaos-engineering/FISExecutionRole",
+    "00-foundation/05-chaos-engineering/ChaosMetricsNamespace",
+    "60-observability/01-enhanced-observability/RollbackTriggeredAlarm",
+    "50-application/01-lambda-functions/UniversalDriftdetector",
+    "10-security/03-secrets-manager/AuroraSecret",
+    "90-governance/03-cost-guardrails/CostAnomalyDetector",
+    "60-observability/03-drift-detection/lambda_drift_detector_role",
+    "60-observability/01-enhanced-observability/ContainerInsightsLogGroup",
+    "20-network/01-networking/bedrock_runtime_endpoint",
+    "40-data/02-aurora-postgresql/db_subnet_group",
+    "10-security/03-secrets-manager/SecretRotationSchedule",
+    "20-network/01-networking/private_route_table",
+    "70-ai-ml/01-rag-s3-tables/s3_conversations_bucket",
+    "60-observability/01-enhanced-observability/ValidationFailureAlarm",
+    "20-network/01-networking/public_subnet_1a",
+    "20-network/01-networking/public_route",
+    "20-network/01-networking/public_subnet_1b",
+    "70-ai-ml/01-rag-s3-tables/api_gateway",
+    "10-security/01-kms-security/kms_key",
+    "20-network/01-networking/dynamodb_gateway_endpoint",
+    "60-observability/01-enhanced-observability/DeploymentFailureAlarm",
+    "50-application/04-parameter-store/redis-endpoint",
+    "50-application/02-step-functions/UniversalTeststatemachine",
+    "00-foundation/07-conversation-memory/ConversationHistoryTable",
+    "60-observability/03-drift-detection/lambda_drift_detector",
+    "20-network/01-networking/private_subnet_1c",
+    "90-governance/03-cost-guardrails/ProjectBudget",
+    "00-foundation/05-chaos-engineering/ChaosNotificationTopic",
+    "40-data/04-dynamodb-tables/UniversalTesttable",
+    "00-foundation/04-backup-strategy/BackupLogGroup",
+    "00-foundation/07-conversation-memory/UserSessionsTable",
+    "00-foundation/01-dynamodb-state/iam_role",
+    "40-data/03-aurora-postgresql-secure/AuroraSecurityGroup",
+    "60-observability/01-enhanced-observability/LowCompletionRateAlarm",
+    "40-data/03-aurora-postgresql-secure/AuroraSubnetGroup",
+    "00-foundation/02-logging-infrastructure/IaLDashboard",
+    "40-data/03-aurora-postgresql-secure/AuroraMonitoringRole",
+    "00-foundation/05-chaos-engineering/NetworkLatencyExperiment",
+    "20-network/01-networking/private_subnet_1b",
+    "40-data/02-aurora-postgresql/aurora_cluster",
+    "20-network/01-networking/public_route_table",
+    "00-foundation/04-backup-strategy/DynamoDBBackupPolicy",
+    "60-observability/03-drift-detection/eventbridge_rule_realtime",
+    "00-foundation/05-chaos-engineering/ECSTaskTerminationExperiment",
+    "10-security/02-security-services/amazon-inspector",
+    "00-foundation/05-chaos-engineering/ChaosStopCondition",
+    "00-foundation/07-conversation-memory/BedrockConversationRole",
+    "10-security/02-security-services/amazon-macie",
+    "70-ai-ml/01-rag-s3-tables/bedrock_knowledge_base",
+    "20-network/01-networking/sg_alb_cloudfront_only",
+    "20-network/01-networking/private_subnet_1c_association",
+    "20-network/01-networking/logs_endpoint",
+    "00-foundation/07-conversation-memory/ConversationCacheTable",
+    "20-network/01-networking/public_subnet_1c",
+    "40-data/04-dynamodb-tables/UniversalMcpprovisioningchecklist",
+    "10-security/02-security-services/security-hub",
+    "20-network/01-networking/ssm_endpoint",
+    "20-network/01-networking/vpc",
+    "90-governance/04-cost-performance-dashboard/CostOptimizationTopic",
+    "60-observability/01-enhanced-observability/IaLOperationsDashboard",
+    "20-network/01-networking/public_subnet_1b_association",
+    "90-governance/03-cost-guardrails/CostAnomalyMonitor",
+    "90-governance/04-cost-performance-dashboard/CostExplorerReport",
+    "10-security/02-security-services/amazon-guardduty",
+    "20-network/01-networking/ecr_dkr_endpoint",
+    "00-foundation/02-logging-infrastructure/IaLLogGroup",
+    "60-observability/01-enhanced-observability/XRayTracingConfig",
+    "90-governance/04-cost-performance-dashboard/PerformanceEfficiencyLambdaPermission",
+    "20-network/01-networking/sg_lambda",
+    "00-foundation/02-logging-infrastructure/IaLRollbackLogGroup",
+    "00-foundation/04-backup-strategy/BackupTestRole",
+    "70-ai-ml/01-rag-s3-tables/conversations_metadata",
+    "60-observability/01-enhanced-observability/IaLAlertsSnsTopic",
+    "90-governance/04-cost-performance-dashboard/CostEfficiencyMetricFilter",
+    "20-network/01-networking/private_subnet_1b_association",
+    "90-governance/03-cost-guardrails/CostAnomalySubscription",
+    "90-governance/04-cost-performance-dashboard/CostAnomalySubscription",
+    "00-foundation/04-backup-strategy/BackupTestSchedule",
+    "10-security/03-secrets-manager/AuroraSecretsManagerRole",
+    "10-security/02-security-services/access-analyzer",
+    "90-governance/04-cost-performance-dashboard/PerformanceEfficiencyRole",
+    "70-ai-ml/01-rag-s3-tables/conversation_capture_lambda",
+    "00-foundation/07-conversation-memory/TokenUsageTable",
+    "10-security/03-secrets-manager/LambdaSecretsAccessRole",
+    "90-governance/04-cost-performance-dashboard/PerformanceEfficiencySchedule",
+    "60-observability/01-enhanced-observability/HighDeploymentDurationAlarm",
+    "40-data/05-s3-storage/AdHocTestautodiscoverybucket1761257199",
+    "50-application/03-sns-topics/UniversalIalalertscritical",
+    "20-network/01-networking/igw_attachment",
+    "10-security/03-secrets-manager/SecretRotationRole",
+    "20-network/01-networking/sg_endpoints",
+    "90-governance/04-cost-performance-dashboard/HighCostPerRequestAlarm",
+    "00-foundation/04-backup-strategy/BackupTestLambdaPermission",
+    "00-foundation/04-backup-strategy/BackupTestLambda",
+    "40-data/03-aurora-postgresql-secure/AuroraCluster",
+    "20-network/01-networking/sg_app",
+    "90-governance/04-cost-performance-dashboard/CostPerformanceDashboard",
+    "00-foundation/05-chaos-engineering/InstanceTerminationExperiment",
+    "00-foundation/04-backup-strategy/ConfigurationBackupBucket",
+    "20-network/01-networking/private_subnet_1a",
+    "20-network/01-networking/sg_database",
+    "50-application/04-parameter-store/redis-port",
+    "20-network/01-networking/public_subnet_1a_association",
+    "90-governance/02-budgets-resources/UniversalBudgets",
+    "20-network/01-networking/private_subnet_1a_association",
+    "40-data/03-aurora-postgresql-secure/AuroraInstance",
+    "00-foundation/07-conversation-memory/ContextWindowsTable"
+  ],
+  "extra_resources": [],
+  "resource_types_analysis": {
+    "AWS::StepFunctions::StateMachine": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "50-application/02-step-functions/UniversalTeststatemachine"
+      ]
+    },
+    "AWS::SSM::Parameter": {
+      "desired": 3,
+      "found": 0,
+      "missing": [
+        "50-application/04-parameter-store/redis-endpoint",
+        "50-application/04-parameter-store/redis-port",
+        "50-application/04-parameter-store/redis-ssl"
+      ]
+    },
+    "AWS::SNS::Topic": {
+      "desired": 3,
+      "found": 0,
+      "missing": [
+        "50-application/03-sns-topics/UniversalIalalertscritical",
+        "90-governance/04-cost-performance-dashboard/CostOptimizationTopic",
+        "00-foundation/05-chaos-engineering/ChaosNotificationTopic"
+      ]
+    },
+    "AWS::Lambda::Function": {
+      "desired": 5,
+      "found": 0,
+      "missing": [
+        "50-application/01-lambda-functions/UniversalDriftdetector",
+        "70-ai-ml/01-rag-s3-tables/conversation_capture_lambda",
+        "60-observability/03-drift-detection/lambda_drift_detector",
+        "90-governance/04-cost-performance-dashboard/PerformanceEfficiencyLambda",
+        "10-security/03-secrets-manager/SecretRotationLambda"
+      ]
+    },
+    "AWS::EC2::VPC": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "20-network/01-networking/vpc"
+      ]
+    },
+    "AWS::EC2::Subnet": {
+      "desired": 6,
+      "found": 0,
+      "missing": [
+        "20-network/01-networking/public_subnet_1a",
+        "20-network/01-networking/public_subnet_1b",
+        "20-network/01-networking/public_subnet_1c",
+        "20-network/01-networking/private_subnet_1a",
+        "20-network/01-networking/private_subnet_1b",
+        "20-network/01-networking/private_subnet_1c"
+      ]
+    },
+    "AWS::EC2::InternetGateway": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "20-network/01-networking/internet_gateway"
+      ]
+    },
+    "AWS::EC2::VPCGatewayAttachment": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "20-network/01-networking/igw_attachment"
+      ]
+    },
+    "AWS::EC2::RouteTable": {
+      "desired": 2,
+      "found": 0,
+      "missing": [
+        "20-network/01-networking/public_route_table",
+        "20-network/01-networking/private_route_table"
+      ]
+    },
+    "AWS::EC2::Route": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "20-network/01-networking/public_route"
+      ]
+    },
+    "AWS::EC2::SubnetRouteTableAssociation": {
+      "desired": 6,
+      "found": 0,
+      "missing": [
+        "20-network/01-networking/public_subnet_1a_association",
+        "20-network/01-networking/public_subnet_1b_association",
+        "20-network/01-networking/public_subnet_1c_association",
+        "20-network/01-networking/private_subnet_1a_association",
+        "20-network/01-networking/private_subnet_1b_association",
+        "20-network/01-networking/private_subnet_1c_association"
+      ]
+    },
+    "AWS::EC2::SecurityGroup": {
+      "desired": 8,
+      "found": 0,
+      "missing": [
+        "20-network/01-networking/sg_alb_cloudfront_only",
+        "20-network/01-networking/sg_app",
+        "20-network/01-networking/sg_endpoints",
+        "20-network/01-networking/sg_redis",
+        "20-network/01-networking/sg_database",
+        "20-network/01-networking/sg_lambda",
+        "40-data/02-aurora-postgresql/sg_database",
+        "40-data/03-aurora-postgresql-secure/AuroraSecurityGroup"
+      ]
+    },
+    "AWS::EC2::VPCEndpoint": {
+      "desired": 8,
+      "found": 0,
+      "missing": [
+        "20-network/01-networking/s3_gateway_endpoint",
+        "20-network/01-networking/ecr_api_endpoint",
+        "20-network/01-networking/ecr_dkr_endpoint",
+        "20-network/01-networking/logs_endpoint",
+        "20-network/01-networking/ssm_endpoint",
+        "20-network/01-networking/xray_endpoint",
+        "20-network/01-networking/dynamodb_gateway_endpoint",
+        "20-network/01-networking/bedrock_runtime_endpoint"
+      ]
+    },
+    "AWS::S3::Bucket": {
+      "desired": 2,
+      "found": 0,
+      "missing": [
+        "70-ai-ml/01-rag-s3-tables/s3_conversations_bucket",
+        "40-data/05-s3-storage/AdHocTestautodiscoverybucket1761257199"
+      ]
+    },
+    "AWS::DynamoDB::Table": {
+      "desired": 9,
+      "found": 0,
+      "missing": [
+        "70-ai-ml/01-rag-s3-tables/conversations_metadata",
+        "00-foundation/01-dynamodb-state/dynamodb_table",
+        "00-foundation/07-conversation-memory/ConversationHistoryTable",
+        "00-foundation/07-conversation-memory/UserSessionsTable",
+        "00-foundation/07-conversation-memory/ContextWindowsTable",
+        "00-foundation/07-conversation-memory/TokenUsageTable",
+        "00-foundation/07-conversation-memory/ConversationCacheTable",
+        "40-data/04-dynamodb-tables/UniversalTesttable",
+        "40-data/04-dynamodb-tables/UniversalMcpprovisioningchecklist"
+      ]
+    },
+    "AWS::Bedrock::KnowledgeBase": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "70-ai-ml/01-rag-s3-tables/bedrock_knowledge_base"
+      ]
+    },
+    "AWS::ApiGatewayV2::Api": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "70-ai-ml/01-rag-s3-tables/api_gateway"
+      ]
+    },
+    "AWS::IAM::Role": {
+      "desired": 9,
+      "found": 0,
+      "missing": [
+        "60-observability/03-drift-detection/lambda_drift_detector_role",
+        "90-governance/04-cost-performance-dashboard/PerformanceEfficiencyRole",
+        "00-foundation/01-dynamodb-state/iam_role",
+        "00-foundation/07-conversation-memory/BedrockConversationRole",
+        "00-foundation/05-chaos-engineering/FISExecutionRole",
+        "40-data/03-aurora-postgresql-secure/AuroraMonitoringRole",
+        "10-security/03-secrets-manager/AuroraSecretsManagerRole",
+        "10-security/03-secrets-manager/SecretRotationRole",
+        "10-security/03-secrets-manager/LambdaSecretsAccessRole"
+      ]
+    },
+    "AWS::Events::Rule": {
+      "desired": 3,
+      "found": 0,
+      "missing": [
+        "60-observability/03-drift-detection/eventbridge_rule_scheduled",
+        "60-observability/03-drift-detection/eventbridge_rule_realtime",
+        "90-governance/04-cost-performance-dashboard/PerformanceEfficiencySchedule"
+      ]
+    },
+    "Custom": {
+      "desired": 19,
+      "found": 0,
+      "missing": [
+        "60-observability/01-enhanced-observability/IaLOperationsDashboard",
+        "60-observability/01-enhanced-observability/DeploymentFailureAlarm",
+        "60-observability/01-enhanced-observability/ValidationFailureAlarm",
+        "60-observability/01-enhanced-observability/HighDeploymentDurationAlarm",
+        "60-observability/01-enhanced-observability/LowCompletionRateAlarm",
+        "60-observability/01-enhanced-observability/RollbackTriggeredAlarm",
+        "60-observability/01-enhanced-observability/IaLAlertsSnsTopic",
+        "60-observability/01-enhanced-observability/XRayTracingConfig",
+        "60-observability/01-enhanced-observability/ContainerInsightsLogGroup",
+        "00-foundation/02-logging-infrastructure/IaLLogGroup",
+        "00-foundation/02-logging-infrastructure/IaLRollbackLogGroup",
+        "00-foundation/02-logging-infrastructure/IaLDashboard",
+        "00-foundation/04-backup-strategy/DynamoDBBackupPolicy",
+        "00-foundation/04-backup-strategy/ConfigurationBackupBucket",
+        "00-foundation/04-backup-strategy/BackupLogGroup",
+        "00-foundation/04-backup-strategy/BackupTestLambda",
+        "00-foundation/04-backup-strategy/BackupTestRole",
+        "00-foundation/04-backup-strategy/BackupTestSchedule",
+        "00-foundation/04-backup-strategy/BackupTestLambdaPermission"
+      ]
+    },
+    "AWS::Budgets::Resource": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "90-governance/02-budgets-resources/UniversalBudgets"
+      ]
+    },
+    "AWS::CloudWatch::Dashboard": {
+      "desired": 2,
+      "found": 0,
+      "missing": [
+        "90-governance/04-cost-performance-dashboard/CostPerformanceDashboard",
+        "00-foundation/07-conversation-memory/ConversationDashboard"
+      ]
+    },
+    "AWS::Logs::MetricFilter": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "90-governance/04-cost-performance-dashboard/CostEfficiencyMetricFilter"
+      ]
+    },
+    "AWS::CE::AnomalySubscription": {
+      "desired": 2,
+      "found": 0,
+      "missing": [
+        "90-governance/04-cost-performance-dashboard/CostAnomalySubscription",
+        "90-governance/03-cost-guardrails/CostAnomalySubscription"
+      ]
+    },
+    "AWS::Lambda::Permission": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "90-governance/04-cost-performance-dashboard/PerformanceEfficiencyLambdaPermission"
+      ]
+    },
+    "AWS::CloudWatch::Alarm": {
+      "desired": 2,
+      "found": 0,
+      "missing": [
+        "90-governance/04-cost-performance-dashboard/HighCostPerRequestAlarm",
+        "00-foundation/05-chaos-engineering/ChaosStopCondition"
+      ]
+    },
+    "AWS::CUR::ReportDefinition": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "90-governance/04-cost-performance-dashboard/CostExplorerReport"
+      ]
+    },
+    "AWS::Budgets::Budget": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "90-governance/03-cost-guardrails/ProjectBudget"
+      ]
+    },
+    "AWS::CE::AnomalyDetector": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "90-governance/03-cost-guardrails/CostAnomalyDetector"
+      ]
+    },
+    "AWS::CE::AnomalyMonitor": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "90-governance/03-cost-guardrails/CostAnomalyMonitor"
+      ]
+    },
+    "AWS::FIS::ExperimentTemplate": {
+      "desired": 3,
+      "found": 0,
+      "missing": [
+        "00-foundation/05-chaos-engineering/NetworkLatencyExperiment",
+        "00-foundation/05-chaos-engineering/InstanceTerminationExperiment",
+        "00-foundation/05-chaos-engineering/ECSTaskTerminationExperiment"
+      ]
+    },
+    "AWS::Logs::LogGroup": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "00-foundation/05-chaos-engineering/ChaosLogGroup"
+      ]
+    },
+    "AWS::CloudWatch::CompositeAlarm": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "00-foundation/05-chaos-engineering/ChaosMetricsNamespace"
+      ]
+    },
+    "AWS::RDS::DBSubnetGroup": {
+      "desired": 2,
+      "found": 0,
+      "missing": [
+        "40-data/02-aurora-postgresql/db_subnet_group",
+        "40-data/03-aurora-postgresql-secure/AuroraSubnetGroup"
+      ]
+    },
+    "AWS::RDS::DBCluster": {
+      "desired": 2,
+      "found": 0,
+      "missing": [
+        "40-data/02-aurora-postgresql/aurora_cluster",
+        "40-data/03-aurora-postgresql-secure/AuroraCluster"
+      ]
+    },
+    "AWS::RDS::DBInstance": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "40-data/03-aurora-postgresql-secure/AuroraInstance"
+      ]
+    },
+    "AWS::SecretsManager::Secret": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "10-security/03-secrets-manager/AuroraSecret"
+      ]
+    },
+    "AWS::SecretsManager::RotationSchedule": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "10-security/03-secrets-manager/SecretRotationSchedule"
+      ]
+    },
+    "AWS::KMS::Key": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "10-security/01-kms-security/kms_key"
+      ]
+    },
+    "AWS::Inspector::Assessment": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "10-security/02-security-services/amazon-inspector"
+      ]
+    },
+    "AWS::GuardDuty::Detector": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "10-security/02-security-services/amazon-guardduty"
+      ]
+    },
+    "AWS::SecurityHub::Hub": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "10-security/02-security-services/security-hub"
+      ]
+    },
+    "AWS::AccessAnalyzer::Analyzer": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "10-security/02-security-services/access-analyzer"
+      ]
+    },
+    "AWS::Macie::Session": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "10-security/02-security-services/amazon-macie"
+      ]
+    },
+    "AWS::EC2::EBSEncryption": {
+      "desired": 1,
+      "found": 0,
+      "missing": [
+        "10-security/02-security-services/ebs-encryption"
+      ]
+    }
+  },
+  "cfn_stacks_count": 0,
+  "summary": {
+    "total_desired": 122,
+    "total_found": 0,
+    "total_missing": 122,
+    "total_extra": 0,
+    "completeness_percentage": 0
+  }
+}

@@ -1,0 +1,1890 @@
+{
+  "metadata": {
+    "version": "052952f688c065e2",
+    "architecture": "dag-cognitive",
+    "generated_by": "compatible_desired_state_builder",
+    "generated_at": "2025-11-03T19:27:07.377093",
+    "total_phases": 39,
+    "spec_hash": "052952f688c065e2"
+  },
+  "domains": {
+    "30-compute": {
+      "phases": [
+        "30-compute/05-alb",
+        "30-compute/02-ecs-cluster",
+        "30-compute/03-ecs-task-service",
+        "30-compute/04-ecs-autoscaling",
+        "30-compute/01-ecr"
+      ],
+      "resource_count": 0
+    },
+    "50-application": {
+      "phases": [
+        "50-application/04-parameter-store",
+        "50-application/03-sns-topics"
+      ],
+      "resource_count": 1
+    },
+    "20-network": {
+      "phases": [
+        "20-network/02-vpc-flow-logs",
+        "20-network/01-networking"
+      ],
+      "resource_count": 0
+    },
+    "60-observability": {
+      "phases": [
+        "60-observability/02-observability",
+        "60-observability/01-enhanced-observability"
+      ],
+      "resource_count": 0
+    },
+    "90-governance": {
+      "phases": [
+        "90-governance/01-well-architected-assessment",
+        "90-governance/02-budgets-resources",
+        "90-governance/04-cost-performance-dashboard",
+        "90-governance/03-cost-guardrails"
+      ],
+      "resource_count": 15
+    },
+    "00-foundation": {
+      "phases": [
+        "00-foundation/11-ial-s3-storage",
+        "00-foundation/13-ial-drift-detection",
+        "00-foundation/01-dynamodb-state",
+        "00-foundation/02-logging-infrastructure",
+        "00-foundation/03-reconciliation-engine",
+        "00-foundation/04-backup-strategy",
+        "00-foundation/14-ial-lambda-functions",
+        "00-foundation/06-reconciliation-wrapper",
+        "00-foundation/09-stepfunctions-orchestrator",
+        "00-foundation/07-conversation-memory",
+        "00-foundation/08-rag-storage",
+        "00-foundation/16-ial-test-validation",
+        "00-foundation/10-ial-dynamodb-tables",
+        "00-foundation/15-ial-bedrock-github-iam",
+        "00-foundation/05-chaos-engineering",
+        "00-foundation/12-ial-rag-infrastructure"
+      ],
+      "resource_count": 35
+    },
+    "40-data": {
+      "phases": [
+        "40-data/02-aurora-postgresql",
+        "40-data/01-redis",
+        "40-data/03-aurora-postgresql-secure"
+      ],
+      "resource_count": 5
+    },
+    "10-security": {
+      "phases": [
+        "10-security/03-secrets-manager",
+        "10-security/04-iam-roles",
+        "10-security/01-kms-security",
+        "10-security/02-security-services",
+        "10-security/06-waf-cloudfront"
+      ],
+      "resource_count": 6
+    }
+  },
+  "resources": {
+    "50-application/03-sns-topics::UniversalIalalertscritical": {
+      "type": "AWS::SNS::Topic",
+      "properties": {
+        "TopicName": "ial-alerts-critical"
+      },
+      "phase": "50-application/03-sns-topics",
+      "domain": "50-application"
+    },
+    "90-governance/02-budgets-resources::UniversalBudgets": {
+      "type": "AWS::Budgets::Resource",
+      "properties": {},
+      "phase": "90-governance/02-budgets-resources",
+      "domain": "90-governance"
+    },
+    "90-governance/04-cost-performance-dashboard::CostPerformanceDashboard": {
+      "type": "AWS::CloudWatch::Dashboard",
+      "properties": {
+        "DashboardName": "${ProjectName}-Cost-Performance-Executive",
+        "DashboardBody": "{\n  \"widgets\": [\n    {\n      \"type\": \"text\",\n      \"x\": 0,\n      \"y\": 0,\n      \"width\": 24,\n      \"height\": 2,\n      \"properties\": {\n        \"markdown\": \"# 💰 ${ProjectName} - Cost & Performance Executive Dashboard\\n**Real-time cost optimization and performance correlation**\"\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"x\": 0,\n      \"y\": 2,\n      \"width\": 12,\n      \"height\": 6,\n      \"properties\": {\n        \"metrics\": [\n          [\"AWS/Billing\", \"EstimatedCharges\", \"Currency\", \"USD\"],\n          [\"AWS/Budgets\", \"ActualCost\", \"BudgetName\", \"${ProjectName}-monthly-budget\"],\n          [\"AWS/Budgets\", \"ForecastedCost\", \"BudgetName\", \"${ProjectName}-monthly-budget\"]\n        ],\n        \"view\": \"timeSeries\",\n        \"stacked\": false,\n        \"region\": \"${AWS::Region}\",\n        \"title\": \"💰 Cost Trending vs Budget\",\n        \"period\": 86400,\n        \"stat\": \"Maximum\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"x\": 12,\n      \"y\": 2,\n      \"width\": 12,\n      \"height\": 6,\n      \"properties\": {\n        \"metrics\": [\n          [\"AWS/ApplicationELB\", \"TargetResponseTime\", \"LoadBalancer\", \"${ProjectName}-alb\"],\n          [\"AWS/ECS\", \"CPUUtilization\", \"ServiceName\", \"${ProjectName}-service\"],\n          [\"AWS/RDS\", \"CPUUtilization\", \"DBInstanceIdentifier\", \"${ProjectName}-db\"]\n        ],\n        \"view\": \"timeSeries\",\n        \"stacked\": false,\n        \"region\": \"${AWS::Region}\",\n        \"title\": \"⚡ Performance Metrics\",\n        \"period\": 300,\n        \"stat\": \"Average\"\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"x\": 0,\n      \"y\": 8,\n      \"width\": 8,\n      \"height\": 6,\n      \"properties\": {\n        \"metrics\": [\n          [\"AWS/EC2\", \"EstimatedCharges\", \"Currency\", \"USD\"],\n          [\"AWS/RDS\", \"EstimatedCharges\", \"Currency\", \"USD\"],\n          [\"AWS/S3\", \"EstimatedCharges\", \"Currency\", \"USD\"],\n          [\"AWS/Lambda\", \"EstimatedCharges\", \"Currency\", \"USD\"]\n        ],\n        \"view\": \"pie\",\n        \"region\": \"${AWS::Region}\",\n        \"title\": \"💸 Cost by Service\",\n        \"period\": 86400,\n        \"stat\": \"Maximum\"\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"x\": 8,\n      \"y\": 8,\n      \"width\": 8,\n      \"height\": 6,\n      \"properties\": {\n        \"metrics\": [\n          [\"IaL/Performance\", \"CostPerRequest\"],\n          [\"IaL/Performance\", \"CostPerTransaction\"],\n          [\"IaL/Performance\", \"PerformanceEfficiencyScore\"]\n        ],\n        \"view\": \"timeSeries\",\n        \"stacked\": false,\n        \"region\": \"${AWS::Region}\",\n        \"title\": \"📊 Cost Efficiency Metrics\",\n        \"period\": 3600,\n        \"stat\": \"Average\"\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"x\": 16,\n      \"y\": 8,\n      \"width\": 8,\n      \"height\": 6,\n      \"properties\": {\n        \"metrics\": [\n          [\"AWS/TrustedAdvisor\", \"CostOptimizationRecommendations\"],\n          [\"IaL/CostOptimization\", \"PotentialSavings\"],\n          [\"IaL/CostOptimization\", \"OptimizationOpportunities\"]\n        ],\n        \"view\": \"number\",\n        \"region\": \"${AWS::Region}\",\n        \"title\": \"💡 Optimization Opportunities\",\n        \"period\": 86400,\n        \"stat\": \"Maximum\"\n      }\n    },\n    {\n      \"type\": \"log\",\n      \"x\": 0,\n      \"y\": 14,\n      \"width\": 24,\n      \"height\": 6,\n      \"properties\": {\n        \"query\": \"SOURCE '/aws/lambda/${ProjectName}-cost-analyzer'\\n| fields @timestamp, @message\\n| filter @message like /COST_ANOMALY/\\n| sort @timestamp desc\\n| limit 10\",\n        \"region\": \"${AWS::Region}\",\n        \"title\": \"🚨 Recent Cost Anomalies\",\n        \"view\": \"table\"\n      }\n    }\n  ]\n}\n"
+      },
+      "phase": "90-governance/04-cost-performance-dashboard",
+      "domain": "90-governance"
+    },
+    "90-governance/04-cost-performance-dashboard::CostEfficiencyMetricFilter": {
+      "type": "AWS::Logs::MetricFilter",
+      "properties": {
+        "LogGroupName": "/aws/lambda/${ProjectName}-cost-analyzer",
+        "FilterPattern": "[timestamp, request_id, cost_per_request=*]",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "IaL/Performance",
+            "MetricName": "CostPerRequest",
+            "MetricValue": "$cost_per_request",
+            "DefaultValue": 0
+          }
+        ]
+      },
+      "phase": "90-governance/04-cost-performance-dashboard",
+      "domain": "90-governance"
+    },
+    "90-governance/04-cost-performance-dashboard::CostAnomalySubscription": {
+      "type": "AWS::CE::AnomalySubscription",
+      "properties": {
+        "SubscriptionName": "${ProjectName}-cost-anomaly-alerts",
+        "MonitorArnList": [
+          "arn:aws:ce:${AWS::Region}:${AWS::AccountId}:anomalydetector/${ProjectName}-cost-anomaly-detector"
+        ],
+        "Subscribers": [
+          {
+            "Type": "EMAIL",
+            "Address": "AlertEmail"
+          }
+        ],
+        "Frequency": "DAILY",
+        "ThresholdExpression": "{\n  \"And\": [\n    {\n      \"Dimensions\": {\n        \"Key\": \"ANOMALY_TOTAL_IMPACT_ABSOLUTE\",\n        \"Values\": [\"10\"],\n        \"MatchOptions\": [\"GREATER_THAN_OR_EQUAL\"]\n      }\n    }\n  ]\n}\n"
+      },
+      "phase": "90-governance/04-cost-performance-dashboard",
+      "domain": "90-governance"
+    },
+    "90-governance/04-cost-performance-dashboard::PerformanceEfficiencyLambda": {
+      "type": "AWS::Lambda::Function",
+      "properties": {
+        "FunctionName": "${ProjectName}-performance-efficiency-calculator",
+        "Runtime": "python3.11",
+        "Handler": "index.lambda_handler",
+        "Role": "PerformanceEfficiencyRole.Arn",
+        "Timeout": 300,
+        "Environment": {
+          "Variables": {
+            "PROJECT_NAME": "ProjectName"
+          }
+        },
+        "Code": {
+          "ZipFile": "import json\nimport boto3\nimport os\nfrom datetime import datetime, timedelta\n\ncloudwatch = boto3.client('cloudwatch')\nce = boto3.client('ce')\n\ndef lambda_handler(event, context):\n    project_name = os.environ['PROJECT_NAME']\n    \n    try:\n        # Get cost data\n        end_date = datetime.now()\n        start_date = end_date - timedelta(days=1)\n        \n        cost_response = ce.get_cost_and_usage(\n            TimePeriod={\n                'Start': start_date.strftime('%Y-%m-%d'),\n                'End': end_date.strftime('%Y-%m-%d')\n            },\n            Granularity='DAILY',\n            Metrics=['BlendedCost'],\n            GroupBy=[{'Type': 'DIMENSION', 'Key': 'SERVICE'}]\n        )\n        \n        total_cost = 0\n        for result in cost_response['ResultsByTime']:\n            for group in result['Groups']:\n                total_cost += float(group['Metrics']['BlendedCost']['Amount'])\n        \n        # Get performance metrics\n        perf_response = cloudwatch.get_metric_statistics(\n            Namespace='AWS/ApplicationELB',\n            MetricName='RequestCount',\n            StartTime=start_date,\n            EndTime=end_date,\n            Period=3600,\n            Statistics=['Sum']\n        )\n        \n        total_requests = sum([dp['Sum'] for dp in perf_response['Datapoints']])\n        \n        # Calculate efficiency metrics\n        cost_per_request = total_cost / max(total_requests, 1)\n        efficiency_score = min(100, max(0, 100 - (cost_per_request * 1000)))\n        \n        # Publish custom metrics\n        cloudwatch.put_metric_data(\n            Namespace='IaL/Performance',\n            MetricData=[\n                {\n                    'MetricName': 'CostPerRequest',\n                    'Value': cost_per_request,\n                    'Unit': 'None'\n                },\n                {\n                    'MetricName': 'PerformanceEfficiencyScore',\n                    'Value': efficiency_score,\n                    'Unit': 'Percent'\n                },\n                {\n                    'MetricName': 'TotalDailyCost',\n                    'Value': total_cost,\n                    'Unit': 'None'\n                }\n            ]\n        )\n        \n        # Log for anomaly detection\n        print(f'COST_ANALYSIS: cost_per_request={cost_per_request}, efficiency_score={efficiency_score}, total_cost={total_cost}')\n        \n        if cost_per_request > 0.01:  # Threshold for anomaly\n            print(f'COST_ANOMALY: High cost per request detected: ${cost_per_request:.4f}')\n        \n        return {\n            'statusCode': 200,\n            'body': json.dumps({\n                'cost_per_request': cost_per_request,\n                'efficiency_score': efficiency_score,\n                'total_cost': total_cost,\n                'total_requests': total_requests\n            })\n        }\n        \n    except Exception as e:\n        print(f'ERROR: {str(e)}')\n        return {\n            'statusCode': 500,\n            'body': json.dumps({'error': str(e)})\n        }\n"
+        }
+      },
+      "phase": "90-governance/04-cost-performance-dashboard",
+      "domain": "90-governance"
+    },
+    "90-governance/04-cost-performance-dashboard::PerformanceEfficiencyRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "${ProjectName}-performance-efficiency-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "CostAndPerformanceAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ce:GetCostAndUsage",
+                    "ce:GetUsageReport",
+                    "cloudwatch:GetMetricStatistics",
+                    "cloudwatch:PutMetricData",
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "phase": "90-governance/04-cost-performance-dashboard",
+      "domain": "90-governance"
+    },
+    "90-governance/04-cost-performance-dashboard::PerformanceEfficiencySchedule": {
+      "type": "AWS::Events::Rule",
+      "properties": {
+        "Name": "${ProjectName}-performance-efficiency-schedule",
+        "Description": "Daily calculation of cost and performance efficiency",
+        "ScheduleExpression": "rate(1 day)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": "PerformanceEfficiencyLambda.Arn",
+            "Id": "PerformanceEfficiencyTarget"
+          }
+        ]
+      },
+      "phase": "90-governance/04-cost-performance-dashboard",
+      "domain": "90-governance"
+    },
+    "90-governance/04-cost-performance-dashboard::PerformanceEfficiencyLambdaPermission": {
+      "type": "AWS::Lambda::Permission",
+      "properties": {
+        "FunctionName": "PerformanceEfficiencyLambda",
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": "PerformanceEfficiencySchedule.Arn"
+      },
+      "phase": "90-governance/04-cost-performance-dashboard",
+      "domain": "90-governance"
+    },
+    "90-governance/04-cost-performance-dashboard::HighCostPerRequestAlarm": {
+      "type": "AWS::CloudWatch::Alarm",
+      "properties": {
+        "AlarmName": "${ProjectName}-high-cost-per-request",
+        "AlarmDescription": "Alert when cost per request exceeds threshold",
+        "MetricName": "CostPerRequest",
+        "Namespace": "IaL/Performance",
+        "Statistic": "Average",
+        "Period": 3600,
+        "EvaluationPeriods": 2,
+        "Threshold": 0.01,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "AlarmActions": [
+          "CostOptimizationTopic"
+        ],
+        "TreatMissingData": "notBreaching"
+      },
+      "phase": "90-governance/04-cost-performance-dashboard",
+      "domain": "90-governance"
+    },
+    "90-governance/04-cost-performance-dashboard::CostOptimizationTopic": {
+      "type": "AWS::SNS::Topic",
+      "properties": {
+        "TopicName": "${ProjectName}-cost-optimization-alerts",
+        "DisplayName": "IaL Cost Optimization Alerts",
+        "Subscription": [
+          {
+            "Protocol": "email",
+            "Endpoint": "AlertEmail"
+          }
+        ]
+      },
+      "phase": "90-governance/04-cost-performance-dashboard",
+      "domain": "90-governance"
+    },
+    "90-governance/04-cost-performance-dashboard::CostExplorerReport": {
+      "type": "AWS::CUR::ReportDefinition",
+      "properties": {
+        "ReportName": "${ProjectName}-cost-performance-report",
+        "TimeUnit": "DAILY",
+        "Format": "textORcsv",
+        "Compression": "GZIP",
+        "AdditionalSchemaElements": [
+          "RESOURCES"
+        ],
+        "S3Bucket": "${ProjectName}-cost-reports-${AWS::AccountId}",
+        "S3Prefix": "cost-performance-reports/",
+        "S3Region": "AWS::Region",
+        "AdditionalArtifacts": [
+          "REDSHIFT",
+          "QUICKSIGHT"
+        ]
+      },
+      "phase": "90-governance/04-cost-performance-dashboard",
+      "domain": "90-governance"
+    },
+    "90-governance/03-cost-guardrails::ProjectBudget": {
+      "type": "AWS::Budgets::Budget",
+      "properties": {
+        "Budget": {
+          "BudgetName": "${ProjectName}-monthly-budget",
+          "BudgetLimit": {
+            "Amount": 100,
+            "Unit": "USD"
+          },
+          "TimeUnit": "MONTHLY",
+          "BudgetType": "COST",
+          "CostFilters": {
+            "TagKey": [
+              "Project"
+            ],
+            "TagValue": [
+              "ProjectName"
+            ]
+          }
+        },
+        "NotificationsWithSubscribers": [
+          {
+            "Notification": {
+              "NotificationType": "ACTUAL",
+              "ComparisonOperator": "GREATER_THAN",
+              "Threshold": 80,
+              "ThresholdType": "PERCENTAGE"
+            },
+            "Subscribers": [
+              {
+                "SubscriptionType": "EMAIL",
+                "Address": "AlertEmail"
+              }
+            ]
+          },
+          {
+            "Notification": {
+              "NotificationType": "FORECASTED",
+              "ComparisonOperator": "GREATER_THAN",
+              "Threshold": 100,
+              "ThresholdType": "PERCENTAGE"
+            },
+            "Subscribers": [
+              {
+                "SubscriptionType": "EMAIL",
+                "Address": "AlertEmail"
+              }
+            ]
+          }
+        ]
+      },
+      "phase": "90-governance/03-cost-guardrails",
+      "domain": "90-governance"
+    },
+    "90-governance/03-cost-guardrails::CostAnomalyDetector": {
+      "type": "AWS::CE::AnomalyDetector",
+      "properties": {
+        "AnomalyDetectorName": "${ProjectName}-cost-anomaly-detector",
+        "MonitorType": "DIMENSIONAL",
+        "MonitorSpecification": "{\n  \"DimensionKey\": \"SERVICE\",\n  \"MatchOptions\": [\"EQUALS\"],\n  \"Values\": [\"Amazon Elastic Compute Cloud - Compute\", \"Amazon Relational Database Service\", \"Amazon Simple Storage Service\"]\n}\n"
+      },
+      "phase": "90-governance/03-cost-guardrails",
+      "domain": "90-governance"
+    },
+    "90-governance/03-cost-guardrails::CostAnomalyMonitor": {
+      "type": "AWS::CE::AnomalyMonitor",
+      "properties": {
+        "MonitorName": "${ProjectName}-cost-monitor",
+        "MonitorType": "DIMENSIONAL",
+        "MonitorSpecification": "{\n  \"Tags\": {\n    \"Key\": \"Project\",\n    \"Values\": [\"${ProjectName}\"],\n    \"MatchOptions\": [\"EQUALS\"]\n  }\n}\n"
+      },
+      "phase": "90-governance/03-cost-guardrails",
+      "domain": "90-governance"
+    },
+    "90-governance/03-cost-guardrails::CostAnomalySubscription": {
+      "type": "AWS::CE::AnomalySubscription",
+      "properties": {
+        "SubscriptionName": "${ProjectName}-cost-alerts",
+        "MonitorArnList": [
+          "CostAnomalyMonitor"
+        ],
+        "Subscribers": [
+          {
+            "Type": "EMAIL",
+            "Address": "AlertEmail"
+          }
+        ],
+        "Frequency": "DAILY",
+        "Threshold": 10.0
+      },
+      "phase": "90-governance/03-cost-guardrails",
+      "domain": "90-governance"
+    },
+    "00-foundation/11-ial-s3-storage::AdHocTestautodiscoverybucket1761257199": {
+      "type": "AWS::S3::Bucket",
+      "properties": {
+        "BucketName": "test-auto-discovery-bucket-1761257199"
+      },
+      "phase": "00-foundation/11-ial-s3-storage",
+      "domain": "00-foundation"
+    },
+    "00-foundation/14-ial-lambda-functions::UniversalDriftdetector": {
+      "type": "AWS::Lambda::Function",
+      "properties": {
+        "FunctionName": "drift-detector",
+        "Runtime": "python3.11"
+      },
+      "phase": "00-foundation/14-ial-lambda-functions",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::StepFunctionsExecutionRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "${ProjectName}-stepfunctions-execution-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "states.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSXRayDaemonWriteAccess"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "StepFunctionsLambdaInvoke",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "lambda:InvokeFunction"
+                  ],
+                  "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:ial-*"
+                }
+              ]
+            }
+          },
+          {
+            "PolicyName": "StepFunctionsLogging",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/stepfunctions/ial-*"
+                }
+              ]
+            }
+          },
+          {
+            "PolicyName": "CloudWatchMetrics",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudwatch:PutMetricData"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::LambdaExecutionRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "${ProjectName}-lambda-execution-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+          "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "IALOperations",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:CreateChangeSet",
+                    "cloudformation:ExecuteChangeSet",
+                    "cloudformation:DescribeChangeSet",
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:DescribeStackEvents",
+                    "cloudformation:DescribeStackResources",
+                    "cloudformation:GetTemplate",
+                    "cloudformation:ListStackResources"
+                  ],
+                  "Resource": "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/ial-*/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:Query",
+                    "dynamodb:Scan"
+                  ],
+                  "Resource": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/ial-*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter"
+                  ],
+                  "Resource": "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ial/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:ListBucket"
+                  ],
+                  "Resource": [
+                    "arn:aws:s3:::ial-*",
+                    "arn:aws:s3:::ial-*/*"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::PhasePipelineStateMachine": {
+      "type": "AWS::StepFunctions::StateMachine",
+      "properties": {
+        "StateMachineName": "${ProjectName}-phase-pipeline",
+        "StateMachineType": "STANDARD",
+        "RoleArn": "StepFunctionsExecutionRole.Arn",
+        "LoggingConfiguration": {
+          "Level": "ALL",
+          "IncludeExecutionData": true,
+          "Destinations": [
+            {
+              "CloudWatchLogsLogGroup": {
+                "LogGroupArn": "PhasePipelineLogGroup.Arn"
+              }
+            }
+          ]
+        },
+        "TracingConfiguration": {
+          "Enabled": true
+        },
+        "DefinitionString": "{\n  \"Comment\": \"IAL Phase Pipeline with Circuit Breaker and SAGA Pattern\",\n  \"StartAt\": \"CircuitBreakerCheck\",\n  \"States\": {\n    \"CircuitBreakerCheck\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::lambda:invoke\",\n      \"Parameters\": {\n        \"FunctionName\": \"ial-circuit-guard-lambda\",\n        \"Payload.$\": \"$\"\n      },\n      \"ResultPath\": \"$.circuit\",\n      \"Next\": \"CircuitChoice\",\n      \"Retry\": [{\"ErrorEquals\": [\"States.ALL\"], \"IntervalSeconds\": 2, \"BackoffRate\": 2.0, \"MaxAttempts\": 3}]\n    },\n    \"CircuitChoice\": {\n      \"Type\": \"Choice\",\n      \"Choices\": [{\"Variable\": \"$.circuit.Payload.circuit\", \"StringEquals\": \"OPEN\", \"Next\": \"CircuitOpen\"}],\n      \"Default\": \"PlanPhase\"\n    },\n    \"CircuitOpen\": {\n      \"Type\": \"Fail\",\n      \"Cause\": \"Circuit breaker is open\",\n      \"Error\": \"CircuitBreakerOpen\"\n    },\n    \"PlanPhase\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::lambda:invoke\",\n      \"Parameters\": {\"FunctionName\": \"ial-plan-lambda\", \"Payload.$\": \"$\"},\n      \"ResultPath\": \"$.plan\",\n      \"Next\": \"ApplyChangeSet\",\n      \"Retry\": [{\"ErrorEquals\": [\"States.ALL\"], \"IntervalSeconds\": 5, \"BackoffRate\": 2.0, \"MaxAttempts\": 3}],\n      \"Catch\": [{\"ErrorEquals\": [\"States.ALL\"], \"Next\": \"RollbackSaga\"}]\n    },\n    \"ApplyChangeSet\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::lambda:invoke\",\n      \"Parameters\": {\"FunctionName\": \"ial-apply-lambda\", \"Payload.$\": \"$\"},\n      \"ResultPath\": \"$.apply\",\n      \"Next\": \"AuditValidator\",\n      \"Retry\": [{\"ErrorEquals\": [\"States.ALL\"], \"IntervalSeconds\": 10, \"BackoffRate\": 2.0, \"MaxAttempts\": 3}],\n      \"Catch\": [{\"ErrorEquals\": [\"States.ALL\"], \"Next\": \"RollbackSaga\"}]\n    },\n    \"AuditValidator\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::lambda:invoke\",\n      \"Parameters\": {\"FunctionName\": \"ial-audit-validator-lambda\", \"Payload.$\": \"$\"},\n      \"ResultPath\": \"$.audit\",\n      \"Next\": \"PublishMetrics\",\n      \"Catch\": [{\"ErrorEquals\": [\"States.ALL\"], \"Next\": \"RollbackSaga\"}]\n    },\n    \"PublishMetrics\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::aws-sdk:cloudwatch:putMetricData\",\n      \"Parameters\": {\n        \"Namespace\": \"IAL/Pipeline\",\n        \"MetricData\": [{\"MetricName\": \"PipelineSuccess\", \"Value\": 1, \"Unit\": \"Count\"}]\n      },\n      \"End\": true\n    },\n    \"RollbackSaga\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::lambda:invoke\",\n      \"Parameters\": {\"FunctionName\": \"ial-rollback-lambda\", \"Payload.$\": \"$\"},\n      \"End\": true\n    }\n  }\n}\n"
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::DriftAutoHealStateMachine": {
+      "type": "AWS::StepFunctions::StateMachine",
+      "properties": {
+        "StateMachineName": "${ProjectName}-drift-autoheal",
+        "StateMachineType": "EXPRESS",
+        "RoleArn": "StepFunctionsExecutionRole.Arn",
+        "LoggingConfiguration": {
+          "Level": "ERROR",
+          "IncludeExecutionData": false,
+          "Destinations": [
+            {
+              "CloudWatchLogsLogGroup": {
+                "LogGroupArn": "DriftAutoHealLogGroup.Arn"
+              }
+            }
+          ]
+        },
+        "DefinitionString": "{\n  \"Comment\": \"IAL Drift Auto-Heal Express Workflow\",\n  \"StartAt\": \"DetectDrift\",\n  \"States\": {\n    \"DetectDrift\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::lambda:invoke\",\n      \"Parameters\": {\"FunctionName\": \"ial-drift-detect-lambda\", \"Payload.$\": \"$\"},\n      \"ResultPath\": \"$.drift\",\n      \"Next\": \"DriftChoice\"\n    },\n    \"DriftChoice\": {\n      \"Type\": \"Choice\",\n      \"Choices\": [\n        {\"Variable\": \"$.drift.Payload.safe\", \"BooleanEquals\": true, \"Next\": \"AutoReconcile\"},\n        {\"Variable\": \"$.drift.Payload.detected\", \"BooleanEquals\": false, \"Next\": \"NoDrift\"}\n      ],\n      \"Default\": \"GeneratePR\"\n    },\n    \"NoDrift\": {\n      \"Type\": \"Pass\",\n      \"Result\": \"No drift detected\",\n      \"End\": true\n    },\n    \"AutoReconcile\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::lambda:invoke\",\n      \"Parameters\": {\"FunctionName\": \"ial-drift-reconcile-lambda\", \"Payload.$\": \"$\"},\n      \"Next\": \"PublishReconcileMetrics\"\n    },\n    \"GeneratePR\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::lambda:invoke\",\n      \"Parameters\": {\"FunctionName\": \"ial-reverse-sync-lambda\", \"Payload.$\": \"$\"},\n      \"Next\": \"PublishPRMetrics\"\n    },\n    \"PublishReconcileMetrics\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::aws-sdk:cloudwatch:putMetricData\",\n      \"Parameters\": {\n        \"Namespace\": \"IAL/Drift\",\n        \"MetricData\": [{\"MetricName\": \"Reconciled\", \"Value\": 1, \"Unit\": \"Count\"}]\n      },\n      \"End\": true\n    },\n    \"PublishPRMetrics\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:states:::aws-sdk:cloudwatch:putMetricData\",\n      \"Parameters\": {\n        \"Namespace\": \"IAL/Drift\", \n        \"MetricData\": [{\"MetricName\": \"PRGenerated\", \"Value\": 1, \"Unit\": \"Count\"}]\n      },\n      \"End\": true\n    }\n  }\n}\n"
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::PhasePipelineLogGroup": {
+      "type": "AWS::Logs::LogGroup",
+      "properties": {
+        "LogGroupName": "/aws/stepfunctions/${ProjectName}-phase-pipeline",
+        "RetentionInDays": 14
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::DriftAutoHealLogGroup": {
+      "type": "AWS::Logs::LogGroup",
+      "properties": {
+        "LogGroupName": "/aws/stepfunctions/${ProjectName}-drift-autoheal",
+        "RetentionInDays": 7
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::DriftScannerRule": {
+      "type": "AWS::Events::Rule",
+      "properties": {
+        "Name": "${ProjectName}-drift-scanner",
+        "Description": "Trigger drift detection every 15 minutes",
+        "ScheduleExpression": "rate(15 minutes)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": "DriftAutoHealStateMachine",
+            "Id": "DriftAutoHealTarget",
+            "RoleArn": "EventBridgeRole.Arn",
+            "Input": "{\n  \"scope\": \"global\",\n  \"region\": \"us-east-1\",\n  \"source\": \"eventbridge-scheduler\"\n}\n"
+          }
+        ]
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::EventBridgeRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "${ProjectName}-eventbridge-stepfunctions-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "StepFunctionsExecution",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "states:StartExecution",
+                  "Resource": "DriftAutoHealStateMachine"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::CircuitBreakerState": {
+      "type": "AWS::SSM::Parameter",
+      "properties": {
+        "Name": "/ial/circuit_breaker/state",
+        "Type": "String",
+        "Value": "closed",
+        "Description": "Circuit breaker state (closed/half_open/open)"
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::CircuitBreakerMaxInflight": {
+      "type": "AWS::SSM::Parameter",
+      "properties": {
+        "Name": "/ial/circuit_breaker/max_inflight",
+        "Type": "String",
+        "Value": "3",
+        "Description": "Maximum concurrent executions"
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/09-stepfunctions-orchestrator::CircuitBreakerRetryAfter": {
+      "type": "AWS::SSM::Parameter",
+      "properties": {
+        "Name": "/ial/circuit_breaker/retry_after_sec",
+        "Type": "String",
+        "Value": "120",
+        "Description": "Retry after seconds when circuit is open"
+      },
+      "phase": "00-foundation/09-stepfunctions-orchestrator",
+      "domain": "00-foundation"
+    },
+    "00-foundation/07-conversation-memory::ConversationHistoryTable": {
+      "type": "AWS::DynamoDB::Table",
+      "properties": {
+        "TableName": "${ProjectName}-conversation-history",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "user_id",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "sort_key",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "user_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "sort_key",
+            "KeyType": "RANGE"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "ttl",
+          "Enabled": true
+        },
+        "StreamSpecification": {
+          "StreamViewType": "NEW_AND_OLD_IMAGES"
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          },
+          {
+            "Key": "Environment",
+            "Value": "Environment"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "ConversationHistory"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "IaL-Framework"
+          }
+        ]
+      },
+      "phase": "00-foundation/07-conversation-memory",
+      "domain": "00-foundation"
+    },
+    "00-foundation/07-conversation-memory::UserSessionsTable": {
+      "type": "AWS::DynamoDB::Table",
+      "properties": {
+        "TableName": "${ProjectName}-user-sessions",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "user_id",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "session_id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "user_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "session_id",
+            "KeyType": "RANGE"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "ttl",
+          "Enabled": true
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          },
+          {
+            "Key": "Environment",
+            "Value": "Environment"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "UserSessions"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "IaL-Framework"
+          }
+        ]
+      },
+      "phase": "00-foundation/07-conversation-memory",
+      "domain": "00-foundation"
+    },
+    "00-foundation/07-conversation-memory::ContextWindowsTable": {
+      "type": "AWS::DynamoDB::Table",
+      "properties": {
+        "TableName": "${ProjectName}-context-windows",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "user_id",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "window_id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "user_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "window_id",
+            "KeyType": "RANGE"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "ttl",
+          "Enabled": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          },
+          {
+            "Key": "Environment",
+            "Value": "Environment"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "ContextWindows"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "IaL-Framework"
+          }
+        ]
+      },
+      "phase": "00-foundation/07-conversation-memory",
+      "domain": "00-foundation"
+    },
+    "00-foundation/07-conversation-memory::TokenUsageTable": {
+      "type": "AWS::DynamoDB::Table",
+      "properties": {
+        "TableName": "${ProjectName}-token-usage",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "user_id",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date_hour",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "user_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date_hour",
+            "KeyType": "RANGE"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "ttl",
+          "Enabled": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          },
+          {
+            "Key": "Environment",
+            "Value": "Environment"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "TokenUsageTracking"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "IaL-Framework"
+          }
+        ]
+      },
+      "phase": "00-foundation/07-conversation-memory",
+      "domain": "00-foundation"
+    },
+    "00-foundation/07-conversation-memory::ConversationCacheTable": {
+      "type": "AWS::DynamoDB::Table",
+      "properties": {
+        "TableName": "${ProjectName}-conversation-cache",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "cache_key",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "cache_key",
+            "KeyType": "HASH"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "ttl",
+          "Enabled": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          },
+          {
+            "Key": "Environment",
+            "Value": "Environment"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "ConversationCache"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "IaL-Framework"
+          }
+        ]
+      },
+      "phase": "00-foundation/07-conversation-memory",
+      "domain": "00-foundation"
+    },
+    "00-foundation/07-conversation-memory::BedrockConversationRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "${ProjectName}-bedrock-conversation-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com",
+                  "ecs-tasks.amazonaws.com"
+                ]
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "BedrockConversationPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:InvokeModel",
+                    "bedrock:InvokeModelWithResponseStream"
+                  ],
+                  "Resource": [
+                    "arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
+                    "arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:Query",
+                    "dynamodb:Scan"
+                  ],
+                  "Resource": [
+                    "ConversationHistoryTable.Arn",
+                    "UserSessionsTable.Arn",
+                    "ContextWindowsTable.Arn",
+                    "TokenUsageTable.Arn",
+                    "ConversationCacheTable.Arn"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "phase": "00-foundation/07-conversation-memory",
+      "domain": "00-foundation"
+    },
+    "00-foundation/07-conversation-memory::ConversationDashboard": {
+      "type": "AWS::CloudWatch::Dashboard",
+      "properties": {
+        "DashboardName": "${ProjectName}-conversation-monitoring",
+        "DashboardBody": "{\n  \"widgets\": [\n    {\n      \"type\": \"text\",\n      \"x\": 0,\n      \"y\": 0,\n      \"width\": 24,\n      \"height\": 2,\n      \"properties\": {\n        \"markdown\": \"# 🧠 IaL Conversation Monitoring Dashboard\\n**Real-time Bedrock conversation analytics and cost tracking**\"\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"x\": 0,\n      \"y\": 2,\n      \"width\": 12,\n      \"height\": 6,\n      \"properties\": {\n        \"metrics\": [\n          [\"AWS/DynamoDB\", \"ConsumedReadCapacityUnits\", \"TableName\", \"${ProjectName}-conversation-history\"],\n          [\".\", \"ConsumedWriteCapacityUnits\", \".\", \".\"],\n          [\".\", \"ConsumedReadCapacityUnits\", \"TableName\", \"${ProjectName}-user-sessions\"],\n          [\".\", \"ConsumedWriteCapacityUnits\", \".\", \".\"]\n        ],\n        \"view\": \"timeSeries\",\n        \"stacked\": false,\n        \"region\": \"${AWS::Region}\",\n        \"title\": \"📊 DynamoDB Usage\",\n        \"period\": 300,\n        \"stat\": \"Sum\"\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"x\": 12,\n      \"y\": 2,\n      \"width\": 12,\n      \"height\": 6,\n      \"properties\": {\n        \"metrics\": [\n          [\"IaL/Conversations\", \"TokensUsed\", \"Model\", \"sonnet\"],\n          [\".\", \".\", \".\", \"haiku\"],\n          [\".\", \"ConversationCount\"],\n          [\".\", \"AverageResponseTime\"]\n        ],\n        \"view\": \"timeSeries\",\n        \"stacked\": false,\n        \"region\": \"${AWS::Region}\",\n        \"title\": \"🤖 Bedrock Usage\",\n        \"period\": 300,\n        \"stat\": \"Sum\"\n      }\n    }\n  ]\n}\n"
+      },
+      "phase": "00-foundation/07-conversation-memory",
+      "domain": "00-foundation"
+    },
+    "00-foundation/08-rag-storage::RAGStorageBucket": {
+      "type": "AWS::S3::Bucket",
+      "properties": {
+        "BucketName": "ial-rag-store-${Environment}-${AWS::AccountId}",
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "aws:kms",
+                "KMSMasterKeyID": "RAGKMSKey"
+              },
+              "BucketKeyEnabled": true
+            }
+          ]
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "DeleteOldVersions",
+              "Status": "Enabled",
+              "NoncurrentVersionExpirationInDays": 30
+            },
+            {
+              "Id": "DeleteIncompleteMultipartUploads",
+              "Status": "Enabled",
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 7
+              }
+            }
+          ]
+        },
+        "NotificationConfiguration": {
+          "CloudWatchConfigurations": [
+            {
+              "Event": "s3:ObjectCreated:*",
+              "CloudWatchConfiguration": {
+                "LogGroupName": "RAGLogGroup"
+              }
+            }
+          ]
+        }
+      },
+      "phase": "00-foundation/08-rag-storage",
+      "domain": "00-foundation"
+    },
+    "00-foundation/08-rag-storage::RAGKMSKey": {
+      "type": "AWS::KMS::Key",
+      "properties": {
+        "Description": "KMS Key for IaL RAG storage encryption",
+        "KeyPolicy": {
+          "Statement": [
+            {
+              "Sid": "Enable IAM User Permissions",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "arn:aws:iam::${AWS::AccountId}:root"
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            },
+            {
+              "Sid": "Allow RAG service access",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "RAGServiceRole.Arn"
+              },
+              "Action": [
+                "kms:Decrypt",
+                "kms:DescribeKey",
+                "kms:Encrypt",
+                "kms:GenerateDataKey",
+                "kms:ReEncrypt*"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+      },
+      "phase": "00-foundation/08-rag-storage",
+      "domain": "00-foundation"
+    },
+    "00-foundation/08-rag-storage::RAGKMSKeyAlias": {
+      "type": "AWS::KMS::Alias",
+      "properties": {
+        "AliasName": "alias/ial-rag-encryption",
+        "TargetKeyId": "RAGKMSKey"
+      },
+      "phase": "00-foundation/08-rag-storage",
+      "domain": "00-foundation"
+    },
+    "00-foundation/08-rag-storage::RAGServiceRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "IaL-RAG-ServiceRole-${Environment}",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com",
+                  "ecs-tasks.amazonaws.com"
+                ]
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "RAGStorageAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:ListBucket"
+                  ],
+                  "Resource": [
+                    "RAGStorageBucket.Arn",
+                    "${RAGStorageBucket.Arn}/*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:InvokeModel",
+                    "bedrock:ListFoundationModels"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt",
+                    "kms:DescribeKey",
+                    "kms:Encrypt",
+                    "kms:GenerateDataKey"
+                  ],
+                  "Resource": "RAGKMSKey.Arn"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "phase": "00-foundation/08-rag-storage",
+      "domain": "00-foundation"
+    },
+    "00-foundation/08-rag-storage::RAGLogGroup": {
+      "type": "AWS::Logs::LogGroup",
+      "properties": {
+        "LogGroupName": "/aws/ial/rag/${Environment}",
+        "RetentionInDays": 30
+      },
+      "phase": "00-foundation/08-rag-storage",
+      "domain": "00-foundation"
+    },
+    "00-foundation/10-ial-dynamodb-tables::UniversalTesttable": {
+      "type": "AWS::DynamoDB::Table",
+      "properties": {},
+      "phase": "00-foundation/10-ial-dynamodb-tables",
+      "domain": "00-foundation"
+    },
+    "00-foundation/10-ial-dynamodb-tables::UniversalMcpprovisioningchecklist": {
+      "type": "AWS::DynamoDB::Table",
+      "properties": {
+        "TableName": "mcp-provisioning-checklist"
+      },
+      "phase": "00-foundation/10-ial-dynamodb-tables",
+      "domain": "00-foundation"
+    },
+    "00-foundation/05-chaos-engineering::FISExecutionRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "${ProjectName}-fis-execution-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "fis.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSFaultInjectionSimulatorNetworkAccess",
+          "arn:aws:iam::aws:policy/service-role/AWSFaultInjectionSimulatorECSAccess",
+          "arn:aws:iam::aws:policy/service-role/AWSFaultInjectionSimulatorEC2Access"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "FISChaosPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeInstances",
+                    "ec2:StopInstances",
+                    "ec2:RebootInstances",
+                    "ecs:DescribeServices",
+                    "ecs:UpdateService",
+                    "ecs:DescribeTasks",
+                    "ecs:StopTask",
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                    "cloudwatch:PutMetricData"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "phase": "00-foundation/05-chaos-engineering",
+      "domain": "00-foundation"
+    },
+    "00-foundation/05-chaos-engineering::NetworkLatencyExperiment": {
+      "type": "AWS::FIS::ExperimentTemplate",
+      "properties": {
+        "Description": "Network latency injection for resilience testing",
+        "RoleArn": "FISExecutionRole.Arn",
+        "Actions": {
+          "NetworkLatency": {
+            "ActionId": "aws:network:latency-sources",
+            "Parameters": {
+              "duration": "PT5M",
+              "latencyMs": "100",
+              "jitterMs": "50"
+            },
+            "Targets": {
+              "Subnets": "NetworkTargets"
+            }
+          }
+        },
+        "Targets": {
+          "NetworkTargets": {
+            "ResourceType": "aws:ec2:subnet",
+            "ResourceTags": {
+              "Environment": "Environment"
+            },
+            "SelectionMode": "PERCENT(50)"
+          }
+        },
+        "StopConditions": [
+          {
+            "Source": "aws:cloudwatch:alarm",
+            "Value": "ChaosStopCondition"
+          }
+        ],
+        "Tags": {
+          "Name": "${ProjectName}-network-latency",
+          "Environment": "Environment",
+          "Type": "chaos-engineering"
+        }
+      },
+      "phase": "00-foundation/05-chaos-engineering",
+      "domain": "00-foundation"
+    },
+    "00-foundation/05-chaos-engineering::InstanceTerminationExperiment": {
+      "type": "AWS::FIS::ExperimentTemplate",
+      "properties": {
+        "Description": "Random instance termination for auto-recovery testing",
+        "RoleArn": "FISExecutionRole.Arn",
+        "Actions": {
+          "StopInstances": {
+            "ActionId": "aws:ec2:stop-instances",
+            "Parameters": {
+              "startInstancesAfterDuration": "PT10M"
+            },
+            "Targets": {
+              "Instances": "InstanceTargets"
+            }
+          }
+        },
+        "Targets": {
+          "InstanceTargets": {
+            "ResourceType": "aws:ec2:instance",
+            "ResourceTags": {
+              "Environment": "Environment",
+              "ChaosEnabled": "true"
+            },
+            "SelectionMode": "COUNT(1)"
+          }
+        },
+        "StopConditions": [
+          {
+            "Source": "aws:cloudwatch:alarm",
+            "Value": "ChaosStopCondition"
+          }
+        ],
+        "Tags": {
+          "Name": "${ProjectName}-instance-termination",
+          "Environment": "Environment",
+          "Type": "chaos-engineering"
+        }
+      },
+      "phase": "00-foundation/05-chaos-engineering",
+      "domain": "00-foundation"
+    },
+    "00-foundation/05-chaos-engineering::ECSTaskTerminationExperiment": {
+      "type": "AWS::FIS::ExperimentTemplate",
+      "properties": {
+        "Description": "ECS task termination for service resilience testing",
+        "RoleArn": "FISExecutionRole.Arn",
+        "Actions": {
+          "StopTasks": {
+            "ActionId": "aws:ecs:stop-task",
+            "Parameters": {
+              "reason": "Chaos engineering test"
+            },
+            "Targets": {
+              "Tasks": "ECSTaskTargets"
+            }
+          }
+        },
+        "Targets": {
+          "ECSTaskTargets": {
+            "ResourceType": "aws:ecs:task",
+            "ResourceTags": {
+              "Environment": "Environment"
+            },
+            "SelectionMode": "PERCENT(25)"
+          }
+        },
+        "StopConditions": [
+          {
+            "Source": "aws:cloudwatch:alarm",
+            "Value": "ChaosStopCondition"
+          }
+        ],
+        "Tags": {
+          "Name": "${ProjectName}-ecs-task-termination",
+          "Environment": "Environment",
+          "Type": "chaos-engineering"
+        }
+      },
+      "phase": "00-foundation/05-chaos-engineering",
+      "domain": "00-foundation"
+    },
+    "00-foundation/05-chaos-engineering::ChaosStopCondition": {
+      "type": "AWS::CloudWatch::Alarm",
+      "properties": {
+        "AlarmName": "${ProjectName}-chaos-stop-condition",
+        "AlarmDescription": "Stop chaos experiments if system becomes unhealthy",
+        "MetricName": "HealthyHostCount",
+        "Namespace": "AWS/ApplicationELB",
+        "Statistic": "Average",
+        "Period": 60,
+        "EvaluationPeriods": 2,
+        "Threshold": 1,
+        "ComparisonOperator": "LessThanThreshold",
+        "TreatMissingData": "breaching"
+      },
+      "phase": "00-foundation/05-chaos-engineering",
+      "domain": "00-foundation"
+    },
+    "00-foundation/05-chaos-engineering::ChaosNotificationTopic": {
+      "type": "AWS::SNS::Topic",
+      "properties": {
+        "TopicName": "${ProjectName}-chaos-notifications",
+        "DisplayName": "IaL Chaos Engineering Notifications"
+      },
+      "phase": "00-foundation/05-chaos-engineering",
+      "domain": "00-foundation"
+    },
+    "00-foundation/05-chaos-engineering::ChaosLogGroup": {
+      "type": "AWS::Logs::LogGroup",
+      "properties": {
+        "LogGroupName": "/aws/fis/${ProjectName}-chaos",
+        "RetentionInDays": 30
+      },
+      "phase": "00-foundation/05-chaos-engineering",
+      "domain": "00-foundation"
+    },
+    "00-foundation/05-chaos-engineering::ChaosMetricsNamespace": {
+      "type": "AWS::CloudWatch::CompositeAlarm",
+      "properties": {
+        "AlarmName": "${ProjectName}-chaos-health-composite",
+        "AlarmDescription": "Composite alarm for chaos engineering health",
+        "AlarmRule": "ALARM(\"${ChaosStopCondition}\") OR\nALARM(\"${ProjectName}-high-error-rate\") OR\nALARM(\"${ProjectName}-high-latency\")\n"
+      },
+      "phase": "00-foundation/05-chaos-engineering",
+      "domain": "00-foundation"
+    },
+    "40-data/03-aurora-postgresql-secure::AuroraCluster": {
+      "type": "AWS::RDS::DBCluster",
+      "properties": {
+        "DBClusterIdentifier": "${ProjectName}-aurora-cluster",
+        "Engine": "aurora-postgresql",
+        "EngineVersion": "15.4",
+        "EngineMode": "provisioned",
+        "ManageMasterUserPassword": true,
+        "MasterUserSecret": {
+          "SecretArn": {
+            "Fn::Sub": "${ProjectName}-aurora-secret-arn"
+          },
+          "KmsKeyId": "alias/aws/secretsmanager"
+        },
+        "MasterUsername": "postgres",
+        "AssociatedRoles": [
+          {
+            "RoleArn": {
+              "Fn::Sub": "${ProjectName}-aurora-secrets-role-arn"
+            },
+            "FeatureName": "s3Import"
+          }
+        ],
+        "DBSubnetGroupName": "AuroraSubnetGroup",
+        "VpcSecurityGroupIds": [
+          "AuroraSecurityGroup"
+        ],
+        "BackupRetentionPeriod": 7,
+        "PreferredBackupWindow": "03:00-04:00",
+        "PreferredMaintenanceWindow": "sun:04:00-sun:05:00",
+        "EnableCloudwatchLogsExports": [
+          "postgresql"
+        ],
+        "MonitoringInterval": 60,
+        "MonitoringRoleArn": "AuroraMonitoringRole.Arn",
+        "StorageEncrypted": true,
+        "KmsKeyId": "alias/aws/rds",
+        "DeletionProtection": true,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "ConversationStorage"
+          },
+          {
+            "Key": "Security",
+            "Value": "SecretsManager"
+          }
+        ]
+      },
+      "phase": "40-data/03-aurora-postgresql-secure",
+      "domain": "40-data"
+    },
+    "40-data/03-aurora-postgresql-secure::AuroraInstance": {
+      "type": "AWS::RDS::DBInstance",
+      "properties": {
+        "DBInstanceIdentifier": "${ProjectName}-aurora-instance-1",
+        "DBClusterIdentifier": "AuroraCluster",
+        "DBInstanceClass": "db.r6g.large",
+        "Engine": "aurora-postgresql",
+        "PubliclyAccessible": false,
+        "EnablePerformanceInsights": true,
+        "PerformanceInsightsRetentionPeriod": 7,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          }
+        ]
+      },
+      "phase": "40-data/03-aurora-postgresql-secure",
+      "domain": "40-data"
+    },
+    "40-data/03-aurora-postgresql-secure::AuroraSubnetGroup": {
+      "type": "AWS::RDS::DBSubnetGroup",
+      "properties": {
+        "DBSubnetGroupName": "${ProjectName}-aurora-subnet-group",
+        "DBSubnetGroupDescription": "Subnet group for Aurora PostgreSQL cluster",
+        "SubnetIds": [
+          {
+            "Fn::Sub": "${ProjectName}-private-subnet-1"
+          },
+          {
+            "Fn::Sub": "${ProjectName}-private-subnet-2"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          }
+        ]
+      },
+      "phase": "40-data/03-aurora-postgresql-secure",
+      "domain": "40-data"
+    },
+    "40-data/03-aurora-postgresql-secure::AuroraSecurityGroup": {
+      "type": "AWS::EC2::SecurityGroup",
+      "properties": {
+        "GroupName": "${ProjectName}-aurora-sg",
+        "GroupDescription": "Security group for Aurora PostgreSQL cluster",
+        "VpcId": {
+          "Fn::Sub": "${ProjectName}-vpc-id"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "SourceSecurityGroupId": {
+              "Fn::Sub": "${ProjectName}-lambda-sg"
+            },
+            "Description": "PostgreSQL access from Lambda functions"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "SourceSecurityGroupId": {
+              "Fn::Sub": "${ProjectName}-ecs-sg"
+            },
+            "Description": "PostgreSQL access from ECS services"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0",
+            "Description": "HTTPS outbound for Secrets Manager API calls"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          }
+        ]
+      },
+      "phase": "40-data/03-aurora-postgresql-secure",
+      "domain": "40-data"
+    },
+    "40-data/03-aurora-postgresql-secure::AuroraMonitoringRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "${ProjectName}-aurora-monitoring-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "monitoring.rds.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+        ]
+      },
+      "phase": "40-data/03-aurora-postgresql-secure",
+      "domain": "40-data"
+    },
+    "10-security/03-secrets-manager::AuroraSecret": {
+      "type": "AWS::SecretsManager::Secret",
+      "properties": {
+        "Name": "${ProjectName}-aurora-master-secret",
+        "Description": "Aurora PostgreSQL master credentials with automatic rotation",
+        "GenerateSecretString": {
+          "SecretStringTemplate": "{\"username\": \"postgres\"}",
+          "GenerateStringKey": "password",
+          "PasswordLength": 32,
+          "ExcludeCharacters": "\"@/\\\\",
+          "RequireEachIncludedType": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "DatabaseCredentials"
+          },
+          {
+            "Key": "Environment",
+            "Value": "Environment"
+          }
+        ]
+      },
+      "phase": "10-security/03-secrets-manager",
+      "domain": "10-security"
+    },
+    "10-security/03-secrets-manager::AuroraSecretsManagerRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "${ProjectName}-aurora-secrets-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "rds.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "AuroraSecretsManagerAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret"
+                  ],
+                  "Resource": "AuroraSecret"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt"
+                  ],
+                  "Resource": [
+                    "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": "secretsmanager.${AWS::Region}.amazonaws.com"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "phase": "10-security/03-secrets-manager",
+      "domain": "10-security"
+    },
+    "10-security/03-secrets-manager::SecretRotationLambda": {
+      "type": "AWS::Lambda::Function",
+      "properties": {
+        "FunctionName": "${ProjectName}-aurora-secret-rotation",
+        "Runtime": "python3.11",
+        "Handler": "lambda_function.lambda_handler",
+        "Role": "SecretRotationRole.Arn",
+        "Timeout": 300,
+        "Environment": {
+          "Variables": {
+            "SECRETS_MANAGER_ENDPOINT": "https://secretsmanager.${AWS::Region}.amazonaws.com"
+          }
+        },
+        "Code": {
+          "ZipFile": "import boto3\nimport json\nimport logging\nimport os\nimport psycopg2\n\nlogger = logging.getLogger()\nlogger.setLevel(logging.INFO)\n\ndef lambda_handler(event, context):\n    \"\"\"Aurora PostgreSQL secret rotation handler\"\"\"\n    \n    service = boto3.client('secretsmanager')\n    \n    arn = event['Step1']['SecretId']\n    token = event['Step1']['ClientRequestToken']\n    step = event['Step1']['Step']\n    \n    logger.info(f\"Rotating secret {arn} step {step}\")\n    \n    if step == \"createSecret\":\n        create_secret(service, arn, token)\n    elif step == \"setSecret\":\n        set_secret(service, arn, token)\n    elif step == \"testSecret\":\n        test_secret(service, arn, token)\n    elif step == \"finishSecret\":\n        finish_secret(service, arn, token)\n    else:\n        raise ValueError(f\"Invalid step parameter: {step}\")\n    \n    return {\"message\": f\"Secret rotation step {step} completed\"}\n\ndef create_secret(service, arn, token):\n    \"\"\"Create new secret version\"\"\"\n    try:\n        service.get_secret_value(SecretId=arn, VersionId=token, VersionStage=\"AWSPENDING\")\n        logger.info(\"Secret already exists for this rotation\")\n    except service.exceptions.ResourceNotFoundException:\n        # Generate new password\n        service.update_secret_version_stage(\n            SecretId=arn,\n            VersionStage=\"AWSPENDING\",\n            ClientRequestToken=token\n        )\n        logger.info(\"Created new secret version\")\n\ndef set_secret(service, arn, token):\n    \"\"\"Set secret in database\"\"\"\n    logger.info(\"Setting secret in database\")\n    # Get new secret\n    new_secret = service.get_secret_value(SecretId=arn, VersionId=token, VersionStage=\"AWSPENDING\")\n    new_creds = json.loads(new_secret['SecretString'])\n    \n    # Get current secret for connection\n    current_secret = service.get_secret_value(SecretId=arn, VersionStage=\"AWSCURRENT\")\n    current_creds = json.loads(current_secret['SecretString'])\n    \n    # Update password in Aurora\n    try:\n        conn = psycopg2.connect(\n            host=current_creds['host'],\n            port=current_creds['port'],\n            database=current_creds['dbname'],\n            user=current_creds['username'],\n            password=current_creds['password'],\n            sslmode='require'\n        )\n        \n        cursor = conn.cursor()\n        cursor.execute(f\"ALTER USER {new_creds['username']} PASSWORD %s\", (new_creds['password'],))\n        conn.commit()\n        cursor.close()\n        conn.close()\n        \n        logger.info(\"Password updated in database\")\n    except Exception as e:\n        logger.error(f\"Failed to update password: {e}\")\n        raise\n    \ndef test_secret(service, arn, token):\n    \"\"\"Test new secret\"\"\"\n    logger.info(\"Testing new secret\")\n    new_secret = service.get_secret_value(SecretId=arn, VersionId=token, VersionStage=\"AWSPENDING\")\n    new_creds = json.loads(new_secret['SecretString'])\n    \n    try:\n        conn = psycopg2.connect(\n            host=new_creds['host'],\n            port=new_creds['port'],\n            database=new_creds['dbname'],\n            user=new_creds['username'],\n            password=new_creds['password'],\n            sslmode='require'\n        )\n        conn.close()\n        logger.info(\"New secret test successful\")\n    except Exception as e:\n        logger.error(f\"New secret test failed: {e}\")\n        raise\n    \ndef finish_secret(service, arn, token):\n    \"\"\"Finish rotation\"\"\"\n    service.update_secret_version_stage(\n        SecretId=arn,\n        VersionStage=\"AWSCURRENT\",\n        MoveToVersionId=token\n    )\n    logger.info(\"Finished secret rotation\")\n"
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ProjectName"
+          }
+        ]
+      },
+      "phase": "10-security/03-secrets-manager",
+      "domain": "10-security"
+    },
+    "10-security/03-secrets-manager::SecretRotationRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "${ProjectName}-secret-rotation-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "SecretsManagerRotationPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:DescribeSecret",
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:PutSecretValue",
+                    "secretsmanager:UpdateSecretVersionStage"
+                  ],
+                  "Resource": "AuroraSecret"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "rds:DescribeDBClusters",
+                    "rds:DescribeDBInstances",
+                    "rds:ModifyDBCluster",
+                    "rds:ModifyDBInstance"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DetachNetworkInterface"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt"
+                  ],
+                  "Resource": [
+                    "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": "secretsmanager.${AWS::Region}.amazonaws.com"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "phase": "10-security/03-secrets-manager",
+      "domain": "10-security"
+    },
+    "10-security/03-secrets-manager::LambdaSecretsAccessRole": {
+      "type": "AWS::IAM::Role",
+      "properties": {
+        "RoleName": "${ProjectName}-lambda-secrets-access-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "SecretsManagerReadAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret"
+                  ],
+                  "Resource": "AuroraSecret"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt"
+                  ],
+                  "Resource": [
+                    "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": "secretsmanager.${AWS::Region}.amazonaws.com"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "phase": "10-security/03-secrets-manager",
+      "domain": "10-security"
+    },
+    "10-security/03-secrets-manager::SecretRotationSchedule": {
+      "type": "AWS::SecretsManager::RotationSchedule",
+      "properties": {
+        "SecretId": "AuroraSecret",
+        "RotationLambdaArn": "SecretRotationLambda.Arn",
+        "RotationInterval": 30,
+        "RotationImmediate": false
+      },
+      "phase": "10-security/03-secrets-manager",
+      "domain": "10-security"
+    }
+  },
+  "dependencies": {},
+  "tags": {
+    "ial:version": "3.1",
+    "ial:generated-by": "compatible-desired-state-builder"
+  }
+}

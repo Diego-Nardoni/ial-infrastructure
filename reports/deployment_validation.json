@@ -1,0 +1,177 @@
+{
+  "timestamp": "2025-10-24T12:16:42.329685+00:00",
+  "expected_total": 68,
+  "created_total": 9,
+  "completion_rate": 13.23529411764706,
+  "status": "INCOMPLETE",
+  "missing_resources": [
+    {
+      "phase": "01b-cost-guardrails",
+      "missing_count": 4,
+      "expected": 4,
+      "created": 0
+    },
+    {
+      "phase": "11b-aurora-postgresql-secure",
+      "missing_count": 5,
+      "expected": 5,
+      "created": 0
+    },
+    {
+      "phase": "00-dynamodb-state",
+      "missing_count": 1,
+      "expected": 2,
+      "created": 1
+    },
+    {
+      "phase": "04b-secrets-manager",
+      "missing_count": 6,
+      "expected": 6,
+      "created": 0
+    },
+    {
+      "phase": "17-rag-s3-tables",
+      "missing_count": 5,
+      "expected": 5,
+      "created": 0
+    },
+    {
+      "phase": "08-s3-storage",
+      "missing_count": 1,
+      "expected": 1,
+      "created": 0
+    },
+    {
+      "phase": "16-drift-detection",
+      "missing_count": 4,
+      "expected": 4,
+      "created": 0
+    },
+    {
+      "phase": "01-kms-security",
+      "missing_count": 1,
+      "expected": 1,
+      "created": 0
+    },
+    {
+      "phase": "03-networking",
+      "missing_count": 25,
+      "expected": 25,
+      "created": 0
+    },
+    {
+      "phase": "02-security-services",
+      "missing_count": 6,
+      "expected": 6,
+      "created": 0
+    },
+    {
+      "phase": "04-parameter-store",
+      "missing_count": 3,
+      "expected": 3,
+      "created": 0
+    }
+  ],
+  "phase_analysis": {
+    "01b-cost-guardrails": {
+      "expected": 4,
+      "created": 0,
+      "status": "INCOMPLETE",
+      "completion_rate": 0.0
+    },
+    "14-step-functions": {
+      "expected": 1,
+      "created": 1,
+      "status": "COMPLETE",
+      "completion_rate": 100.0
+    },
+    "11b-aurora-postgresql-secure": {
+      "expected": 5,
+      "created": 0,
+      "status": "INCOMPLETE",
+      "completion_rate": 0.0
+    },
+    "00-dynamodb-state": {
+      "expected": 2,
+      "created": 1,
+      "status": "INCOMPLETE",
+      "completion_rate": 50.0
+    },
+    "04b-secrets-manager": {
+      "expected": 6,
+      "created": 0,
+      "status": "INCOMPLETE",
+      "completion_rate": 0.0
+    },
+    "17-rag-s3-tables": {
+      "expected": 5,
+      "created": 0,
+      "status": "INCOMPLETE",
+      "completion_rate": 0.0
+    },
+    "08-s3-storage": {
+      "expected": 1,
+      "created": 0,
+      "status": "INCOMPLETE",
+      "completion_rate": 0.0
+    },
+    "13-lambda-functions": {
+      "expected": 1,
+      "created": 1,
+      "status": "COMPLETE",
+      "completion_rate": 100.0
+    },
+    "12-dynamodb-tables": {
+      "expected": 2,
+      "created": 2,
+      "status": "COMPLETE",
+      "completion_rate": 100.0
+    },
+    "16-drift-detection": {
+      "expected": 4,
+      "created": 0,
+      "status": "INCOMPLETE",
+      "completion_rate": 0.0
+    },
+    "99-budgets-resources": {
+      "expected": 1,
+      "created": 1,
+      "status": "COMPLETE",
+      "completion_rate": 100.0
+    },
+    "01-kms-security": {
+      "expected": 1,
+      "created": 0,
+      "status": "INCOMPLETE",
+      "completion_rate": 0.0
+    },
+    "03-networking": {
+      "expected": 25,
+      "created": 0,
+      "status": "INCOMPLETE",
+      "completion_rate": 0.0
+    },
+    "02-security-services": {
+      "expected": 6,
+      "created": 0,
+      "status": "INCOMPLETE",
+      "completion_rate": 0.0
+    },
+    "15-sns-topics": {
+      "expected": 1,
+      "created": 1,
+      "status": "COMPLETE",
+      "completion_rate": 100.0
+    },
+    "04-parameter-store": {
+      "expected": 3,
+      "created": 0,
+      "status": "INCOMPLETE",
+      "completion_rate": 0.0
+    }
+  },
+  "issues": [
+    "Deployment incomplete: 13.2% complete",
+    "11 phases have missing resources"
+  ]
+}

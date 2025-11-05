@@ -1,0 +1,146 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IaL Enhanced Validation Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f0f0f0; padding: 20px; border-radius: 5px; }
+        .summary { display: flex; gap: 20px; margin: 20px 0; }
+        .metric { background: #e8f4fd; padding: 15px; border-radius: 5px; text-align: center; }
+        .resources { margin: 20px 0; }
+        .resource { background: #f9f9f9; padding: 10px; margin: 5px 0; border-radius: 3px; }
+        .status-created { color: green; }
+        .status-failed { color: red; }
+        .console-link { color: #0066cc; text-decoration: none; }
+        .recommendations { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏗️ IaL Enhanced Validation Report</h1>
+        <p><strong>Generated:</strong> 2025-10-24T11:31:04.026892</p>
+        <p><strong>Account:</strong> 221082174220 | <strong>Region:</strong> us-east-1</p>
+    </div>
+    
+    <div class="summary">
+        <div class="metric">
+            <h3>8</h3>
+            <p>Total Resources</p>
+        </div>
+        <div class="metric">
+            <h3>7</h3>
+            <p>Created</p>
+        </div>
+        <div class="metric">
+            <h3>$184.05</h3>
+            <p>Monthly Cost</p>
+        </div>
+    </div>
+    
+    <h2>📋 Resources</h2>
+    <div class="resources">
+
+        <div class="resource">
+            <strong>TestStateMachine</strong> (AWS::StepFunctions::StateMachine)
+            <span class="status-created">● Created</span>
+            <br>
+            <small>
+                ARN: arn:aws:stepfunctions:us-east-1:221082174220:resource/TestStateMachine<br>
+                Cost: $0.00 - $1.00 | 
+                <a href="https://us-east-1.console.aws.amazon.com/console/home?region=us-east-1" class="console-link" target="_blank">View in Console</a>
+            </small>
+        </div>
+
+        <div class="resource">
+            <strong>TestTable</strong> (AWS::DynamoDB::Table)
+            <span class="status-created">● Created</span>
+            <br>
+            <small>
+                ARN: arn:aws:dynamodb:us-east-1:221082174220:table/TestTable<br>
+                Cost: $1.00 - $10.00 | 
+                <a href="https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#table?name=TestTable" class="console-link" target="_blank">View in Console</a>
+            </small>
+        </div>
+
+        <div class="resource">
+            <strong>drift-detector</strong> (AWS::Lambda::Function)
+            <span class="status-created">● Created</span>
+            <br>
+            <small>
+                ARN: arn:aws:lambda:us-east-1:221082174220:function:drift-detector<br>
+                Cost: $0.10 - $2.00 | 
+                <a href="https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/drift-detector" class="console-link" target="_blank">View in Console</a>
+            </small>
+        </div>
+
+        <div class="resource">
+            <strong>ial-alerts-critical</strong> (AWS::SNS::Topic)
+            <span class="status-created">● Created</span>
+            <br>
+            <small>
+                ARN: arn:aws:sns:us-east-1:221082174220:ial-alerts-critical<br>
+                Cost: $0.01 - $1.00 | 
+                <a href="https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn%3Aaws%3Asns%3Aus-east-1%3A221082174220%3Aial-alerts-critical" class="console-link" target="_blank">View in Console</a>
+            </small>
+        </div>
+
+        <div class="resource">
+            <strong>ial-aurora-master-secret</strong> (AWS::Secretsmanager::Resource)
+            <span class="status-created">● Created</span>
+            <br>
+            <small>
+                ARN: arn:aws:secretsmanager:us-east-1:221082174220:resource/ial-aurora-master-secret<br>
+                Cost: $0.00 - $1.00 | 
+                <a href="https://us-east-1.console.aws.amazon.com/console/home?region=us-east-1" class="console-link" target="_blank">View in Console</a>
+            </small>
+        </div>
+
+        <div class="resource">
+            <strong>ial-aurora-master-secret-04b</strong> (AWS::Secretsmanager::Resource)
+            <span class="status-created">● Created</span>
+            <br>
+            <small>
+                ARN: arn:aws:secretsmanager:us-east-1:221082174220:resource/ial-aurora-master-secret-04b<br>
+                Cost: $0.00 - $1.00 | 
+                <a href="https://us-east-1.console.aws.amazon.com/console/home?region=us-east-1" class="console-link" target="_blank">View in Console</a>
+            </small>
+        </div>
+
+        <div class="resource">
+            <strong>mcp-provisioning-checklist</strong> (AWS::DynamoDB::Table)
+            <span class="status-created">● Created</span>
+            <br>
+            <small>
+                ARN: arn:aws:dynamodb:us-east-1:221082174220:table/mcp-provisioning-checklist<br>
+                Cost: $1.00 - $10.00 | 
+                <a href="https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#table?name=mcp-provisioning-checklist" class="console-link" target="_blank">View in Console</a>
+            </small>
+        </div>
+
+        <div class="resource">
+            <strong>test-auto-discovery-bucket-1761257199</strong> (AWS::S3::Bucket)
+            <span class="status-deleted">● Deleted</span>
+            <br>
+            <small>
+                ARN: arn:aws:s3:::test-auto-discovery-bucket-1761257199<br>
+                Cost: $0.50 - $5.00 | 
+                <a href="https://us-east-1.console.aws.amazon.com/s3/buckets/test-auto-discovery-bucket-1761257199" class="console-link" target="_blank">View in Console</a>
+            </small>
+        </div>
+
+    </div>
+    
+    <h2>💡 Recommendations</h2>
+    <div class="recommendations">
+
+        <div>
+            <strong>Enable Encryption</strong> (security)<br>
+            1 resources may not have encryption enabled<br>
+            <em>Action: Review and enable encryption for sensitive resources</em>
+        </div>
+        <br>
+
+    </div>
+</body>
+</html>
