@@ -1,18 +1,20 @@
-# PHASE 00C - ENHANCED OBSERVABILITY
-# Professional monitoring and observability for IaL operations
+# PHASE 23: IAL CORE OBSERVABILITY
+# Monitoramento essencial do próprio funcionamento do IAL
+# Dependências: 02-logging-infrastructure
+# Custo: $8/mês
 
-phase: "00c-enhanced-observability"
-description: "Enhanced observability with CloudWatch, X-Ray, and custom metrics"
-depends_on: ["00-logging-infrastructure"]
-estimated_cost_monthly: 11.77
+phase: "23-ial-core-observability"
+description: "Core observability for IAL operations monitoring"
+depends_on: ["02-logging-infrastructure"]
+estimated_cost_monthly: 8.00
 resource_count: 8
 
 resources:
-  # CloudWatch Dashboard for IaL Operations
-  IaLOperationsDashboard:
+  # CloudWatch Dashboard for IAL Core Operations
+  IaLCoreOperationsDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: IaL-Enhanced-Operations
+      DashboardName: IaL-Core-Operations
       DashboardBody: !Sub |
         {
           "widgets": [
@@ -29,16 +31,18 @@ resources:
                   [ ".", "ValidationSuccess", ".", "." ],
                   [ ".", "ValidationFailure", ".", "." ]
                 ],
-                "period": 300,
-                "stat": "Sum",
+                "view": "timeSeries",
+                "stacked": false,
                 "region": "us-east-1",
-                "title": "IaL Operations Metrics"
+                "stat": "Sum",
+                "period": 300,
+                "title": "IAL Core Operations Metrics"
               }
             },
             {
               "type": "metric",
-              "x": 12,
-              "y": 0,
+              "x": 0,
+              "y": 6,
               "width": 12,
               "height": 6,
               "properties": {
@@ -47,22 +51,24 @@ resources:
                   [ ".", "ValidationDuration", ".", "." ],
                   [ ".", "RollbackDuration", ".", "." ]
                 ],
-                "period": 300,
-                "stat": "Average",
+                "view": "timeSeries",
+                "stacked": false,
                 "region": "us-east-1",
-                "title": "Performance Metrics"
+                "stat": "Average",
+                "period": 300,
+                "title": "IAL Performance Metrics"
               }
             },
             {
               "type": "log",
               "x": 0,
-              "y": 6,
+              "y": 12,
               "width": 24,
               "height": 6,
               "properties": {
                 "query": "SOURCE 'ial-infrastructure'\n| fields @timestamp, level, message, phase, event_type\n| filter level = \"ERROR\"\n| sort @timestamp desc\n| limit 20",
                 "region": "us-east-1",
-                "title": "Recent Errors"
+                "title": "IAL Core Errors"
               }
             }
           ]
@@ -71,14 +77,16 @@ resources:
         - Key: Project
           Value: ial
         - Key: Purpose
-          Value: enhanced-observability
+          Value: core-observability
+        - Key: Component
+          Value: dashboard
 
-  # CloudWatch Alarms for Critical Operations
-  DeploymentFailureAlarm:
+  # Core IAL Alarms
+  IaLCoreDeploymentFailuresAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: IaL-Deployment-Failures
-      AlarmDescription: Alert when deployment failures occur
+      AlarmName: IaL-Core-Deployment-Failures
+      AlarmDescription: Alert when IAL core deployment failures occur
       MetricName: DeploymentFailure
       Namespace: IaL/Operations
       Statistic: Sum
@@ -87,14 +95,14 @@ resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !Ref IaLAlertsSnsTopic
+        - !Ref IaLCoreAlertsSnsTopic
       TreatMissingData: notBreaching
 
-  ValidationFailureAlarm:
+  IaLCoreValidationFailuresAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: IaL-Validation-Failures
-      AlarmDescription: Alert when validation failures occur
+      AlarmName: IaL-Core-Validation-Failures
+      AlarmDescription: Alert when IAL core validation failures occur
       MetricName: ValidationFailure
       Namespace: IaL/Operations
       Statistic: Sum
@@ -103,46 +111,46 @@ resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !Ref IaLAlertsSnsTopic
+        - !Ref IaLCoreAlertsSnsTopic
       TreatMissingData: notBreaching
 
-  HighDeploymentDurationAlarm:
+  IaLCoreHighDeploymentDurationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: IaL-High-Deployment-Duration
-      AlarmDescription: Alert when deployments take too long
+      AlarmName: IaL-Core-High-Deployment-Duration
+      AlarmDescription: Alert when IAL core deployments take too long
       MetricName: DeploymentDuration
       Namespace: IaL/Performance
       Statistic: Average
       Period: 300
       EvaluationPeriods: 2
-      Threshold: 1800  # 30 minutes
+      Threshold: 1800
       ComparisonOperator: GreaterThanThreshold
       AlarmActions:
-        - !Ref IaLAlertsSnsTopic
+        - !Ref IaLCoreAlertsSnsTopic
       TreatMissingData: notBreaching
 
-  LowCompletionRateAlarm:
+  IaLCoreLowCompletionRateAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: IaL-Low-Completion-Rate
-      AlarmDescription: Alert when completion rate drops below 95%
+      AlarmName: IaL-Core-Low-Completion-Rate
+      AlarmDescription: Alert when IAL core completion rate drops below 95%
       MetricName: CompletionRate
       Namespace: IaL/Operations
       Statistic: Average
       Period: 900
-      EvaluationPeriods: 1
+      EvaluationPeriods: 2
       Threshold: 95
       ComparisonOperator: LessThanThreshold
       AlarmActions:
-        - !Ref IaLAlertsSnsTopic
+        - !Ref IaLCoreAlertsSnsTopic
       TreatMissingData: notBreaching
 
-  RollbackTriggeredAlarm:
+  IaLCoreRollbackTriggeredAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: IaL-Rollback-Triggered
-      AlarmDescription: Alert when automatic rollback is triggered
+      AlarmName: IaL-Core-Rollback-Triggered
+      AlarmDescription: Alert when IAL core automatic rollback is triggered
       MetricName: RollbackTriggered
       Namespace: IaL/Operations
       Statistic: Sum
@@ -151,27 +159,29 @@ resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !Ref IaLAlertsSnsTopic
+        - !Ref IaLCoreAlertsSnsTopic
       TreatMissingData: notBreaching
 
-  # SNS Topic for Alerts
-  IaLAlertsSnsTopic:
+  # SNS Topic for IAL Core Alerts
+  IaLCoreAlertsSnsTopic:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: ial-enhanced-alerts
-      DisplayName: IaL Enhanced Observability Alerts
+      TopicName: ial-core-alerts
+      DisplayName: IAL Core System Alerts
       Tags:
         - Key: Project
           Value: ial
         - Key: Purpose
-          Value: alerting
+          Value: core-alerting
+        - Key: Component
+          Value: sns
 
-  # X-Ray Tracing Configuration
-  XRayTracingConfig:
+  # X-Ray Tracing for IAL Core
+  IaLCoreTracingRule:
     Type: AWS::XRay::SamplingRule
     Properties:
       SamplingRule:
-        RuleName: IaL-Tracing-Rule
+        RuleName: IaL-Core-Tracing-Rule
         Priority: 9000
         FixedRate: 0.1
         ReservoirSize: 1
@@ -182,35 +192,36 @@ resources:
         URLPath: "*"
         Version: 1
 
-  # Container Insights Configuration (for ECS)
-  ContainerInsightsLogGroup:
+  # Container Insights Log Group for IAL Core
+  IaLCoreContainerInsightsLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/containerinsights/ial-cluster/performance
+      LogGroupName: /aws/containerinsights/ial-core/performance
       RetentionInDays: 7
       KmsKeyId: !Ref IaLKMSKey
       Tags:
         - Key: Project
           Value: ial
         - Key: Purpose
-          Value: container-insights
+          Value: core-container-insights
+        - Key: Component
+          Value: logs
 
-# CloudFormation Outputs
-Outputs:
-  DashboardURL:
-    Description: URL to the enhanced operations dashboard
-    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=IaL-Enhanced-Operations"
+outputs:
+  CoreDashboardURL:
+    Description: URL to the IAL core operations dashboard
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=IaL-Core-Operations"
     Export:
-      Name: !Sub "${AWS::StackName}-DashboardURL"
-  
-  AlertsTopicArn:
-    Description: ARN of the alerts SNS topic
-    Value: !Ref IaLAlertsSnsTopic
+      Name: !Sub "${AWS::StackName}-CoreDashboardURL"
+
+  CoreAlertsTopicArn:
+    Description: ARN of the IAL core alerts SNS topic
+    Value: !Ref IaLCoreAlertsSnsTopic
     Export:
-      Name: !Sub "${AWS::StackName}-AlertsTopicArn"
-  
-  XRayTracingEnabled:
-    Description: X-Ray tracing configuration status
-    Value: "Enabled with 10% sampling rate"
+      Name: !Sub "${AWS::StackName}-CoreAlertsTopicArn"
+
+  CoreTracingRuleArn:
+    Description: ARN of the IAL core X-Ray tracing rule
+    Value: !GetAtt IaLCoreTracingRule.RuleArn
     Export:
-      Name: !Sub "${AWS::StackName}-XRayStatus"
+      Name: !Sub "${AWS::StackName}-CoreTracingRuleArn"

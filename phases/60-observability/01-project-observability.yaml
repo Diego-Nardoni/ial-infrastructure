@@ -1,0 +1,162 @@
+# PHASE 60A: PROJECT OBSERVABILITY
+# Observabilidade específica do projeto/workload (não do core IAL)
+# Dependências: foundation, compute, data, application
+# Custo: $25/mês
+
+phase: "60a-project-observability"
+description: "Project-specific observability and monitoring"
+depends_on: ["30-compute", "40-data", "50-application"]
+estimated_cost_monthly: 25.00
+resource_count: 6
+
+resources:
+  # Project-specific CloudWatch Dashboard
+  ProjectObservabilityDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${AWS::StackName}-Project-Observability"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/ECS", "CPUUtilization", "ServiceName", "${AWS::StackName}-service" ],
+                  [ ".", "MemoryUtilization", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "us-east-1",
+                "stat": "Average",
+                "period": 300,
+                "title": "ECS Service Metrics"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/ApplicationELB", "RequestCount", "LoadBalancer", "${AWS::StackName}-alb" ],
+                  [ ".", "TargetResponseTime", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "us-east-1",
+                "stat": "Sum",
+                "period": 300,
+                "title": "ALB Metrics"
+              }
+            }
+          ]
+        }
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Purpose
+          Value: project-observability
+
+  # Project Critical Alerts SNS Topic
+  ProjectCriticalAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-critical-alerts"
+      DisplayName: !Sub "${AWS::StackName} Critical Alerts"
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Purpose
+          Value: project-alerting
+
+  # High CPU Utilization Alarm
+  ProjectHighCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-High-CPU-Utilization"
+      AlarmDescription: Alert when ECS service CPU utilization is high
+      MetricName: CPUUtilization
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ServiceName
+          Value: !Sub "${AWS::StackName}-service"
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref ProjectCriticalAlertsTopic
+      TreatMissingData: notBreaching
+
+  # High Memory Utilization Alarm
+  ProjectHighMemoryAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-High-Memory-Utilization"
+      AlarmDescription: Alert when ECS service memory utilization is high
+      MetricName: MemoryUtilization
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ServiceName
+          Value: !Sub "${AWS::StackName}-service"
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 85
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref ProjectCriticalAlertsTopic
+      TreatMissingData: notBreaching
+
+  # ALB High Response Time Alarm
+  ProjectHighResponseTimeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-High-Response-Time"
+      AlarmDescription: Alert when ALB response time is high
+      MetricName: TargetResponseTime
+      Namespace: AWS/ApplicationELB
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Sub "${AWS::StackName}-alb"
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 2
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref ProjectCriticalAlertsTopic
+      TreatMissingData: notBreaching
+
+  # Custom Application Log Group
+  ProjectApplicationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/ecs/${AWS::StackName}/application"
+      RetentionInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Purpose
+          Value: application-logs
+
+outputs:
+  ProjectDashboardURL:
+    Description: URL to the project observability dashboard
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${AWS::StackName}-Project-Observability"
+    Export:
+      Name: !Sub "${AWS::StackName}-ProjectDashboardURL"
+
+  ProjectAlertsTopicArn:
+    Description: ARN of the project alerts SNS topic
+    Value: !Ref ProjectCriticalAlertsTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-ProjectAlertsTopicArn"
