@@ -576,9 +576,11 @@ def validate_github_access(config):
         if response.status_code == 200:
             repo_data = response.json()
             # Check if it's a fork of the original repo
-            if repo_data.get('fork') and 'Diego-Nardoni/ial-infrastructure' in repo_data.get('full_name', ''):
-                return True
-            elif 'Diego-Nardoni/ial-infrastructure' == repo_data.get('full_name'):
+            if repo_data.get('fork'):
+                parent = repo_data.get('parent', {})
+                if parent.get('full_name') == 'Diego-Nardoni/ial-infrastructure':
+                    return True
+            elif repo_data.get('full_name') == 'Diego-Nardoni/ial-infrastructure':
                 return True  # Original repo
         
         return False
