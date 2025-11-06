@@ -560,28 +560,62 @@ def interactive_mode():
         except Exception as e:
             print(f"❌ Error: {e}")
 
-# Example usage and testing
-if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == 'interactive':
+def configure_ial():
+    """Configure IAL with user settings"""
+    print("🔧 IAL Configuration Setup")
+    print("=" * 30)
+    
+    config = {}
+    
+    # AWS Configuration
+    config['AWS_ACCOUNT_ID'] = input("AWS Account ID: ").strip()
+    config['AWS_REGION'] = input("AWS Region [us-east-1]: ").strip() or "us-east-1"
+    
+    # Project Configuration
+    config['PROJECT_NAME'] = input("Project Name: ").strip()
+    config['EXECUTOR_NAME'] = input("Your Name: ").strip()
+    
+    # Repository Configuration
+    default_repo = "https://github.com/Diego-Nardoni/ial-infrastructure"
+    config['GITHUB_REPOSITORY'] = input(f"GitHub Repository [{default_repo}]: ").strip() or default_repo
+    
+    # Save configuration
+    config_path = "/etc/ial/parameters.env"
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    
+    with open(config_path, 'w') as f:
+        f.write("# IAL Configuration\n")
+        for key, value in config.items():
+            f.write(f"{key}={value}\n")
+    
+    print(f"\n✅ Configuration saved to {config_path}")
+    print("🚀 IAL is now ready to use!")
+
+def main():
+    """Main entry point for IAL"""
+    if len(sys.argv) < 2:
+        print("Usage: ialctl <command>")
+        print("Commands:")
+        print("  configure    - Configure IAL settings")
+        print("  interactive  - Start interactive mode")
+        print("  \"<command>\"  - Execute infrastructure command")
+        return
+    
+    command = sys.argv[1]
+    
+    if command == 'configure':
+        configure_ial()
+    elif command == 'interactive':
         interactive_mode()
     else:
+        # Process infrastructure command
         processor = IaLNaturalProcessor()
+        user_id = "user-" + str(uuid.uuid4())[:8]
         
-        # Test examples
-        test_inputs = [
-            "Hello, I need help with my infrastructure",
-            "Deploy the security infrastructure for production",
-            "Show me the current status of all deployments",
-            "How do I secure my database?",
-            "Rollback the compute changes from yesterday",
-            "What's the best practice for networking?"
-        ]
-        
-        print("🧠 IaL Natural Language Processor v3.0 Test")
-        print("=" * 50)
-        
-        test_user_id = "test-user-123"
-        for i, test_input in enumerate(test_inputs):
-            print(f"\n👤 User: {test_input}")
-            response = processor.process_command(test_input, test_user_id)
-            print(f"🤖 IaL: {response}")
+        # Join all arguments as the command
+        full_command = ' '.join(sys.argv[1:])
+        response = processor.process_command(full_command, user_id)
+        print(f"🤖 IaL: {response}")
+
+if __name__ == "__main__":
+    main()
