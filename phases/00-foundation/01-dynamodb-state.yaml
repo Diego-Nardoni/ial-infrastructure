@@ -41,14 +41,14 @@ resources:
           Key=ManagedBy,Value=MCP \
           Key=Purpose,Value=Checklist-State-Tracking \
           Key=Environment,Value=POC \
-          Key=Project,Value={{PROJECT_NAME}}
+          Key=Project,Value=test-project
     
     # IaL v2.0: Enable TTL for auto-release of locks
     post_creation_ttl: |
       aws dynamodb update-time-to-live \
         --table-name mcp-provisioning-checklist \
         --time-to-live-specification "Enabled=true, AttributeName=TTL" \
-        --region {{AWS_REGION}}
+        --region us-east-1
     
     verification: |
       aws dynamodb describe-table --table-name mcp-provisioning-checklist --query 'Table.TableStatus'
@@ -76,7 +76,7 @@ resources:
           "Version": "2012-10-17",
           "Statement": [{
             "Effect": "Allow",
-            "Principal": {"AWS": "arn:aws:iam::{{AWS_ACCOUNT_ID}}:root"},
+            "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
             "Action": "sts:AssumeRole"
           }]
         }'
@@ -96,8 +96,8 @@ resources:
               "dynamodb:Scan"
             ],
             "Resource": [
-              "arn:aws:dynamodb:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:table/mcp-provisioning-checklist",
-              "arn:aws:dynamodb:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:table/mcp-provisioning-checklist/index/*"
+              "arn:aws:dynamodb:us-east-1:123456789012:table/mcp-provisioning-checklist",
+              "arn:aws:dynamodb:us-east-1:123456789012:table/mcp-provisioning-checklist/index/*"
             ]
           }]
         }'
@@ -111,12 +111,12 @@ post_creation:
     aws dynamodb put-item \
       --table-name mcp-provisioning-checklist \
       --item '{
-        "Project": {"S": "{{PROJECT_NAME}}"},
+        "Project": {"S": "test-project"},
         "ResourceName": {"S": "PROJECT_INITIALIZATION"},
         "Status": {"S": "Started"},
-        "Executor": {"S": "{{EXECUTOR_NAME}}"},
+        "Executor": {"S": "John Doe"},
         "LastUpdated": {"S": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"},
-        "Region": {"S": "{{AWS_REGION}}"},
+        "Region": {"S": "us-east-1"},
         "Version": {"N": "1"},
         "DesiredState": {"S": "{}"},
         "CurrentState": {"S": "{}"},
@@ -132,7 +132,7 @@ control_commands:
       aws dynamodb scan \
         --table-name mcp-provisioning-checklist \
         --filter-expression "Project = :p" \
-        --expression-attribute-values '{":p":{"S":"{{PROJECT_NAME}}"}}' \
+        --expression-attribute-values '{":p":{"S":"test-project"}}' \
         --query "Items[?Status.S=='Verified'] | length(@)" \
         --output text
       
@@ -147,7 +147,7 @@ control_commands:
         --key-condition-expression "Project = :p" \
         --filter-expression "#s = :status" \
         --expression-attribute-names '{"#s":"Status"}' \
-        --expression-attribute-values '{":p":{"S":"{{PROJECT_NAME}}"},":status":{"S":"Verified"}}' \
+        --expression-attribute-values '{":p":{"S":"test-project"},":status":{"S":"Verified"}}' \
         --query "Items[].ResourceName.S"
   
   reset:
@@ -156,7 +156,7 @@ control_commands:
     implementation: |
       aws dynamodb update-item \
         --table-name mcp-provisioning-checklist \
-        --key '{"Project":{"S":"{{PROJECT_NAME}}"},"ResourceName":{"S":"[RESOURCE_NAME]"}}' \
+        --key '{"Project":{"S":"test-project"},"ResourceName":{"S":"[RESOURCE_NAME]"}}' \
         --update-expression "SET #s=:status" \
         --expression-attribute-names '{"#s":"Status"}' \
         --expression-attribute-values '{":status":{"S":"Pending"}}'
@@ -168,7 +168,7 @@ control_commands:
       aws dynamodb scan \
         --table-name mcp-provisioning-checklist \
         --filter-expression "Project = :p" \
-        --expression-attribute-values '{":p":{"S":"{{PROJECT_NAME}}"}}' \
+        --expression-attribute-values '{":p":{"S":"test-project"}}' \
         --query "Items[].[ResourceName.S, Status.S, LastUpdated.S, Version.N]"
   
   rollback:
@@ -181,7 +181,7 @@ control_commands:
         --key-condition-expression "Project = :p" \
         --filter-expression "#s = :status" \
         --expression-attribute-names '{"#s":"Status"}' \
-        --expression-attribute-values '{":p":{"S":"{{PROJECT_NAME}}"},":status":{"S":"Created"}}' \
+        --expression-attribute-values '{":p":{"S":"test-project"},":status":{"S":"Created"}}' \
         --query "Items[].[ResourceName.S, ARN.S]"
 
 # Fluxo obrigatório para cada recurso
@@ -192,12 +192,12 @@ resource_workflow:
       aws dynamodb put-item \
         --table-name mcp-provisioning-checklist \
         --item '{
-          "Project": {"S": "{{PROJECT_NAME}}"},
+          "Project": {"S": "test-project"},
           "ResourceName": {"S": "[RESOURCE_NAME]"},
           "Status": {"S": "Pending"},
-          "Executor": {"S": "{{EXECUTOR_NAME}}"},
+          "Executor": {"S": "John Doe"},
           "LastUpdated": {"S": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"},
-          "Region": {"S": "{{AWS_REGION}}"},
+          "Region": {"S": "us-east-1"},
           "Version": {"N": "1"}
         }'
   
@@ -206,7 +206,7 @@ resource_workflow:
     command: |
       aws dynamodb update-item \
         --table-name mcp-provisioning-checklist \
-        --key '{"Project":{"S":"{{PROJECT_NAME}}"},"ResourceName":{"S":"[RESOURCE_NAME]"}}' \
+        --key '{"Project":{"S":"test-project"},"ResourceName":{"S":"[RESOURCE_NAME]"}}' \
         --update-expression "SET #s=:status, #t=:time, #arn=:arn ADD Version :v" \
         --expression-attribute-names '{"#s":"Status","#t":"LastUpdated","#arn":"ARN"}' \
         --expression-attribute-values '{
@@ -221,7 +221,7 @@ resource_workflow:
     command: |
       aws dynamodb update-item \
         --table-name mcp-provisioning-checklist \
-        --key '{"Project":{"S":"{{PROJECT_NAME}}"},"ResourceName":{"S":"[RESOURCE_NAME]"}}' \
+        --key '{"Project":{"S":"test-project"},"ResourceName":{"S":"[RESOURCE_NAME]"}}' \
         --update-expression "SET #s=:status, #t=:time ADD Version :v" \
         --expression-attribute-names '{"#s":"Status","#t":"LastUpdated"}' \
         --expression-attribute-values '{
@@ -235,7 +235,7 @@ resource_workflow:
     command: |
       aws dynamodb update-item \
         --table-name mcp-provisioning-checklist \
-        --key '{"Project":{"S":"{{PROJECT_NAME}}"},"ResourceName":{"S":"[RESOURCE_NAME]"}}' \
+        --key '{"Project":{"S":"test-project"},"ResourceName":{"S":"[RESOURCE_NAME]"}}' \
         --update-expression "SET #s=:status, #t=:time, #err=:error ADD Version :v" \
         --expression-attribute-names '{"#s":"Status","#t":"LastUpdated","#err":"ErrorMessage"}' \
         --expression-attribute-values '{
