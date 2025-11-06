@@ -560,6 +560,32 @@ def interactive_mode():
         except Exception as e:
             print(f"❌ Error: {e}")
 
+def validate_github_access(config):
+    """Validate GitHub repository access"""
+    try:
+        import requests
+        headers = {
+            'Authorization': f"token {config['GITHUB_TOKEN']}",
+            'Accept': 'application/vnd.github.v3+json'
+        }
+        
+        # Check repository access
+        url = f"https://api.github.com/repos/{config['GITHUB_USER']}/ial-infrastructure"
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            repo_data = response.json()
+            # Check if it's a fork of the original repo
+            if repo_data.get('fork') and 'Diego-Nardoni/ial-infrastructure' in repo_data.get('full_name', ''):
+                return True
+            elif 'Diego-Nardoni/ial-infrastructure' == repo_data.get('full_name'):
+                return True  # Original repo
+        
+        return False
+    except Exception as e:
+        print(f"⚠️ GitHub validation error: {e}")
+        return False
+
 def configure_ial():
     """Configure IAL with user settings"""
     print("🔧 IAL Configuration Setup")
@@ -575,9 +601,35 @@ def configure_ial():
     config['PROJECT_NAME'] = input("Project Name: ").strip()
     config['EXECUTOR_NAME'] = input("Your Name: ").strip()
     
-    # Repository Configuration
-    default_repo = "https://github.com/Diego-Nardoni/ial-infrastructure"
-    config['GITHUB_REPOSITORY'] = input(f"GitHub Repository [{default_repo}]: ").strip() or default_repo
+    # GitHub Integration Configuration
+    print("\n🔗 GitHub Integration (Required for auto-deployment)")
+    print("Note: You must fork https://github.com/Diego-Nardoni/ial-infrastructure first")
+    
+    github_user = input("GitHub Username: ").strip()
+    if not github_user:
+        print("❌ GitHub username is required")
+        return False
+    
+    config['GITHUB_USER'] = github_user
+    config['GITHUB_REPOSITORY'] = f"https://github.com/{github_user}/ial-infrastructure"
+    
+    github_token = input("GitHub Personal Access Token (ghp_...): ").strip()
+    if not github_token.startswith('ghp_'):
+        print("❌ Invalid GitHub token format (must start with 'ghp_')")
+        return False
+    
+    config['GITHUB_TOKEN'] = github_token
+    
+    # Validate GitHub access
+    print("🔍 Validating GitHub access...")
+    if not validate_github_access(config):
+        print("❌ Cannot access GitHub repository. Please check:")
+        print("  - Repository exists and is a fork of ial-infrastructure")
+        print("  - Token has 'repo' permissions")
+        print("  - Username is correct")
+        return False
+    
+    print("✅ GitHub access validated")
     
     # Save configuration
     config_path = "/etc/ial/parameters.env"

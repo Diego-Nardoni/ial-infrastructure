@@ -24,6 +24,16 @@ except ImportError:
     INTELLIGENT_ROUTER_AVAILABLE = False
     print("⚠️ Intelligent MCP Router não disponível no Master Engine")
 
+# Try to import GitHub Integration modules
+try:
+    from github_integration import GitHubIntegration
+    from intent_parser import IntentParser
+    from template_generator import TemplateGenerator
+    GITHUB_INTEGRATION_AVAILABLE = True
+except ImportError as e:
+    GITHUB_INTEGRATION_AVAILABLE = False
+    print(f"⚠️ GitHub Integration not available: {e}")
+
 class IaLMasterEngine:
     def __init__(self, region='us-east-1'):
         self.region = region
@@ -37,11 +47,26 @@ class IaLMasterEngine:
             except Exception as e:
                 print(f"⚠️ Master Engine: Erro integrando router: {e}")
         
+        # Initialize GitHub Integration if available
+        self.github_integration = None
+        self.intent_parser = None
+        self.template_generator = None
+        
+        if GITHUB_INTEGRATION_AVAILABLE:
+            try:
+                self.github_integration = GitHubIntegration()
+                self.intent_parser = IntentParser()
+                self.template_generator = TemplateGenerator(self.github_integration.config)
+                print("✅ Master Engine: GitHub Integration initialized")
+            except Exception as e:
+                print(f"⚠️ Master Engine: GitHub Integration error: {e}")
+                GITHUB_INTEGRATION_AVAILABLE = False
+        
         self.engines_available = True
         print("🚀 IaL Master Engine initialized - All systems operational")
 
     def process_conversation(self, user_input: str, user_id: str = None, session_id: str = None) -> Dict:
-        """Master conversation processing with intelligent MCP routing"""
+        """Master conversation processing with GitHub integration"""
         
         if not user_id:
             user_id = f"user-{uuid.uuid4().hex[:8]}"
@@ -52,6 +77,10 @@ class IaLMasterEngine:
         start_time = datetime.now()
         
         try:
+            # Check if this is an infrastructure command
+            if self.intent_parser and self.intent_parser.is_infrastructure_command(user_input):
+                return self.process_infrastructure_command(user_input, user_id)
+            
             # Check if this should use intelligent MCP routing
             if self.intelligent_router and self._should_use_intelligent_routing(user_input):
                 return self._process_with_intelligent_routing(user_input, user_id, session_id, start_time)
@@ -65,6 +94,52 @@ class IaLMasterEngine:
                 'error': True,
                 'session_id': session_id,
                 'processing_time': (datetime.now() - start_time).total_seconds()
+            }
+
+    def process_infrastructure_command(self, user_input: str, user_id: str) -> Dict:
+        """Process infrastructure command with GitHub integration"""
+        
+        if not GITHUB_INTEGRATION_AVAILABLE:
+            return {
+                'response': f"🤖 Master Engine processou: {user_input}...",
+                'status': 'fallback',
+                'message': 'GitHub integration not available'
+            }
+        
+        try:
+            # 1. Parse intent from natural language
+            intent = self.intent_parser.parse(user_input)
+            
+            if intent['confidence'] < 0.5:
+                return {
+                    'response': f"🤔 I'm not sure what infrastructure you want to {intent['action']}. Try being more specific, like 'create foundation infrastructure' or 'deploy security phase'.",
+                    'status': 'clarification_needed'
+                }
+            
+            # 2. Generate templates based on intent
+            templates = self.template_generator.generate_from_intent(intent)
+            
+            if not templates:
+                return {
+                    'response': f"❌ Could not generate templates for {intent['domains']}. Please check if the domain is supported.",
+                    'status': 'error'
+                }
+            
+            # 3. Execute via GitHub integration
+            result = self.github_integration.execute_infrastructure_deployment(templates, intent)
+            
+            return {
+                'response': result['response'],
+                'status': result['status'],
+                'intent': intent,
+                'templates_generated': len(templates),
+                **result
+            }
+            
+        except Exception as e:
+            return {
+                'response': f"❌ Infrastructure processing error: {str(e)}",
+                'status': 'error'
             }
 
     def _should_use_intelligent_routing(self, user_input: str) -> bool:
