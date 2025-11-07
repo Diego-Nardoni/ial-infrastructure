@@ -5,7 +5,7 @@ a = Analysis(
     ['natural_language_processor.py'],
     pathex=[],
     binaries=[],
-    datas=[('cdk', 'cdk'), ('lib', 'lib'), ('core', 'core'), ('phases', 'phases')],
+    datas=[('cdk', 'cdk'), ('lib', 'lib'), ('core', 'core'), ('phases', 'phases'), ('mcp-server-config.json', '.')],
     hiddenimports=['boto3', 'yaml', 'openai', 'core.github_integration', 'core.intent_parser', 'core.template_generator', 'core.cdk_deployment_manager', 'lib.ial_master_engine'],
     hookspath=[],
     hooksconfig={},

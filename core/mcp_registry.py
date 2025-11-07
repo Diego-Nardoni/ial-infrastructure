@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 from typing import Dict, List, Optional
 from enum import Enum
@@ -13,7 +14,14 @@ class MCPStatus(Enum):
 
 class MCPRegistry:
     def __init__(self, config_path="mcp-server-config.json"):
-        self.config_path = config_path
+        # Detectar se está executando como binário PyInstaller
+        if hasattr(sys, '_MEIPASS'):
+            # Executando como binário - usar recursos empacotados
+            self.config_path = os.path.join(sys._MEIPASS, config_path)
+        else:
+            # Executando como script - usar caminho relativo
+            self.config_path = config_path
+            
         self.servers = {}
         self.active_servers = {}
         self.load_history = {}
