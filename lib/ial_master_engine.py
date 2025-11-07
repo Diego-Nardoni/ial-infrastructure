@@ -41,11 +41,9 @@ class IaLMasterEngine:
         # Initialize Intelligent MCP Router if available
         self.intelligent_router = None
         if INTELLIGENT_ROUTER_AVAILABLE:
-            try:
-                self.intelligent_router = IntelligentMCPRouter()
-                print("✅ Master Engine: Intelligent MCP Router integrado")
-            except Exception as e:
-                print(f"⚠️ Master Engine: Erro integrando router: {e}")
+            # Reutilizar instância singleton existente
+            self.intelligent_router = IntelligentMCPRouter()
+            print("✅ Master Engine: Intelligent MCP Router integrado")
         
         # Initialize GitHub Integration if available
         self.github_integration = None

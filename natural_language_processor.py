@@ -67,7 +67,6 @@ class IaLNaturalProcessor:
         if INTELLIGENT_ROUTER_AVAILABLE:
             try:
                 self.intelligent_router = IntelligentMCPRouter()
-                print("✅ Intelligent MCP Router inicializado")
             except Exception as e:
                 print(f"⚠️ Erro inicializando Intelligent Router: {e}")
                 self.intelligent_router = None

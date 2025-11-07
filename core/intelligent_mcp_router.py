@@ -15,6 +15,10 @@ from core.mcp_orchestrator import MCPOrchestrator
 from core.mcp_registry import MCPRegistry
 from core.decision_ledger import DecisionLedger
 
+# Singleton global
+_router_instance = None
+_router_initialized = False
+
 @dataclass
 class RoutingDecision:
     user_input: str
@@ -26,7 +30,20 @@ class RoutingDecision:
     processing_time: float
 
 class IntelligentMCPRouter:
+    def __new__(cls):
+        global _router_instance
+        if _router_instance is None:
+            _router_instance = super().__new__(cls)
+        return _router_instance
+    
     def __init__(self):
+        global _router_initialized
+        if _router_initialized:
+            return
+        
+        _router_initialized = True
+        print("🧠 Intelligent MCP Router inicializado")
+        
         # Componentes core
         self.service_detector = ServiceDetector()
         self.domain_mapper = DomainMapper()
@@ -42,8 +59,6 @@ class IntelligentMCPRouter:
         # Cache de decisões
         self.routing_cache = {}
         self.cache_ttl = 300  # 5 minutos
-        
-        print("🧠 Intelligent MCP Router inicializado")
 
     async def route_request(self, user_input: str, context: Dict = None) -> Dict:
         """Rota uma solicitação do usuário para MCPs apropriados"""
