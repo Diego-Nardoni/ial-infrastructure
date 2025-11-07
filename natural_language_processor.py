@@ -682,9 +682,52 @@ def validate_config(config):
     return True
 
 def deploy_foundation_via_cdk(config):
-    """Deploy da infraestrutura via CDK"""
+    """Deploy da infraestrutura via MCP (NEW) com fallback CDK"""
     try:
-        # Import CDK deployment manager
+        # Try MCP Infrastructure Manager first
+        print("🚀 Iniciando deploy da infraestrutura IAL via MCP...")
+        
+        # Check if Intelligent MCP Router is available
+        try:
+            from core.intelligent_mcp_router import IntelligentMCPRouter
+            from core.mcp_infrastructure_manager import MCPInfrastructureManager
+            
+            # Initialize MCP infrastructure manager
+            router = IntelligentMCPRouter()
+            infra_manager = MCPInfrastructureManager(router)
+            
+            # Validate MCP connectivity
+            import asyncio
+            if asyncio.run(infra_manager.validate_mcp_connectivity()):
+                print("✅ MCP servers conectados (Core + Cloud Control)")
+                
+                # Deploy via MCP
+                result = asyncio.run(infra_manager.deploy_ial_infrastructure(config))
+                
+                if result.get('deployment_summary', {}).get('status') == 'success':
+                    print("✅ Infraestrutura IAL criada via MCP!")
+                    
+                    # Show summary
+                    summary = result.get('deployment_summary', {})
+                    print(f"📊 Componentes criados: {summary.get('components_created', 0)}")
+                    print(f"🌐 Região: {summary.get('region', 'N/A')}")
+                    print(f"📋 Projeto: {summary.get('project_name', 'N/A')}")
+                    
+                    return {'success': True, 'method': 'MCP', 'details': result}
+                else:
+                    print(f"❌ Deploy MCP failed: {result.get('error', 'Unknown error')}")
+                    print("🔄 Tentando fallback CDK...")
+                    
+            else:
+                print("⚠️ MCP servers não respondem, usando fallback CDK...")
+                
+        except ImportError as e:
+            print(f"⚠️ MCP não disponível ({e}), usando fallback CDK...")
+        except Exception as e:
+            print(f"⚠️ Erro MCP ({e}), usando fallback CDK...")
+        
+        # Fallback to CDK deployment manager
+        print("📦 Preparando ambiente CDK...")
         import sys
         sys.path.append(os.path.join(os.path.dirname(__file__), 'core'))
         from cdk_deployment_manager import CDKDeploymentManager
