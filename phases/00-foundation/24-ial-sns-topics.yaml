@@ -1,0 +1,85 @@
+# PHASE 24: IAL SNS TOPICS
+# SNS Topics críticos para alertas e notificações do sistema
+# Dependências: Nenhuma (foundation core)
+
+phase: "24-ial-sns-topics"
+description: "SNS Topics for critical alerts and audit notifications"
+depends_on: []
+estimated_cost_monthly: 2.00  # SNS topics + notifications
+resource_count: 4
+
+resources:
+  # SNS Topic para alertas críticos (usado pelo drift detector)
+  AlertsCriticalTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-alerts-critical'
+      DisplayName: 'IAL Critical Alerts'
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: alerts
+        - Key: Purpose
+          Value: critical-notifications
+
+  # SNS Topic para alertas de auditoria
+  AuditAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-audit-alerts'
+      DisplayName: 'IAL Audit Alerts'
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: audit
+        - Key: Purpose
+          Value: audit-notifications
+
+  # Subscription para alertas críticos (email placeholder)
+  AlertsCriticalSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AlertsCriticalTopic
+      Protocol: email
+      Endpoint: admin@example.com  # Será substituído durante deploy
+      FilterPolicy:
+        severity: ["CRITICAL", "HIGH"]
+
+  # Subscription para alertas de auditoria
+  AuditAlertsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AuditAlertsTopic
+      Protocol: email
+      Endpoint: audit@example.com  # Será substituído durante deploy
+      FilterPolicy:
+        event_type: ["VALIDATION_FAILURE", "COMPLIANCE_VIOLATION"]
+
+Outputs:
+  AlertsCriticalTopicArn:
+    Description: ARN of the critical alerts SNS topic
+    Value: !Ref AlertsCriticalTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-AlertsCriticalTopicArn'
+
+  AuditAlertsTopicArn:
+    Description: ARN of the audit alerts SNS topic
+    Value: !Ref AuditAlertsTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-AuditAlertsTopicArn'
+
+  AlertsCriticalTopicName:
+    Description: Name of the critical alerts SNS topic
+    Value: !GetAtt AlertsCriticalTopic.TopicName
+    Export:
+      Name: !Sub '${AWS::StackName}-AlertsCriticalTopicName'
+
+  AuditAlertsTopicName:
+    Description: Name of the audit alerts SNS topic
+    Value: !GetAtt AuditAlertsTopic.TopicName
+    Export:
+      Name: !Sub '${AWS::StackName}-AuditAlertsTopicName'

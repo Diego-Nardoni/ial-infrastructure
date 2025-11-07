@@ -237,7 +237,7 @@ class ComplianceEnforcer:
             """
             
             sns.publish(
-                TopicArn="arn:aws:sns:us-east-1:123456789012:ial-audit-alerts",
+                TopicArn=f"arn:aws:sns:{os.environ.get('AWS_REGION', 'us-east-1')}:{os.environ.get('AWS_ACCOUNT_ID')}:{os.environ.get('PROJECT_NAME', 'ial')}-audit-alerts",
                 Message=message,
                 Subject="IAL Audit Validation Failed"
             )

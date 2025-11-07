@@ -25,13 +25,13 @@ except ImportError:
     print("⚠️ Intelligent MCP Router não disponível no Master Engine")
 
 # Try to import GitHub Integration modules
+GITHUB_INTEGRATION_AVAILABLE = False
 try:
     from github_integration import GitHubIntegration
     from intent_parser import IntentParser
     from template_generator import TemplateGenerator
     GITHUB_INTEGRATION_AVAILABLE = True
 except ImportError as e:
-    GITHUB_INTEGRATION_AVAILABLE = False
     print(f"⚠️ GitHub Integration not available: {e}")
 
 class IaLMasterEngine:
@@ -60,7 +60,9 @@ class IaLMasterEngine:
                 print("✅ Master Engine: GitHub Integration initialized")
             except Exception as e:
                 print(f"⚠️ Master Engine: GitHub Integration error: {e}")
-                GITHUB_INTEGRATION_AVAILABLE = False
+                self.github_integration = None
+                self.intent_parser = None
+                self.template_generator = None
         
         self.engines_available = True
         print("🚀 IaL Master Engine initialized - All systems operational")
@@ -99,7 +101,7 @@ class IaLMasterEngine:
     def process_infrastructure_command(self, user_input: str, user_id: str) -> Dict:
         """Process infrastructure command with GitHub integration"""
         
-        if not GITHUB_INTEGRATION_AVAILABLE:
+        if not self.github_integration:
             return {
                 'response': f"🤖 Master Engine processou: {user_input}...",
                 'status': 'fallback',

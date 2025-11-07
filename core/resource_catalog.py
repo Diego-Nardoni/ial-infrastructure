@@ -16,7 +16,7 @@ import threading
 from pathlib import Path
 
 class ResourceCatalog:
-    def __init__(self, table_name: str = "ial-state", region: str = "us-east-1"):
+    def __init__(self, table_name: str = "mcp-provisioning-checklist", region: str = "us-east-1"):
         self.table_name = table_name
         self.region = region
         

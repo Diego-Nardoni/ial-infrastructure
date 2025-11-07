@@ -588,68 +588,152 @@ def validate_github_access(config):
         print(f"⚠️ GitHub validation error: {e}")
         return False
 
-def configure_ial():
-    """Configure IAL with user settings"""
-    print("🔧 IAL Configuration Setup")
-    print("=" * 30)
+def start_ial_infrastructure():
+    """Deploy IAL 00-foundation infrastructure via CDK"""
+    print("🚀 IAL Infrastructure Bootstrap")
+    print("=" * 40)
+    
+    # Coleta interativa de informações
+    config = collect_infrastructure_config()
+    
+    if not config:
+        print("❌ Configuração cancelada")
+        return False
+    
+    # Valida configurações
+    if not validate_config(config):
+        print("❌ Configuração inválida")
+        return False
+    
+    # Deploy via CDK
+    return deploy_foundation_via_cdk(config)
+
+def collect_infrastructure_config():
+    """Coleta configurações para deploy da infraestrutura"""
+    print("📋 Coletando informações para deploy da infraestrutura IAL...")
+    print()
     
     config = {}
     
     # AWS Configuration
     config['AWS_ACCOUNT_ID'] = input("AWS Account ID: ").strip()
+    if not config['AWS_ACCOUNT_ID']:
+        return None
+        
     config['AWS_REGION'] = input("AWS Region [us-east-1]: ").strip() or "us-east-1"
     
     # Project Configuration
-    config['PROJECT_NAME'] = input("Project Name: ").strip()
-    config['EXECUTOR_NAME'] = input("Your Name: ").strip()
+    config['PROJECT_NAME'] = input("Nome do Projeto: ").strip()
+    if not config['PROJECT_NAME']:
+        return None
+        
+    config['EXECUTOR_NAME'] = input("Seu Nome: ").strip()
+    if not config['EXECUTOR_NAME']:
+        return None
     
     # GitHub Integration Configuration
-    print("\n🔗 GitHub Integration (Required for auto-deployment)")
-    print("Note: You must fork https://github.com/Diego-Nardoni/ial-infrastructure first")
+    print("\n🔗 GitHub Integration (Obrigatório para funcionamento completo)")
+    print("Nota: Você deve ter um fork de https://github.com/Diego-Nardoni/ial-infrastructure")
     
     github_user = input("GitHub Username: ").strip()
     if not github_user:
-        print("❌ GitHub username is required")
+        print("⚠️ GitHub username é obrigatório para funcionamento completo")
+        config['GITHUB_USER'] = None
+        config['GITHUB_REPOSITORY'] = None
+    else:
+        config['GITHUB_USER'] = github_user
+        config['GITHUB_REPOSITORY'] = f"https://github.com/{github_user}/ial-infrastructure"
+        
+        github_token = input("GitHub Personal Access Token (ghp_...): ").strip()
+        if github_token.startswith('ghp_'):
+            config['GITHUB_TOKEN'] = github_token
+        else:
+            print("⚠️ Token GitHub inválido, continuando sem integração GitHub")
+            config['GITHUB_TOKEN'] = None
+    
+    return config
+
+def validate_config(config):
+    """Valida configurações antes do deploy"""
+    print("\n🔍 Validando configurações...")
+    
+    # Validate AWS credentials
+    try:
+        import boto3
+        session = boto3.Session()
+        sts = session.client('sts', region_name=config['AWS_REGION'])
+        identity = sts.get_caller_identity()
+        
+        if identity['Account'] != config['AWS_ACCOUNT_ID']:
+            print(f"❌ Account ID não confere: esperado {config['AWS_ACCOUNT_ID']}, atual {identity['Account']}")
+            return False
+            
+        print(f"✅ AWS credentials válidas para account {identity['Account']}")
+        
+    except Exception as e:
+        print(f"❌ Erro validando AWS credentials: {e}")
         return False
     
-    config['GITHUB_USER'] = github_user
-    config['GITHUB_REPOSITORY'] = f"https://github.com/{github_user}/ial-infrastructure"
+    # Validate GitHub access (if configured)
+    if config.get('GITHUB_TOKEN'):
+        if not validate_github_access(config):
+            print("⚠️ Erro na validação GitHub, continuando sem integração")
+            config['GITHUB_TOKEN'] = None
     
-    github_token = input("GitHub Personal Access Token (ghp_...): ").strip()
-    if not github_token.startswith('ghp_'):
-        print("❌ Invalid GitHub token format (must start with 'ghp_')")
+    return True
+
+def deploy_foundation_via_cdk(config):
+    """Deploy da infraestrutura via CDK"""
+    try:
+        # Import CDK deployment manager
+        import sys
+        sys.path.append(os.path.join(os.path.dirname(__file__), 'core'))
+        from cdk_deployment_manager import CDKDeploymentManager
+        
+        # Create deployment manager
+        deployment_manager = CDKDeploymentManager(config)
+        
+        # Execute deployment
+        result = deployment_manager.deploy_foundation()
+        
+        if result['success']:
+            print(f"\n{result['message']}")
+            
+            # Show outputs
+            if result.get('outputs'):
+                print("\n📋 Recursos criados:")
+                for key, value in result['outputs'].items():
+                    print(f"  {key}: {value}")
+            
+            # Show connectivity tests
+            if result.get('connectivity_test'):
+                print("\n🔍 Testes de conectividade:")
+                for service, status in result['connectivity_test'].items():
+                    print(f"  {service}: {status}")
+            
+            print("\n🎉 IAL está pronto para uso!")
+            print("💡 Agora você pode usar comandos como: ial \"create RDS database\"")
+            return True
+        else:
+            print(f"\n{result['message']}")
+            if result.get('error'):
+                print(f"Detalhes: {result['error']}")
+            return False
+            
+    except ImportError as e:
+        print(f"❌ Erro importando CDK deployment manager: {e}")
+        print("💡 Certifique-se de que o CDK está instalado: pip install aws-cdk-lib")
         return False
-    
-    config['GITHUB_TOKEN'] = github_token
-    
-    # Validate GitHub access
-    print("🔍 Validating GitHub access...")
-    if not validate_github_access(config):
-        print("❌ Cannot access GitHub repository. Please check:")
-        print("  - Repository exists and is a fork of ial-infrastructure")
-        print("  - Token has 'repo' permissions")
-        print("  - Username is correct")
+    except Exception as e:
+        print(f"❌ Erro no deploy: {e}")
         return False
-    
-    print("✅ GitHub access validated")
-    
-    # Save configuration
-    config_path = "/etc/ial/parameters.env"
-    os.makedirs(os.path.dirname(config_path), exist_ok=True)
-    
-    with open(config_path, 'w') as f:
-        f.write("# IAL Configuration\n")
-        for key, value in config.items():
-            f.write(f"{key}={value}\n")
-    
-    print(f"\n✅ Configuration saved to {config_path}")
-    print("🚀 IAL is now ready to use!")
 
 def main():
     """Main entry point for IAL"""
     if len(sys.argv) < 2:
         print("Usage: ialctl <command>")
         print("Commands:")
+        print("  start        - Deploy IAL foundation infrastructure")
         print("  configure    - Configure IAL settings")
         print("  interactive  - Start interactive mode")
         print("  \"<command>\"  - Execute infrastructure command")
@@ -657,7 +741,9 @@ def main():
     
     command = sys.argv[1]
     
-    if command == 'configure':
+    if command == 'start':
+        start_ial_infrastructure()
+    elif command == 'configure':
         configure_ial()
     elif command == 'interactive':
         interactive_mode()
