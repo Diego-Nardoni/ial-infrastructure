@@ -34,7 +34,7 @@ except ImportError as e:
 
 # Try to import Intelligent MCP Router
 try:
-    from intelligent_mcp_router import IntelligentMCPRouter
+    from core.intelligent_mcp_router import IntelligentMCPRouter
     INTELLIGENT_ROUTER_AVAILABLE = True
     print("🧠 Intelligent MCP Router disponível")
 except ImportError as e:

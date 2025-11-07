@@ -9,11 +9,11 @@ import time
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
-from .service_detector import ServiceDetector, DetectedService
-from .domain_mapper import DomainMapper, MCPMapping
-from .mcp_orchestrator import MCPOrchestrator
-from .mcp_registry import MCPRegistry
-from .decision_ledger import DecisionLedger
+from core.service_detector import ServiceDetector, DetectedService
+from core.domain_mapper import DomainMapper, MCPMapping
+from core.mcp_orchestrator import MCPOrchestrator
+from core.mcp_registry import MCPRegistry
+from core.decision_ledger import DecisionLedger
 
 @dataclass
 class RoutingDecision:

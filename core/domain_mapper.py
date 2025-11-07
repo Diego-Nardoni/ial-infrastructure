@@ -51,7 +51,6 @@ class DomainMapper:
             ],
             'devops': [
                 MCPMapping('github-mcp-server', 1, 4.0, True)
-            ]
             ],
             'finops': [
                 MCPMapping('aws-cost-explorer-mcp', 1, 5.0, True),
