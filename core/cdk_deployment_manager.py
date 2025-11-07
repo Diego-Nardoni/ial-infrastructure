@@ -5,6 +5,7 @@ Manages CDK deployment for IAL Foundation
 """
 
 import os
+import sys
 import json
 import subprocess
 import boto3
@@ -14,7 +15,16 @@ from pathlib import Path
 class CDKDeploymentManager:
     def __init__(self, config: Dict):
         self.config = config
-        self.cdk_app_path = "/home/ial/cdk"
+        
+        # Detectar se está executando como binário PyInstaller ou script
+        if hasattr(sys, '_MEIPASS'):
+            # Executando como binário - usar recursos empacotados
+            self.cdk_app_path = os.path.join(sys._MEIPASS, 'cdk')
+        else:
+            # Executando como script - usar diretório do projeto
+            project_root = os.path.dirname(os.path.dirname(__file__))
+            self.cdk_app_path = os.path.join(project_root, 'cdk')
+            
         self.project_name = config.get('PROJECT_NAME', 'ial')
         self.aws_region = config.get('AWS_REGION', 'us-east-1')
         self.aws_account = config.get('AWS_ACCOUNT_ID')
