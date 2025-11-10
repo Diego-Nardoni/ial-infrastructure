@@ -83,6 +83,47 @@ class IntentCostGuardrails:
         
         print("💰 Intent Cost Guardrails inicializado")
     
+    def estimate_intent_cost(self, parsed_intent: Dict) -> float:
+        """
+        CORREÇÃO: Método faltante para estimativa de custo
+        
+        Args:
+            parsed_intent: Intent parseado pelo IAS
+            
+        Returns:
+            float: Custo estimado em USD/mês
+        """
+        try:
+            # Extrair serviços do intent parseado
+            services = []
+            
+            if isinstance(parsed_intent, dict):
+                # Tentar extrair serviços de diferentes campos
+                if 'services' in parsed_intent:
+                    services = parsed_intent['services']
+                elif 'resources' in parsed_intent:
+                    services = [r.get('type', '').lower() for r in parsed_intent['resources']]
+                elif 'raw' in parsed_intent:
+                    services = self._detect_services(parsed_intent['raw'])
+                else:
+                    # Fallback: detectar serviços do intent completo
+                    intent_str = str(parsed_intent)
+                    services = self._detect_services(intent_str)
+            else:
+                # Se não for dict, tentar como string
+                services = self._detect_services(str(parsed_intent))
+            
+            if not services:
+                return 0.0
+            
+            # Estimar custo dos serviços detectados
+            estimated_cost, _ = self._estimate_cost(services)
+            return estimated_cost
+            
+        except Exception as e:
+            print(f"⚠️ Erro estimando custo: {e}")
+            return 0.0
+
     def validate_cost(self, intent: str, context: Optional[Dict] = None) -> CostValidationResult:
         """
         Ponto de entrada principal para validação de custo

@@ -144,12 +144,24 @@ class CognitiveEngine:
         try:
             # Usar ValidationSystem existente
             result = self.ias.validate_intent(nl_intent)
-            return {
-                'safe': result.get('valid', True),
-                'parsed_intent': result.get('parsed_intent', {'raw': nl_intent}),
-                'risk_assessment': result.get('risk_assessment', {}),
-                'rationale': result.get('rationale', 'Intent validated')
-            }
+            
+            # CORREÇÃO: Tratar ValidationResult como objeto ou dict
+            if hasattr(result, 'valid'):
+                # Se for objeto, usar atributos
+                return {
+                    'safe': getattr(result, 'valid', True),
+                    'parsed_intent': getattr(result, 'parsed_intent', {'raw': nl_intent}),
+                    'risk_assessment': getattr(result, 'risk_assessment', {}),
+                    'rationale': getattr(result, 'rationale', 'Intent validated')
+                }
+            else:
+                # Se for dict, usar get()
+                return {
+                    'safe': result.get('valid', True),
+                    'parsed_intent': result.get('parsed_intent', {'raw': nl_intent}),
+                    'risk_assessment': result.get('risk_assessment', {}),
+                    'rationale': result.get('rationale', 'Intent validated')
+                }
         except Exception as e:
             print(f"⚠️ IAS error: {e}")
             return {'safe': True, 'parsed_intent': {'raw': nl_intent}, 'rationale': f'IAS error: {e}'}

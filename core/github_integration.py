@@ -76,7 +76,7 @@ class GitHubIntegration:
             }
     
     def save_templates_to_phases(self, templates: Dict) -> List[str]:
-        """Save generated templates to phase directories"""
+        """Save generated templates to phase directories - CORRIGIDO: serialização"""
         saved_files = []
         
         for file_path, content in templates.items():
@@ -85,9 +85,18 @@ class GitHubIntegration:
                 full_path = os.path.join(self.repo_path, file_path)
                 os.makedirs(os.path.dirname(full_path), exist_ok=True)
                 
+                # CORREÇÃO: Serializar content se não for string
+                if isinstance(content, (list, dict)):
+                    import json
+                    content_str = json.dumps(content, indent=2)
+                elif not isinstance(content, str):
+                    content_str = str(content)
+                else:
+                    content_str = content
+                
                 # Write template content
                 with open(full_path, 'w') as f:
-                    f.write(content)
+                    f.write(content_str)
                 
                 saved_files.append(file_path)
                 print(f"📝 Saved: {file_path}")
