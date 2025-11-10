@@ -31,6 +31,8 @@ class MCPRegistry:
         """Carrega configuração dos MCPs"""
         if not os.path.exists(self.config_path):
             print(f"MCP config not found: {self.config_path}")
+            # Usar configuração padrão embarcada
+            self._load_default_config()
             return
         
         try:
@@ -43,6 +45,37 @@ class MCPRegistry:
                     **s,
                     'status': MCPStatus.CONFIGURED,
                     'configured_at': time.time()
+                }
+        except Exception as e:
+            print(f"⚠️ Erro carregando MCP config: {e}")
+            self._load_default_config()
+    
+    def _load_default_config(self):
+        """Carrega configuração padrão quando arquivo não existe"""
+        print("✅ Usando configuração MCP padrão embarcada")
+        default_config = {
+            "mcpServers": {
+                "aws-real-executor": {
+                    "command": "python",
+                    "args": ["-m", "mcp_aws_real_executor"],
+                    "env": {}
+                },
+                "aws-cloudformation": {
+                    "command": "python", 
+                    "args": ["-m", "mcp_aws_cloudformation"],
+                    "env": {}
+                }
+            }
+        }
+        
+        # Processar configuração padrão
+        for name, config in default_config.get("mcpServers", {}).items():
+            self.servers[name] = {
+                "name": name,
+                **config,
+                'status': MCPStatus.CONFIGURED,
+                'configured_at': time.time()
+            }
                 }
             
             print(f"📋 {len(self.servers)} MCPs configurados")

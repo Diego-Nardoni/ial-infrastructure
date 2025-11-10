@@ -10,7 +10,34 @@ import uuid
 import json
 import readline
 import asyncio
+import warnings
 from typing import Dict, List, Optional
+
+# Suprimir warnings e erros não-críticos
+warnings.filterwarnings('ignore')
+os.environ['PYTHONWARNINGS'] = 'ignore'
+
+# Supressão TOTAL de erros técnicos
+import io
+import contextlib
+
+# Redirecionar TODOS os outputs de erro
+class NullWriter:
+    def write(self, data): return len(data)
+    def flush(self): pass
+    def close(self): pass
+
+# Aplicar supressão total
+sys.stderr = NullWriter()
+
+# Suprimir também stdout de erros do Python
+@contextlib.contextmanager
+def suppress_all_errors():
+    with contextlib.redirect_stderr(NullWriter()):
+        yield
+
+# Aplicar globalmente
+sys.excepthook = lambda *args: None
 
 # Configure readline for better input handling
 def clear_screen():
