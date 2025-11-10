@@ -86,21 +86,30 @@ class MasterEngineFinal:
         return any(keyword in nl_intent.lower() for keyword in deletion_keywords)
     
     def process_deletion_request(self, nl_intent: str) -> Dict[str, Any]:
-        """Process deletion requests"""
+        """Process deletion requests - phases or individual resources"""
         print("🗑️ Processando solicitação de exclusão")
         
+        # Try phase deletion first
+        phase_name = self._extract_phase_name(nl_intent)
+        if phase_name:
+            return self._process_phase_deletion(phase_name)
+        
+        # Try individual resource deletion
+        resource_info = self._extract_resource_info(nl_intent)
+        if resource_info:
+            return self._process_resource_deletion(resource_info[1], resource_info[0])
+        
+        return {
+            'error': 'Could not identify what to delete',
+            'status': 'error',
+            'suggestion': 'Specify "delete phase <name>" or "delete bucket <name>"'
+        }
+    
+    def _process_phase_deletion(self, phase_name: str) -> Dict[str, Any]:
+        """Process phase deletion"""
         try:
             from phase_deletion_manager import PhaseDeletionManager
             deletion_manager = PhaseDeletionManager()
-            
-            # Extract phase name from intent
-            phase_name = self._extract_phase_name(nl_intent)
-            if not phase_name:
-                return {
-                    'error': 'Could not identify phase to delete',
-                    'status': 'error',
-                    'suggestion': 'Please specify phase name (e.g., "delete phase security")'
-                }
             
             # Get phase info
             phase_info = deletion_manager.get_phase_info(phase_name)
@@ -145,7 +154,48 @@ class MasterEngineFinal:
             }
         except Exception as e:
             return {
-                'error': f'Deletion failed: {str(e)}',
+                'error': f'Phase deletion failed: {str(e)}',
+                'status': 'error'
+            }
+    
+    def _process_resource_deletion(self, resource_id: str, resource_type: str) -> Dict[str, Any]:
+        """Process individual resource deletion"""
+        try:
+            from resource_deletion_manager import ResourceDeletionManager
+            deletion_manager = ResourceDeletionManager()
+            
+            print(f"🗑️ Deletando recurso individual: {resource_id} ({resource_type})")
+            
+            # Execute deletion with complete cleanup
+            result = deletion_manager.delete_resource(resource_id, force=False)
+            
+            if result['success']:
+                return {
+                    'status': 'success',
+                    'action': 'resource_deletion',
+                    'resource': resource_id,
+                    'type': result['type'],
+                    'cleanup_performed': result['cleanup_performed'],
+                    'dependencies_removed': result['dependencies_removed'],
+                    'message': f'{resource_type.upper()} {resource_id} deleted with complete cleanup'
+                }
+            else:
+                return {
+                    'error': result['error'],
+                    'status': 'error',
+                    'resource': resource_id,
+                    'suggestion': result.get('suggestion', 'Check resource exists and permissions')
+                }
+                
+        except ImportError:
+            return {
+                'error': 'Resource deletion not available',
+                'status': 'error',
+                'suggestion': 'Resource deletion manager not installed'
+            }
+        except Exception as e:
+            return {
+                'error': f'Resource deletion failed: {str(e)}',
                 'status': 'error'
             }
     
@@ -153,8 +203,8 @@ class MasterEngineFinal:
         """Extract phase name from natural language"""
         import re
         
-        # Common patterns
-        patterns = [
+        # Common patterns for phases
+        phase_patterns = [
             r'delete\s+phase\s+(\w+)',
             r'remove\s+phase\s+(\w+)',
             r'destroy\s+phase\s+(\w+)',
@@ -162,10 +212,31 @@ class MasterEngineFinal:
             r'(\w+)\s+phase.*delete'
         ]
         
-        for pattern in patterns:
+        for pattern in phase_patterns:
             match = re.search(pattern, nl_intent.lower())
             if match:
                 return match.group(1)
+        
+        return None
+    
+    def _extract_resource_info(self, nl_intent: str) -> Optional[Tuple[str, str]]:
+        """Extract resource type and name from natural language"""
+        import re
+        
+        # Resource patterns: (type, identifier_pattern)
+        resource_patterns = [
+            (r'bucket\s+([a-z0-9\-]+)', 's3'),
+            (r'lambda\s+([a-zA-Z0-9\-_]+)', 'lambda'),
+            (r'function\s+([a-zA-Z0-9\-_]+)', 'lambda'),
+            (r'table\s+([a-zA-Z0-9\-_.]+)', 'dynamodb'),
+            (r'database\s+([a-zA-Z0-9\-]+)', 'rds'),
+            (r'instance\s+([a-zA-Z0-9\-]+)', 'ec2')
+        ]
+        
+        for pattern, resource_type in resource_patterns:
+            match = re.search(pattern, nl_intent.lower())
+            if match:
+                return (resource_type, match.group(1))
         
         return None
     
