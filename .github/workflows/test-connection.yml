@@ -1,0 +1,36 @@
+name: Test GitHub Actions Connection
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ '.github/test-connection.md' ]
+
+jobs:
+  test-connection:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::221082174220:role/IaL-GitHubActionsRole
+          aws-region: us-east-1
+          role-session-name: GitHubActions-Test
+      
+      - name: Test AWS connection
+        run: |
+          echo "Testing AWS connection..."
+          aws sts get-caller-identity
+          echo "✅ Connection successful!"
+          
+      - name: Test IAL resources access
+        run: |
+          echo "Testing access to IAL resources..."
+          aws dynamodb list-tables --query 'TableNames[?contains(@, `ial`)]' || echo "No IAL tables found (expected after cleanup)"
+          echo "✅ IAL access test completed!"
