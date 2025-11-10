@@ -31,7 +31,11 @@ except ImportError:
             def validate_resource(self, resource_id):
                 return True
         RESOURCE_CATALOG_AVAILABLE = False
-from observability_engine import ObservabilityEngine
+try:
+    from .observability_engine import ObservabilityEngine
+    OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    OBSERVABILITY_AVAILABLE = False
 from graph.dependency_graph import DependencyGraph
 from graph.graph_populator import GraphPopulator
 
@@ -45,7 +49,14 @@ class AuditValidator:
         self.sns = boto3.client('sns', region_name=region)
         
         # IAL components
-        self.resource_catalog = ResourceCatalog(region=region)
+        if RESOURCE_CATALOG_AVAILABLE:
+            try:
+                self.resource_catalog = ResourceCatalog(region=region)
+            except TypeError:
+                # Fallback if ResourceCatalog doesn't accept region parameter
+                self.resource_catalog = ResourceCatalog()
+        else:
+            self.resource_catalog = ResourceCatalog()  # Use fallback class
         
         # Knowledge Graph components
         try:
@@ -154,7 +165,11 @@ class AuditValidator:
         self.enforcement_enabled = True
         self.completeness_threshold = 100.0
         self.alert_topic_arn = None
-        self.observability = ObservabilityEngine(region=region)
+        # Initialize observability engine if available
+        if OBSERVABILITY_AVAILABLE:
+            self.observability = ObservabilityEngine(region=region)
+        else:
+            self.observability = None
         
         print("🔍 Audit Validator inicializado")
     

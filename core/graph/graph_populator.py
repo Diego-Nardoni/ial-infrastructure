@@ -18,7 +18,7 @@ try:
     from .dependency_graph import DependencyGraph, ResourceState, BlastRadius
     from ..decision_ledger import DecisionLedger
 except ImportError:
-    from dependency_graph import DependencyGraph, ResourceState, BlastRadius
+    from .dependency_graph import DependencyGraph, ResourceState, BlastRadius
     from decision_ledger import DecisionLedger
 
 @dataclass

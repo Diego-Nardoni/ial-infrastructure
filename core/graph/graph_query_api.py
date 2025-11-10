@@ -17,7 +17,7 @@ try:
     from .dependency_graph import DependencyGraph, ResourceState, BlastRadius
     from ..resource_catalog import ResourceCatalog
 except ImportError:
-    from dependency_graph import DependencyGraph, ResourceState, BlastRadius
+    from .dependency_graph import DependencyGraph, ResourceState, BlastRadius
     from resource_catalog import ResourceCatalog
 
 @dataclass
