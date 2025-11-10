@@ -24,7 +24,7 @@ except ImportError:
     print("⚠️ CF YAML Loader not available, using standard YAML loader")
 
 class DesiredStateBuilder:
-    def __init__(self, phases_dir: str = "./phases"):
+    def __init__(self, phases_dir: str = "phases"):
         self.phases_dir = Path(phases_dir)
         self.reports_dir = Path("./reports")
         self.reports_dir.mkdir(exist_ok=True)

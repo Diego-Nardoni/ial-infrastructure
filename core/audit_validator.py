@@ -16,7 +16,21 @@ from botocore.exceptions import ClientError
 # Add core components
 sys.path.append(str(Path(__file__).parent))
 
-from resource_catalog import ResourceCatalog
+try:
+    from core.resource_catalog import ResourceCatalog
+    RESOURCE_CATALOG_AVAILABLE = True
+except ImportError:
+    try:
+        from resource_catalog import ResourceCatalog
+        RESOURCE_CATALOG_AVAILABLE = True
+    except ImportError:
+        # Fallback básico
+        class ResourceCatalog:
+            def __init__(self):
+                self.resources = {}
+            def validate_resource(self, resource_id):
+                return True
+        RESOURCE_CATALOG_AVAILABLE = False
 from observability_engine import ObservabilityEngine
 from graph.dependency_graph import DependencyGraph
 from graph.graph_populator import GraphPopulator

@@ -176,13 +176,25 @@ class CognitiveEngine:
             estimate = self.cost_guardrails.estimate_intent_cost(parsed_intent)
             budget_limit = 100.0  # $100/month default
             
-            return {
-                'estimated_cost': estimate.get('monthly_cost', 0.0),
-                'budget_limit': budget_limit,
-                'exceeds_budget': estimate.get('monthly_cost', 0.0) > budget_limit,
-                'cost_breakdown': estimate.get('cost_breakdown', {}),
-                'rationale': f"Estimated ${estimate.get('monthly_cost', 0.0)}/month vs ${budget_limit} budget"
-            }
+            # CORREÇÃO: estimate pode ser float ou dict
+            if isinstance(estimate, (int, float)):
+                estimated_cost = float(estimate)
+                return {
+                    'estimated_cost': estimated_cost,
+                    'budget_limit': budget_limit,
+                    'exceeds_budget': estimated_cost > budget_limit,
+                    'cost_breakdown': {},
+                    'rationale': f"Estimated ${estimated_cost}/month vs ${budget_limit} budget"
+                }
+            else:
+                # Se for dict, usar get()
+                return {
+                    'estimated_cost': estimate.get('monthly_cost', 0.0),
+                    'budget_limit': budget_limit,
+                    'exceeds_budget': estimate.get('monthly_cost', 0.0) > budget_limit,
+                    'cost_breakdown': estimate.get('cost_breakdown', {}),
+                    'rationale': f"Estimated ${estimate.get('monthly_cost', 0.0)}/month vs ${budget_limit} budget"
+                }
         except Exception as e:
             print(f"⚠️ Cost Guardrails error: {e}")
             return {'estimated_cost': 0.0, 'exceeds_budget': False, 'rationale': f'Cost error: {e}'}

@@ -17,8 +17,10 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent / 'scripts'))
 
 try:
-    from cf_yaml_loader import load_cf_yaml
+    from cf_yaml_loader import CFYAMLLoader
+    cf_loader = CFYAMLLoader()
     CF_LOADER_AVAILABLE = True
+    print("✅ CF YAML Loader carregado")
 except ImportError:
     CF_LOADER_AVAILABLE = False
     print("⚠️ CF YAML Loader not available, using standard YAML loader")
