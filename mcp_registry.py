@@ -64,6 +64,21 @@ class MCPRegistry:
                     "command": "python", 
                     "args": ["-m", "mcp_aws_cloudformation"],
                     "env": {}
+                },
+                "aws-cloud-control-api": {
+                    "command": "python",
+                    "args": ["-m", "mcp_aws_cloud_control_api"],
+                    "env": {}
+                },
+                "aws-cli": {
+                    "command": "python",
+                    "args": ["-m", "mcp_aws_cli"],
+                    "env": {}
+                },
+                "aws-core": {
+                    "command": "python",
+                    "args": ["-m", "mcp_aws_core"],
+                    "env": {}
                 }
             }
         }
