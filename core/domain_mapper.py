@@ -59,8 +59,9 @@ class DomainMapper:
             ]
         }
         
-        # MCPs sempre ativos (core)
+        # MCPs sempre ativos (core) - EXECUTOR REAL PRIMEIRO
         self.core_mcps = [
+            MCPMapping('aws-real-executor', 0, 10.0, True),  # PRIORIDADE MÁXIMA - EXECUÇÃO REAL
             MCPMapping('aws-cloudformation-mcp', 1, 3.0, True),
             MCPMapping('aws-iam-mcp', 1, 3.0, True),
             MCPMapping('aws-cloudwatch-mcp', 1, 4.0, True),

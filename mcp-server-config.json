@@ -1,6 +1,24 @@
 {
   "servers": [
     {
+      "name": "aws-real-executor",
+      "command": "python3",
+      "args": ["/home/ial/mcp-tools/aws_real_server.py"],
+      "tools": ["execute_aws_real"]
+    },
+    {
+      "name": "aws-core",
+      "command": "awslabs.core-mcp-server",
+      "args": [],
+      "tools": ["ec2", "s3", "iam", "lambda", "dynamodb", "apigateway"]
+    },
+    {
+      "name": "aws-cloud-control",
+      "command": "awslabs.ccapi-mcp-server",
+      "args": [],
+      "tools": ["create_resource", "update_resource", "delete_resource", "get_resource"]
+    },
+    {
       "name": "ial-core",
       "command": "python3",
       "args": ["/home/ial/mcp-tools/server.py"],

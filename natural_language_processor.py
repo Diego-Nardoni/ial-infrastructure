@@ -784,20 +784,55 @@ def main():
     command = sys.argv[1]
     
     if command == 'start':
-        start_ial_infrastructure()
+        # Deploy foundation via Master Engine Final
+        try:
+            from core.master_engine_final import MasterEngineFinal
+            master = MasterEngineFinal()
+            config = load_config()
+            result = master.process_request("Deploy complete IAL Foundation infrastructure", config)
+            
+            if result.get('status') == 'success':
+                print(f"🎉 IAL Foundation deployed successfully!")
+                print(f"📊 Components created: {result.get('components_created', 'N/A')}")
+                print(f"🌐 Region: {result.get('details', {}).get('deployment_summary', {}).get('region', 'N/A')}")
+            else:
+                print(f"❌ Foundation deployment failed: {result.get('error', 'unknown')}")
+                
+        except Exception as e:
+            print(f"⚠️ Master Engine Final not available, using fallback: {e}")
+            start_ial_infrastructure()
     elif command == 'configure':
         configure_ial()
     elif command == 'interactive':
         interactive_mode()
     else:
-        # Process infrastructure command
-        processor = IaLNaturalProcessor()
-        user_id = "user-" + str(uuid.uuid4())[:8]
-        
-        # Join all arguments as the command
-        full_command = ' '.join(sys.argv[1:])
-        response = processor.process_command(full_command, user_id)
-        print(f"🤖 IaL: {response}")
+        # Process infrastructure command via Master Engine Final
+        try:
+            from core.master_engine_final import MasterEngineFinal
+            master = MasterEngineFinal()
+            full_command = ' '.join(sys.argv[1:])
+            result = master.process_request(full_command)
+            
+            # Format response
+            if result.get('status') == 'success':
+                print(f"🤖 IaL: ✅ {result.get('method', 'processed')} via {result.get('path', 'unknown')} path")
+                if result.get('components_created'):
+                    print(f"📊 Components: {result['components_created']}")
+                if result.get('resources_created'):
+                    print(f"📋 Resources: {len(result['resources_created'])}")
+                if result.get('pr_url'):
+                    print(f"🔗 PR: {result['pr_url']}")
+            else:
+                print(f"🤖 IaL: ❌ {result.get('error', 'unknown error')}")
+                
+        except Exception as e:
+            print(f"⚠️ Master Engine Final not available, using fallback: {e}")
+            # Fallback to original processor
+            processor = IaLNaturalProcessor()
+            user_id = "user-" + str(uuid.uuid4())[:8]
+            full_command = ' '.join(sys.argv[1:])
+            response = processor.process_command(full_command, user_id)
+            print(f"🤖 IaL: {response}")
 
 if __name__ == "__main__":
     main()

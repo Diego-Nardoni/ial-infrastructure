@@ -166,31 +166,113 @@ class MCPOrchestrator:
         """Chama um MCP específico (placeholder para implementação real)"""
         mcp_name = getattr(mcp, 'mcp_name', 'unknown')
         
-        # Simular diferentes tipos de resposta baseado no MCP
-        if 'lambda' in mcp_name:
+        # ESTRATÉGIA HÍBRIDA: aws-real-executor + CDK seletivo
+        if mcp_name == 'aws-real-executor':
+            import subprocess
+            import json
+            
+            # Verificar se precisa de CDK para recursos complexos
+            if self._needs_cdk_deployment(user_input):
+                return await self._deploy_via_cdk_selector(user_input, context)
+            
+            # Usar aws-real-executor para recursos simples
+            try:
+                result = subprocess.run([
+                    'python3', '/home/ial/mcp-tools/aws_real_server.py', 
+                    'execute', user_input
+                ], capture_output=True, text=True, timeout=30)
+                
+                if result.returncode == 0:
+                    real_result = json.loads(result.stdout)
+                    return real_result
+                else:
+                    return {
+                        'success': False,
+                        'error': result.stderr,
+                        'action': 'aws_real_execution_failed'
+                    }
+            except Exception as e:
+                return {
+                    'success': False,
+                    'error': str(e),
+                    'action': 'aws_real_execution_error'
+                }
+        
+        # Fallback para outros MCPs (simulação)
+        return {
+            'action': 'generic_action',
+            'resources': ['resource'],
+            'template': 'generic-template.yaml'
+        }
+    
+    def _needs_cdk_deployment(self, user_input: str) -> bool:
+        """Verifica se recurso precisa de CDK (código complexo)"""
+        complex_resources = [
+            'lambda function',
+            'step functions state machine',
+            'bedrock workflow',
+            'migration workflow'
+        ]
+        
+        user_input_lower = user_input.lower()
+        return any(resource in user_input_lower for resource in complex_resources)
+    
+    async def _deploy_via_cdk_selector(self, user_input: str, context: Dict) -> Dict:
+        """Deploy via CDK Selector para recursos complexos"""
+        try:
+            from core.cdk_selector import deploy_complex_resources
+            
+            project_name = context.get('project_name', 'ial-foundation')
+            executor_name = context.get('executor_name', 'ial-executor')
+            
+            # Determinar tipo de recurso e nomes
+            if 'lambda function' in user_input.lower():
+                # Extrair nomes de funções Lambda
+                function_names = self._extract_lambda_names(user_input)
+                return deploy_complex_resources('lambda', function_names, project_name)
+            
+            elif 'step functions state machine' in user_input.lower():
+                # Extrair nomes de state machines
+                sm_names = self._extract_stepfunctions_names(user_input)
+                return deploy_complex_resources('stepfunctions', sm_names, project_name)
+            
+            else:
+                return {
+                    'success': False,
+                    'error': 'Complex resource type not recognized',
+                    'action': 'cdk_selector_failed'
+                }
+                
+        except Exception as e:
             return {
-                'action': 'create_lambda_function',
-                'resources': ['function', 'role', 'log_group'],
-                'template': 'lambda-template.yaml'
+                'success': False,
+                'error': str(e),
+                'action': 'cdk_selector_error'
             }
-        elif 'rds' in mcp_name:
-            return {
-                'action': 'create_database',
-                'resources': ['db_instance', 'subnet_group', 'security_group'],
-                'template': 'rds-template.yaml'
-            }
-        elif 'ecs' in mcp_name:
-            return {
-                'action': 'create_ecs_service',
-                'resources': ['cluster', 'service', 'task_definition'],
-                'template': 'ecs-template.yaml'
-            }
+    
+    def _extract_lambda_names(self, user_input: str) -> List[str]:
+        """Extrai nomes de funções Lambda do input"""
+        # Parse simples - melhorar conforme necessário
+        if 'processor' in user_input.lower():
+            return ['processor']
+        elif 'validator' in user_input.lower():
+            return ['validator']
+        elif 'drift' in user_input.lower():
+            return ['drift-detector']
         else:
-            return {
-                'action': 'generic_action',
-                'resources': ['resource'],
-                'template': 'generic-template.yaml'
-            }
+            return ['generic-function']
+    
+    def _extract_stepfunctions_names(self, user_input: str) -> List[str]:
+        """Extrai nomes de state machines do input"""
+        # Parse simples - melhorar conforme necessário
+        if 'orchestrator' in user_input.lower():
+            return ['orchestrator']
+        elif 'migration' in user_input.lower():
+            return ['migration']
+        elif 'bedrock' in user_input.lower():
+            return ['bedrock-workflow']
+        else:
+            return ['generic-workflow']
 
     async def _ensure_mcps_loaded(self, mcps: List) -> None:
         """Garante que todos os MCPs estão carregados (lazy loading)"""
@@ -272,7 +354,10 @@ class MCPOrchestrator:
         for mcp in mcps:
             mcp_name = getattr(mcp, 'mcp_name', 'unknown')
             
-            if 'core' in mcp_name or 'cloudformation' in mcp_name:
+            # AWS REAL EXECUTOR - PRIORIDADE MÁXIMA NA FOUNDATION
+            if mcp_name == 'aws-real-executor':
+                phases['foundation'].append(mcp)
+            elif 'core' in mcp_name or 'cloudformation' in mcp_name:
                 phases['foundation'].append(mcp)
             elif 'iam' in mcp_name or 'kms' in mcp_name or 'secrets' in mcp_name:
                 phases['security'].append(mcp)
