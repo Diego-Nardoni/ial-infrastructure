@@ -47,10 +47,18 @@ class MasterEngineFinal:
     
     def process_request(self, nl_intent: str, config: Dict = None) -> Dict[str, Any]:
         """
-        HYBRID APPROACH: MCP Router para execução + Cognitive Engine para governança
+        DUAL LOGIC: CORE resources (direct) vs USER resources (hybrid routing)
         """
         
         print(f"🎯 Master Engine processando: '{nl_intent[:50]}...'")
+        
+        # LÓGICA 1: CORE RESOURCES (ialctl start) - EXECUÇÃO DIRETA
+        if self._is_core_foundation_request(nl_intent):
+            print("🏗️ CORE FOUNDATION REQUEST - Execução direta via MCP Infrastructure Manager")
+            return self.process_core_foundation_path(nl_intent, config or {})
+        
+        # LÓGICA 2: USER RESOURCES (linguagem natural) - ROTEAMENTO HÍBRIDO
+        print("👤 USER RESOURCE REQUEST - Roteamento híbrido")
         
         # Detectar se precisa de governança complexa
         needs_governance = self._needs_complex_governance(nl_intent)
@@ -61,6 +69,58 @@ class MasterEngineFinal:
         else:
             print("⚡ Roteando para Intelligent MCP Router (execução direta)")
             return self.process_mcp_router_path(nl_intent)
+    
+    def _is_core_foundation_request(self, nl_intent: str) -> bool:
+        """Detecta se é solicitação de deploy da foundation CORE"""
+        
+        core_keywords = [
+            'deploy complete ial foundation',
+            'ial foundation infrastructure',
+            'bootstrap ial',
+            'start ial infrastructure',
+            'deploy foundation',
+            'foundation deployment'
+        ]
+        
+        nl_lower = nl_intent.lower()
+        return any(keyword in nl_lower for keyword in core_keywords)
+    
+    def process_core_foundation_path(self, nl_intent: str, config: Dict) -> Dict[str, Any]:
+        """
+        CORE FOUNDATION PATH: Deploy direto dos 42 componentes via MCP Infrastructure Manager
+        """
+        
+        print("🏗️ Executando CORE FOUNDATION PATH - Deploy direto (sem governança)")
+        
+        if not self.mcp_infrastructure_manager:
+            return {
+                'error': 'MCP Infrastructure Manager não disponível',
+                'status': 'error',
+                'path': 'CORE_FOUNDATION_PATH'
+            }
+        
+        try:
+            # Deploy direto via MCP Infrastructure Manager (42 componentes)
+            import asyncio
+            result = asyncio.run(
+                self.mcp_infrastructure_manager.deploy_ial_infrastructure(config)
+            )
+            
+            return {
+                'status': 'success',
+                'path': 'CORE_FOUNDATION_PATH',
+                'execution_method': 'direct_mcp_infrastructure',
+                'components_created': result.get('components_created', 42),
+                'message': 'IAL Foundation deployed directly via MCP Infrastructure Manager',
+                'details': result
+            }
+            
+        except Exception as e:
+            return {
+                'error': f'MCP Infrastructure Manager error: {str(e)}',
+                'status': 'error',
+                'path': 'CORE_FOUNDATION_PATH'
+            }
     
     def _needs_complex_governance(self, nl_intent: str) -> bool:
         """Determina se precisa de governança complexa via Cognitive Engine"""
