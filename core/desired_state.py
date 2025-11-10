@@ -13,15 +13,12 @@ from datetime import datetime
 from typing import Dict, List, Optional
 import sys
 
-# Add scripts directory to path for cf_yaml_loader
-sys.path.append(str(Path(__file__).parent.parent / 'scripts'))
-
+# Try to import CloudFormation YAML loader
 try:
-    from cf_yaml_loader import load_cf_yaml
+    from .cf_yaml_loader import load_cf_yaml
     CF_LOADER_AVAILABLE = True
 except ImportError:
     CF_LOADER_AVAILABLE = False
-    print("⚠️ CF YAML Loader not available, using standard YAML loader")
 
 class DesiredStateBuilder:
     def __init__(self, phases_dir: str = "phases"):

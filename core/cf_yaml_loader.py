@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
-"""
-CloudFormation YAML Loader - Loader específico para CloudFormation
-"""
+"""CloudFormation YAML Loader - Handle CF intrinsic functions"""
 
 import yaml
 
-class CFYAMLLoader:
-    """Loader YAML específico para CloudFormation"""
-    
-    def __init__(self):
-        self.loader_type = 'cloudformation'
-    
-    def load(self, yaml_content: str):
-        """Carregar YAML CloudFormation"""
-        try:
-            return yaml.safe_load(yaml_content)
-        except Exception as e:
-            print(f"⚠️ CF YAML Loader error: {e}")
-            return yaml.safe_load(yaml_content)
-    
-    def validate_cf_template(self, template: dict) -> bool:
-        """Validar template CloudFormation"""
-        required_fields = ['AWSTemplateFormatVersion', 'Resources']
-        return all(field in template for field in required_fields)
+class CloudFormationLoader(yaml.SafeLoader):
+    """Custom YAML loader that handles CloudFormation intrinsic functions"""
+    pass
+
+def cf_constructor(loader, tag_suffix, node):
+    """Generic constructor for CloudFormation tags"""
+    if isinstance(node, yaml.ScalarNode):
+        return loader.construct_scalar(node)
+    elif isinstance(node, yaml.SequenceNode):
+        return loader.construct_sequence(node)
+    elif isinstance(node, yaml.MappingNode):
+        return loader.construct_mapping(node)
+    else:
+        return None
+
+# Register CloudFormation intrinsic functions
+CloudFormationLoader.add_multi_constructor('!', cf_constructor)
+
+def load_cf_yaml(stream):
+    """Load CloudFormation YAML with intrinsic function support"""
+    return yaml.load(stream, Loader=CloudFormationLoader)
