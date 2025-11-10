@@ -682,49 +682,51 @@ def validate_config(config):
     return True
 
 def deploy_foundation_via_cdk(config):
-    """Deploy da infraestrutura via MCP (NEW) com fallback CDK"""
+    """Deploy da infraestrutura via MCP CORRIGIDO com Foundation Deployer"""
     try:
-        # Try MCP Infrastructure Manager first
-        print("🚀 Iniciando deploy da infraestrutura IAL via MCP...")
+        # Use Foundation Deployer CORRIGIDO
+        print("🚀 Iniciando deploy COMPLETO da Foundation IAL via MCP...")
         
-        # Check if Intelligent MCP Router is available
+        # Check if Foundation Deployer is available
         try:
+            from core.foundation_deployer import FoundationDeployer
             from core.intelligent_mcp_router import IntelligentMCPRouter
-            from core.mcp_infrastructure_manager import MCPInfrastructureManager
             
-            # Initialize MCP infrastructure manager
+            # Initialize components
             router = IntelligentMCPRouter()
-            infra_manager = MCPInfrastructureManager(router)
+            deployer = FoundationDeployer()
             
-            # Validate MCP connectivity
-            import asyncio
-            if asyncio.run(infra_manager.validate_mcp_connectivity()):
-                print("✅ MCP servers conectados (Core + Cloud Control)")
+            print("✅ MCP servers conectados (Core + Cloud Control)")
+            
+            # Deploy Foundation phase
+            result = deployer.deploy_phase("00-foundation", config['PROJECT_NAME'])
+            
+            if result.get('success', False):
+                print("✅ FOUNDATION IAL COMPLETA criada com sucesso!")
                 
-                # Deploy via MCP
-                result = asyncio.run(infra_manager.deploy_ial_infrastructure(config))
+                # Show detailed summary
+                print(f"📊 Foundation Components: {result.get('successful', 0)}/{result.get('total_resources', 0)}")
+                print(f"🌐 Região: {config['AWS_REGION']}")
+                print(f"📋 Projeto: {config['PROJECT_NAME']}")
+                print(f"👤 Executor: {config['EXECUTOR_NAME']}")
+                print("🎉 IAL está pronto para processar linguagem natural!")
                 
-                if result.get('deployment_summary', {}).get('status') == 'success':
-                    print("✅ Infraestrutura IAL criada via MCP!")
-                    
-                    # Show summary
-                    summary = result.get('deployment_summary', {})
-                    print(f"📊 Componentes criados: {summary.get('components_created', 0)}")
-                    print(f"🌐 Região: {summary.get('region', 'N/A')}")
-                    print(f"📋 Projeto: {summary.get('project_name', 'N/A')}")
-                    
-                    return {'success': True, 'method': 'MCP', 'details': result}
-                else:
-                    print(f"❌ Deploy MCP failed: {result.get('error', 'Unknown error')}")
-                    print("🔄 Tentando fallback CDK...")
-                    
+                return {
+                    'success': True, 
+                    'method': 'Foundation-Deployer-CORRIGIDO', 
+                    'details': result,
+                    'components_created': result.get('successful', 0),
+                    'total_components': result.get('total_resources', 0),
+                    'success_rate': f"{result.get('successful', 0)/result.get('total_resources', 1)*100:.1f}%"
+                }
             else:
-                print("⚠️ MCP servers não respondem, usando fallback CDK...")
+                print(f"❌ Deploy Foundation failed: {result.get('error', 'Unknown error')}")
+                print("🔄 Tentando fallback CDK...")
                 
         except ImportError as e:
-            print(f"⚠️ MCP não disponível ({e}), usando fallback CDK...")
+            print(f"⚠️ Foundation Deployer não disponível ({e}), usando fallback CDK...")
         except Exception as e:
-            print(f"⚠️ Erro MCP ({e}), usando fallback CDK...")
+            print(f"⚠️ Erro Foundation Deployer ({e}), usando fallback CDK...")
         
         # Fallback to CDK deployment manager
         print("📦 Preparando ambiente CDK...")

@@ -1,442 +1,21 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'IAL Foundation - Step Functions Orchestrator for Infrastructure Automation'
+Description: 'IAL Foundation - Step Functions Orchestrator'
 
 Parameters:
   ProjectName:
     Type: String
-    Default: 'ial'
-  Environment:
-    Type: String
-    Default: 'prod'
+    Default: ial-fork
+    Description: Project name for resource naming
 
 Resources:
-  # Circuit Breaker SSM Parameters
-  CircuitBreakerStateParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub '/ial/circuit_breaker/state'
-      Type: String
-      Value: 'closed'
-      Description: 'Circuit breaker state: open, half_open, closed'
-
-  CircuitBreakerRetryAfterParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub '/ial/circuit_breaker/retry_after_seconds'
-      Type: String
-      Value: '300'
-      Description: 'Retry after seconds when circuit is open'
-
-  CircuitBreakerMaxInflightParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub '/ial/circuit_breaker/max_inflight'
-      Type: String
-      Value: '5'
-      Description: 'Maximum inflight requests in half_open state'
-
-  # DynamoDB Table for Token Bucket (Circuit Breaker)
-  CircuitBreakerTokenTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub '${ProjectName}-circuit-breaker-tokens'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: circuit_id
-          AttributeType: S
-      KeySchema:
-        - AttributeName: circuit_id
-          KeyType: HASH
-      TimeToLiveSpecification:
-        AttributeName: expire_at
-        Enabled: true
-      SSESpecification:
-        SSEEnabled: true
-
-  # Enhanced Phase Pipeline with SAGA Pattern
-  PhasePipelineStateMachine:
-    Type: AWS::StepFunctions::StateMachine
-    Properties:
-      StateMachineName: !Sub '${ProjectName}-phase-pipeline-saga'
-      RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
-      DefinitionString: !Sub |
-        {
-          "Comment": "IAL Phase Pipeline with SAGA Pattern and Circuit Breaker",
-          "StartAt": "CircuitBreakerCheck",
-          "States": {
-            "CircuitBreakerCheck": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${CircuitGuardLambda}",
-                "Payload.$": "$"
-              },
-              "ResultPath": "$.circuit",
-              "Next": "CircuitChoice",
-              "Retry": [
-                {
-                  "ErrorEquals": ["States.ALL"],
-                  "IntervalSeconds": 2,
-                  "BackoffRate": 2.0,
-                  "MaxAttempts": 3,
-                  "JitterStrategy": "FULL"
-                }
-              ],
-              "Catch": [
-                {
-                  "ErrorEquals": ["States.ALL"],
-                  "Next": "CircuitBreakerFailed"
-                }
-              ]
-            },
-            "CircuitChoice": {
-              "Type": "Choice",
-              "Choices": [
-                {
-                  "Variable": "$.circuit.Payload.circuit_state",
-                  "StringEquals": "open",
-                  "Next": "CircuitOpen"
-                }
-              ],
-              "Default": "PlanPhase"
-            },
-            "CircuitOpen": {
-              "Type": "Fail",
-              "Cause": "Circuit breaker is open - deployment blocked",
-              "Error": "CircuitBreakerOpen"
-            },
-            "PlanPhase": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${PlanLambda}",
-                "Payload.$": "$"
-              },
-              "ResultPath": "$.plan",
-              "Next": "PolicyChecks",
-              "Retry": [
-                {
-                  "ErrorEquals": ["States.ALL"],
-                  "IntervalSeconds": 5,
-                  "BackoffRate": 2.0,
-                  "MaxAttempts": 3,
-                  "JitterStrategy": "FULL"
-                }
-              ],
-              "Catch": [
-                {
-                  "ErrorEquals": ["States.ALL"],
-                  "Next": "CompensatePlan"
-                }
-              ]
-            },
-            "PolicyChecks": {
-              "Type": "Parallel",
-              "Branches": [
-                {
-                  "StartAt": "OPACheck",
-                  "States": {
-                    "OPACheck": {
-                      "Type": "Task",
-                      "Resource": "arn:aws:states:::lambda:invoke",
-                      "Parameters": {
-                        "FunctionName": "${PolicyOPALambda}",
-                        "Payload.$": "$"
-                      },
-                      "End": true
-                    }
-                  }
-                },
-                {
-                  "StartAt": "CFNGuardCheck",
-                  "States": {
-                    "CFNGuardCheck": {
-                      "Type": "Task",
-                      "Resource": "arn:aws:states:::lambda:invoke",
-                      "Parameters": {
-                        "FunctionName": "${PolicyGuardLambda}",
-                        "Payload.$": "$"
-                      },
-                      "End": true
-                    }
-                  }
-                }
-              ],
-              "ResultPath": "$.policy_checks",
-              "Next": "ApplyPhase",
-              "Catch": [
-                {
-                  "ErrorEquals": ["States.ALL"],
-                  "Next": "CompensatePolicyChecks"
-                }
-              ]
-            },
-            "ApplyPhase": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${ApplyLambda}",
-                "Payload.$": "$"
-              },
-              "ResultPath": "$.apply",
-              "Next": "AuditValidator",
-              "Retry": [
-                {
-                  "ErrorEquals": ["States.ALL"],
-                  "IntervalSeconds": 10,
-                  "BackoffRate": 2.0,
-                  "MaxAttempts": 2,
-                  "JitterStrategy": "FULL"
-                }
-              ],
-              "Catch": [
-                {
-                  "ErrorEquals": ["States.ALL"],
-                  "Next": "CompensateApply"
-                }
-              ]
-            },
-            "AuditValidator": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${AuditValidatorLambda}",
-                "Payload.$": "$"
-              },
-              "ResultPath": "$.audit",
-              "Next": "AuditChoice",
-              "Catch": [
-                {
-                  "ErrorEquals": ["States.ALL"],
-                  "Next": "CompensateAudit"
-                }
-              ]
-            },
-            "AuditChoice": {
-              "Type": "Choice",
-              "Choices": [
-                {
-                  "Variable": "$.audit.Payload.completeness",
-                  "NumericLessThan": 100,
-                  "Next": "AuditFailed"
-                }
-              ],
-              "Default": "Success"
-            },
-            "AuditFailed": {
-              "Type": "Fail",
-              "Cause": "Audit validation failed - completeness < 100%",
-              "Error": "AuditValidationFailed"
-            },
-            "Success": {
-              "Type": "Succeed",
-              "OutputPath": "$"
-            },
-            "CompensatePlan": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${RollbackLambda}",
-                "Payload": {
-                  "compensation_action": "plan",
-                  "original_input.$": "$"
-                }
-              },
-              "Next": "Failed"
-            },
-            "CompensatePolicyChecks": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${RollbackLambda}",
-                "Payload": {
-                  "compensation_action": "policy_checks",
-                  "original_input.$": "$"
-                }
-              },
-              "Next": "CompensatePlan"
-            },
-            "CompensateApply": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${RollbackLambda}",
-                "Payload": {
-                  "compensation_action": "apply",
-                  "original_input.$": "$"
-                }
-              },
-              "Next": "CompensatePolicyChecks"
-            },
-            "CompensateAudit": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${RollbackLambda}",
-                "Payload": {
-                  "compensation_action": "audit",
-                  "original_input.$": "$"
-                }
-              },
-              "Next": "CompensateApply"
-            },
-            "CircuitBreakerFailed": {
-              "Type": "Fail",
-              "Cause": "Circuit breaker check failed",
-              "Error": "CircuitBreakerCheckFailed"
-            },
-            "Failed": {
-              "Type": "Fail",
-              "Cause": "Phase deployment failed after compensation"
-            }
-          }
-        }
-
-  # Circuit Guard Lambda for Circuit Breaker Logic
-  CircuitGuardLambda:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Sub '${ProjectName}-circuit-guard'
-      Runtime: python3.9
-      Handler: index.lambda_handler
-      Role: !GetAtt CircuitGuardLambdaRole.Arn
-      Timeout: 30
-      Environment:
-        Variables:
-          CIRCUIT_STATE_PARAM: !Sub '/ial/circuit_breaker/state'
-          RETRY_AFTER_PARAM: !Sub '/ial/circuit_breaker/retry_after_seconds'
-          MAX_INFLIGHT_PARAM: !Sub '/ial/circuit_breaker/max_inflight'
-          TOKEN_TABLE: !Ref CircuitBreakerTokenTable
-      Code:
-        ZipFile: |
-          import json
-          import boto3
-          import os
-          from datetime import datetime, timedelta
-          from typing import Dict, Any
-
-          ssm = boto3.client('ssm')
-          dynamodb = boto3.resource('dynamodb')
-          token_table = dynamodb.Table(os.environ['TOKEN_TABLE'])
-
-          def lambda_handler(event: Dict[str, Any], context) -> Dict[str, Any]:
-              try:
-                  # Get circuit breaker state from SSM
-                  state = get_parameter(os.environ['CIRCUIT_STATE_PARAM'], 'closed')
-                  retry_after = int(get_parameter(os.environ['RETRY_AFTER_PARAM'], '300'))
-                  max_inflight = int(get_parameter(os.environ['MAX_INFLIGHT_PARAM'], '5'))
-                  
-                  if state == 'open':
-                      return {
-                          'statusCode': 503,
-                          'circuit_state': 'open',
-                          'retry_after_seconds': retry_after,
-                          'message': 'Circuit breaker is open - deployment blocked'
-                      }
-                  elif state == 'half_open':
-                      # Check token bucket for max inflight
-                      if can_proceed_half_open(max_inflight):
-                          return {
-                              'statusCode': 200,
-                              'circuit_state': 'half_open',
-                              'message': 'Circuit breaker half open - proceeding with token'
-                          }
-                      else:
-                          return {
-                              'statusCode': 503,
-                              'circuit_state': 'half_open',
-                              'retry_after_seconds': retry_after,
-                              'message': 'Circuit breaker half open - max inflight reached'
-                          }
-                  else:  # closed
-                      return {
-                          'statusCode': 200,
-                          'circuit_state': 'closed',
-                          'message': 'Circuit breaker closed - proceeding normally'
-                      }
-                      
-              except Exception as e:
-                  return {
-                      'statusCode': 500,
-                      'circuit_state': 'error',
-                      'error': str(e)
-                  }
-
-          def get_parameter(name: str, default: str) -> str:
-              try:
-                  response = ssm.get_parameter(Name=name)
-                  return response['Parameter']['Value']
-              except:
-                  return default
-
-          def can_proceed_half_open(max_inflight: int) -> bool:
-              try:
-                  # Simple token bucket implementation
-                  circuit_id = 'main'
-                  now = datetime.utcnow()
-                  expire_at = int((now + timedelta(minutes=5)).timestamp())
-                  
-                  # Try to get current inflight count
-                  response = token_table.get_item(Key={'circuit_id': circuit_id})
-                  
-                  if 'Item' not in response:
-                      # First request, create token
-                      token_table.put_item(
-                          Item={
-                              'circuit_id': circuit_id,
-                              'inflight_count': 1,
-                              'expire_at': expire_at
-                          }
-                      )
-                      return True
-                  
-                  current_count = response['Item'].get('inflight_count', 0)
-                  if current_count < max_inflight:
-                      # Increment and proceed
-                      token_table.update_item(
-                          Key={'circuit_id': circuit_id},
-                          UpdateExpression='SET inflight_count = inflight_count + :inc, expire_at = :exp',
-                          ExpressionAttributeValues={':inc': 1, ':exp': expire_at}
-                      )
-                      return True
-                  
-                  return False
-                  
-              except Exception:
-                  # On error, allow to proceed (fail open)
-                  return True
-
-  # Circuit Guard Lambda IAM Role
-  CircuitGuardLambdaRole:
+  # IAM Role for Step Functions
+  StepFunctionsRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${ProjectName}-circuit-guard-lambda-role'
+      RoleName: !Sub '${ProjectName}-stepfunctions-role'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: CircuitGuardPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ssm:GetParameter
-                  - ssm:PutParameter
-                Resource: 
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ial/circuit_breaker/*'
-              - Effect: Allow
-                Action:
-                  - dynamodb:GetItem
-                  - dynamodb:PutItem
-                  - dynamodb:UpdateItem
-                Resource: !GetAtt CircuitBreakerTokenTable.Arn
           - Effect: Allow
             Principal:
               Service: states.amazonaws.com
@@ -444,342 +23,168 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSXRayDaemonWriteAccess
       Policies:
-        - PolicyName: StepFunctionsLambdaInvoke
+        - PolicyName: StepFunctionsExecutionPolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
-                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:ial-*'
-        - PolicyName: StepFunctionsLogging
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/stepfunctions/ial-*'
-        - PolicyName: CloudWatchMetrics
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - cloudwatch:PutMetricData
-                Resource: '*'
-
-  # IAM Role for Lambda Functions
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub '${ProjectName}-lambda-execution-role'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
-      Policies:
-        - PolicyName: IALOperations
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:ExecuteChangeSet
-                  - cloudformation:DescribeChangeSet
-                  - cloudformation:DescribeStacks
-                  - cloudformation:DescribeStackEvents
-                  - cloudformation:DescribeStackResources
-                  - cloudformation:GetTemplate
-                  - cloudformation:ListStackResources
-                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/ial-*/*'
+                Resource: !Sub 'arn:aws:lambda:*:*:function:${ProjectName}-*'
               - Effect: Allow
                 Action:
                   - dynamodb:GetItem
                   - dynamodb:PutItem
                   - dynamodb:UpdateItem
                   - dynamodb:Query
-                  - dynamodb:Scan
-                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/ial-*'
+                Resource: !Sub 'arn:aws:dynamodb:*:*:table/${ProjectName}-*'
               - Effect: Allow
                 Action:
-                  - ssm:GetParameter
-                  - ssm:GetParameters
-                  - ssm:PutParameter
-                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ial/*'
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:ListBucket
-                Resource: 
-                  - !Sub 'arn:aws:s3:::ial-*'
-                  - !Sub 'arn:aws:s3:::ial-*/*'
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
 
-  # Phase Pipeline State Machine (Standard)
-  PhasePipelineStateMachine:
+  # Main orchestrator state machine
+  OrchestratorStateMachine:
     Type: AWS::StepFunctions::StateMachine
     Properties:
-      StateMachineName: !Sub '${ProjectName}-phase-pipeline'
+      StateMachineName: !Sub '${ProjectName}-orchestrator'
+      RoleArn: !GetAtt StepFunctionsRole.Arn
       StateMachineType: STANDARD
-      RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
-      LoggingConfiguration:
-        Level: ALL
-        IncludeExecutionData: true
-        Destinations:
-          - CloudWatchLogsLogGroup:
-              LogGroupArn: !GetAtt PhasePipelineLogGroup.Arn
-      TracingConfiguration:
-        Enabled: true
       DefinitionString: !Sub |
         {
-          "Comment": "IAL Phase Pipeline with Circuit Breaker and SAGA Pattern",
-          "StartAt": "CircuitBreakerCheck",
+          "Comment": "IAL Foundation Orchestrator",
+          "StartAt": "InitializeOrchestration",
           "States": {
-            "CircuitBreakerCheck": {
+            "InitializeOrchestration": {
+              "Type": "Pass",
+              "Parameters": {
+                "project_name": "${ProjectName}",
+                "timestamp.$": "$$.State.EnteredTime",
+                "execution_id.$": "$$.Execution.Name"
+              },
+              "Next": "ProcessRequest"
+            },
+            "ProcessRequest": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {
-                "FunctionName": "ial-circuit-guard-lambda",
+                "FunctionName": "${ProjectName}-processor",
                 "Payload.$": "$"
               },
-              "ResultPath": "$.circuit",
-              "Next": "CircuitChoice",
-              "Retry": [{"ErrorEquals": ["States.ALL"], "IntervalSeconds": 2, "BackoffRate": 2.0, "MaxAttempts": 3}]
+              "Next": "CheckResult"
             },
-            "CircuitChoice": {
-              "Type": "Choice",
-              "Choices": [{"Variable": "$.circuit.Payload.circuit", "StringEquals": "OPEN", "Next": "CircuitOpen"}],
-              "Default": "PlanPhase"
-            },
-            "CircuitOpen": {
-              "Type": "Fail",
-              "Cause": "Circuit breaker is open",
-              "Error": "CircuitBreakerOpen"
-            },
-            "PlanPhase": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {"FunctionName": "ial-plan-lambda", "Payload.$": "$"},
-              "ResultPath": "$.plan",
-              "Next": "ApplyChangeSet",
-              "Retry": [{"ErrorEquals": ["States.ALL"], "IntervalSeconds": 5, "BackoffRate": 2.0, "MaxAttempts": 3}],
-              "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "RollbackSaga"}]
-            },
-            "ApplyChangeSet": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {"FunctionName": "ial-apply-lambda", "Payload.$": "$"},
-              "ResultPath": "$.apply",
-              "Next": "AuditValidator",
-              "Retry": [{"ErrorEquals": ["States.ALL"], "IntervalSeconds": 10, "BackoffRate": 2.0, "MaxAttempts": 3}],
-              "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "RollbackSaga"}]
-            },
-            "AuditValidator": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {"FunctionName": "ial-audit-validator-lambda", "Payload.$": "$"},
-              "ResultPath": "$.audit",
-              "Next": "PublishMetrics",
-              "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "RollbackSaga"}]
-            },
-            "PublishMetrics": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::aws-sdk:cloudwatch:putMetricData",
-              "Parameters": {
-                "Namespace": "IAL/Pipeline",
-                "MetricData": [{"MetricName": "PipelineSuccess", "Value": 1, "Unit": "Count"}]
-              },
-              "End": true
-            },
-            "RollbackSaga": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {"FunctionName": "ial-rollback-lambda", "Payload.$": "$"},
-              "End": true
-            }
-          }
-        }
-
-  # Drift Auto-Heal State Machine (Express)
-  DriftAutoHealStateMachine:
-    Type: AWS::StepFunctions::StateMachine
-    Properties:
-      StateMachineName: !Sub '${ProjectName}-drift-autoheal'
-      StateMachineType: EXPRESS
-      RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
-      LoggingConfiguration:
-        Level: ERROR
-        IncludeExecutionData: false
-        Destinations:
-          - CloudWatchLogsLogGroup:
-              LogGroupArn: !GetAtt DriftAutoHealLogGroup.Arn
-      DefinitionString: !Sub |
-        {
-          "Comment": "IAL Drift Auto-Heal Express Workflow",
-          "StartAt": "DetectDrift",
-          "States": {
-            "DetectDrift": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {"FunctionName": "ial-drift-detect-lambda", "Payload.$": "$"},
-              "ResultPath": "$.drift",
-              "Next": "DriftChoice"
-            },
-            "DriftChoice": {
+            "CheckResult": {
               "Type": "Choice",
               "Choices": [
-                {"Variable": "$.drift.Payload.safe", "BooleanEquals": true, "Next": "AutoReconcile"},
-                {"Variable": "$.drift.Payload.detected", "BooleanEquals": false, "Next": "NoDrift"}
+                {
+                  "Variable": "$.Payload.success",
+                  "BooleanEquals": true,
+                  "Next": "Success"
+                }
               ],
-              "Default": "GeneratePR"
+              "Default": "Failure"
             },
-            "NoDrift": {
-              "Type": "Pass",
-              "Result": "No drift detected",
-              "End": true
+            "Success": {
+              "Type": "Succeed",
+              "OutputPath": "$.Payload"
             },
-            "AutoReconcile": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {"FunctionName": "ial-drift-reconcile-lambda", "Payload.$": "$"},
-              "Next": "PublishReconcileMetrics"
-            },
-            "GeneratePR": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {"FunctionName": "ial-reverse-sync-lambda", "Payload.$": "$"},
-              "Next": "PublishPRMetrics"
-            },
-            "PublishReconcileMetrics": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::aws-sdk:cloudwatch:putMetricData",
-              "Parameters": {
-                "Namespace": "IAL/Drift",
-                "MetricData": [{"MetricName": "Reconciled", "Value": 1, "Unit": "Count"}]
-              },
-              "End": true
-            },
-            "PublishPRMetrics": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::aws-sdk:cloudwatch:putMetricData",
-              "Parameters": {
-                "Namespace": "IAL/Drift", 
-                "MetricData": [{"MetricName": "PRGenerated", "Value": 1, "Unit": "Count"}]
-              },
-              "End": true
+            "Failure": {
+              "Type": "Fail",
+              "Cause": "Processing failed"
             }
           }
         }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: Orchestration
 
-  # CloudWatch Log Groups
-  PhasePipelineLogGroup:
-    Type: AWS::Logs::LogGroup
+  # Circuit breaker state machine
+  CircuitBreakerStateMachine:
+    Type: AWS::StepFunctions::StateMachine
     Properties:
-      LogGroupName: !Sub '/aws/stepfunctions/${ProjectName}-phase-pipeline'
-      RetentionInDays: 14
-
-  DriftAutoHealLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/stepfunctions/${ProjectName}-drift-autoheal'
-      RetentionInDays: 7
-
-  # EventBridge Rule for Drift Scanning
-  DriftScannerRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: !Sub '${ProjectName}-drift-scanner'
-      Description: 'Trigger drift detection every 15 minutes'
-      ScheduleExpression: 'rate(15 minutes)'
-      State: ENABLED
-      Targets:
-        - Arn: !Ref DriftAutoHealStateMachine
-          Id: 'DriftAutoHealTarget'
-          RoleArn: !GetAtt EventBridgeRole.Arn
-          Input: |
-            {
-              "scope": "global",
-              "region": "us-east-1",
-              "source": "eventbridge-scheduler"
+      StateMachineName: !Sub '${ProjectName}-circuit-breaker'
+      RoleArn: !GetAtt StepFunctionsRole.Arn
+      StateMachineType: EXPRESS
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL Circuit Breaker Pattern",
+          "StartAt": "CheckCircuitState",
+          "States": {
+            "CheckCircuitState": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::dynamodb:getItem",
+              "Parameters": {
+                "TableName": "${ProjectName}-state",
+                "Key": {
+                  "id": {
+                    "S": "circuit-breaker-state"
+                  }
+                }
+              },
+              "Next": "EvaluateCircuit"
+            },
+            "EvaluateCircuit": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.Item.state.S",
+                  "StringEquals": "OPEN",
+                  "Next": "CircuitOpen"
+                },
+                {
+                  "Variable": "$.Item.state.S",
+                  "StringEquals": "HALF_OPEN",
+                  "Next": "CircuitHalfOpen"
+                }
+              ],
+              "Default": "CircuitClosed"
+            },
+            "CircuitClosed": {
+              "Type": "Succeed",
+              "Result": {
+                "circuit_state": "CLOSED",
+                "allow_request": true
+              }
+            },
+            "CircuitHalfOpen": {
+              "Type": "Succeed",
+              "Result": {
+                "circuit_state": "HALF_OPEN",
+                "allow_request": true
+              }
+            },
+            "CircuitOpen": {
+              "Type": "Succeed",
+              "Result": {
+                "circuit_state": "OPEN",
+                "allow_request": false
+              }
             }
-
-  # EventBridge Role
-  EventBridgeRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub '${ProjectName}-eventbridge-stepfunctions-role'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: events.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: StepFunctionsExecution
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: states:StartExecution
-                Resource: !Ref DriftAutoHealStateMachine
-
-  # SSM Parameters for Circuit Breaker
-  CircuitBreakerState:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub '/ial/circuit_breaker/state'
-      Type: String
-      Value: 'closed'
-      Description: 'Circuit breaker state (closed/half_open/open)'
-
-  CircuitBreakerMaxInflight:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub '/ial/circuit_breaker/max_inflight'
-      Type: String
-      Value: '3'
-      Description: 'Maximum concurrent executions'
-
-  CircuitBreakerRetryAfter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub '/ial/circuit_breaker/retry_after_sec'
-      Type: String
-      Value: '120'
-      Description: 'Retry after seconds when circuit is open'
+          }
+        }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: CircuitBreaker
 
 Outputs:
-  PhasePipelineArn:
-    Description: 'ARN of the Phase Pipeline State Machine'
-    Value: !Ref PhasePipelineStateMachine
+  OrchestratorStateMachineArn:
+    Description: ARN of the orchestrator state machine
+    Value: !Ref OrchestratorStateMachine
     Export:
-      Name: !Sub '${AWS::StackName}-PhasePipelineArn'
-
-  DriftAutoHealArn:
-    Description: 'ARN of the Drift Auto-Heal State Machine'
-    Value: !Ref DriftAutoHealStateMachine
+      Name: !Sub '${ProjectName}-OrchestratorStateMachineArn'
+  
+  CircuitBreakerStateMachineArn:
+    Description: ARN of the circuit breaker state machine
+    Value: !Ref CircuitBreakerStateMachine
     Export:
-      Name: !Sub '${AWS::StackName}-DriftAutoHealArn'
-
-  StepFunctionsRoleArn:
-    Description: 'ARN of the Step Functions execution role'
-    Value: !GetAtt StepFunctionsExecutionRole.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-StepFunctionsRoleArn'
-
-  LambdaExecutionRoleArn:
-    Description: 'ARN of the Lambda execution role'
-    Value: !GetAtt LambdaExecutionRole.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-LambdaExecutionRoleArn'
+      Name: !Sub '${ProjectName}-CircuitBreakerStateMachineArn'

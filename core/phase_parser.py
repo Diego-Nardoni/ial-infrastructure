@@ -1,5 +1,6 @@
 """
 Phase Parser - Lê e interpreta arquivos YAML das fases IAL Foundation
+CORRIGIDO: Deploy real via CloudFormation
 """
 
 import yaml
@@ -7,11 +8,13 @@ import os
 import json
 from typing import Dict, List, Any
 import boto3
+import time
 
 class PhaseParser:
     def __init__(self, phases_dir: str = "/home/ial/phases"):
         self.phases_dir = phases_dir
         self.session = boto3.Session()
+        self.cf_client = self.session.client('cloudformation')
     
     def list_phase_files(self, phase: str = "00-foundation") -> List[str]:
         """Lista arquivos YAML de uma fase"""
@@ -25,6 +28,88 @@ class PhaseParser:
                 yaml_files.append(os.path.join(phase_path, file))
         
         return sorted(yaml_files)
+    
+    def deploy_cloudformation_stack(self, file_path: str, project_name: str = "ial-fork") -> Dict[str, Any]:
+        """Deploy real via CloudFormation"""
+        try:
+            file_name = os.path.basename(file_path).replace('.yaml', '')
+            stack_name = f"{project_name}-{file_name}"
+            
+            # Ler template
+            with open(file_path, 'r') as f:
+                template_body = f.read()
+            
+            # Parâmetros padrão
+            parameters = [
+                {'ParameterKey': 'ProjectName', 'ParameterValue': project_name}
+            ]
+            
+            # Tentar criar stack
+            print(f"📦 Deploying CloudFormation stack: {stack_name}")
+            
+            response = self.cf_client.create_stack(
+                StackName=stack_name,
+                TemplateBody=template_body,
+                Parameters=parameters,
+                Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
+                Tags=[
+                    {'Key': 'Project', 'Value': project_name},
+                    {'Key': 'Component', 'Value': 'IAL-Foundation'},
+                    {'Key': 'DeployedBy', 'Value': 'IAL-MCP-System'}
+                ]
+            )
+            
+            stack_id = response['StackId']
+            
+            # Aguardar criação (timeout 5 minutos)
+            print(f"⏳ Aguardando criação do stack {stack_name}...")
+            
+            waiter = self.cf_client.get_waiter('stack_create_complete')
+            try:
+                waiter.wait(
+                    StackName=stack_name,
+                    WaiterConfig={'Delay': 10, 'MaxAttempts': 30}
+                )
+                
+                # Verificar status final
+                stack_info = self.cf_client.describe_stacks(StackName=stack_name)
+                stack_status = stack_info['Stacks'][0]['StackStatus']
+                
+                if stack_status == 'CREATE_COMPLETE':
+                    print(f"✅ Stack {stack_name} criado com sucesso")
+                    return {
+                        'success': True,
+                        'stack_name': stack_name,
+                        'stack_id': stack_id,
+                        'status': stack_status,
+                        'file_path': file_path
+                    }
+                else:
+                    print(f"❌ Stack {stack_name} falhou: {stack_status}")
+                    return {
+                        'success': False,
+                        'stack_name': stack_name,
+                        'status': stack_status,
+                        'error': f'Stack creation failed with status: {stack_status}',
+                        'file_path': file_path
+                    }
+                    
+            except Exception as wait_error:
+                print(f"⏰ Timeout aguardando stack {stack_name}: {wait_error}")
+                return {
+                    'success': False,
+                    'stack_name': stack_name,
+                    'error': f'Timeout waiting for stack creation: {wait_error}',
+                    'file_path': file_path
+                }
+                
+        except Exception as e:
+            print(f"❌ Erro deploying {file_path}: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'file_path': file_path
+            }
     
     def parse_phase_file(self, file_path: str) -> Dict[str, Any]:
         """Parse um arquivo YAML de fase"""
@@ -460,4 +545,66 @@ def deploy_phase_resources(phase: str = "00-foundation", resource_filter: str = 
         'results': results,
         'total_resources': len(results),
         'successful': len([r for r in results if r.get('success', False)])
+    }
+
+def deploy_phase_resources(phase: str = "00-foundation", project_name: str = "ial-fork") -> Dict[str, Any]:
+    """Deploy todos os recursos de uma fase via CloudFormation REAL"""
+    parser = PhaseParser()
+    
+    print(f"🚀 Deploying Phase: {phase}")
+    
+    # Listar arquivos da fase
+    phase_files = parser.list_phase_files(phase)
+    
+    if not phase_files:
+        return {
+            'success': False,
+            'error': f'No YAML files found in phase {phase}',
+            'total_resources': 0,
+            'successful': 0,
+            'results': []
+        }
+    
+    print(f"📋 Found {len(phase_files)} YAML files to deploy")
+    
+    results = []
+    successful = 0
+    
+    # Deploy cada arquivo via CloudFormation
+    for file_path in phase_files:
+        file_name = os.path.basename(file_path)
+        print(f"📦 Deploying {file_name}...")
+        
+        try:
+            # Deploy via CloudFormation
+            result = parser.deploy_cloudformation_stack(file_path, project_name)
+            results.append(result)
+            
+            if result.get('success', False):
+                successful += 1
+                print(f"✅ {file_name} deployed successfully")
+            else:
+                print(f"❌ {file_name} failed: {result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            error_result = {
+                'success': False,
+                'error': str(e),
+                'file_path': file_path
+            }
+            results.append(error_result)
+            print(f"❌ {file_name} failed with exception: {e}")
+    
+    # Resumo final
+    print(f"\n📊 Phase {phase} Deployment Summary:")
+    print(f"   ✅ Successful: {successful}/{len(phase_files)}")
+    print(f"   ❌ Failed: {len(phase_files) - successful}/{len(phase_files)}")
+    
+    return {
+        'success': successful > 0,
+        'phase': phase,
+        'total_resources': len(phase_files),
+        'successful': successful,
+        'failed': len(phase_files) - successful,
+        'results': results
     }

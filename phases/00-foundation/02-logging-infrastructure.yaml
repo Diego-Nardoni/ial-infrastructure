@@ -1,103 +1,64 @@
-# PHASE 00 - LOGGING INFRASTRUCTURE
-# Professional logging setup for IaL operations
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Logging Infrastructure'
 
-phase: "00-logging-infrastructure"
-description: "CloudWatch Logs setup for professional IaL logging"
-depends_on: []
-estimated_cost_monthly: 5
-resource_count: 3
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-fork
+    Description: Project name for resource naming
 
-resources:
-  # CloudWatch Log Group for IaL operations
-  IaLLogGroup:
+Resources:
+  # CloudWatch Log Group for IAL operations
+  IALLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: ial-infrastructure
+      LogGroupName: !Sub '${ProjectName}-infrastructure'
       RetentionInDays: 30
-      KmsKeyId: !Ref IaLKMSKey
       Tags:
         - Key: Project
-          Value: ial
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
         - Key: Purpose
-          Value: operational-logging
-        - Key: Environment
-          Value: production
+          Value: Logging
 
-  # CloudWatch Log Group for rollback operations
-  IaLRollbackLogGroup:
+  # Lambda functions log group
+  LambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: ial-rollback-operations
-      RetentionInDays: 90
-      KmsKeyId: !Ref IaLKMSKey
+      LogGroupName: !Sub '/aws/lambda/${ProjectName}'
+      RetentionInDays: 14
       Tags:
         - Key: Project
-          Value: ial
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
         - Key: Purpose
-          Value: rollback-logging
-        - Key: Environment
-          Value: production
+          Value: LambdaLogs
 
-  # CloudWatch Dashboard for IaL monitoring
-  IaLDashboard:
-    Type: AWS::CloudWatch::Dashboard
+  # Step Functions log group
+  StepFunctionsLogGroup:
+    Type: AWS::Logs::LogGroup
     Properties:
-      DashboardName: IaL-Operations-Dashboard
-      DashboardBody: !Sub |
-        {
-          "widgets": [
-            {
-              "type": "log",
-              "x": 0,
-              "y": 0,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE 'ial-infrastructure'\n| fields @timestamp, level, message, phase, event_type\n| filter event_type = \"deployment_started\" or event_type = \"deployment_completed\" or event_type = \"deployment_failed\"\n| sort @timestamp desc\n| limit 50",
-                "region": "us-east-1",
-                "title": "Recent Deployments",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 12,
-              "y": 0,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE 'ial-infrastructure'\n| fields @timestamp, level, message, error\n| filter level = \"ERROR\"\n| sort @timestamp desc\n| limit 20",
-                "region": "us-east-1",
-                "title": "Recent Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 0,
-              "y": 6,
-              "width": 24,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE 'ial-rollback-operations'\n| fields @timestamp, level, message, checkpoint_id, event_type\n| filter event_type like /rollback/\n| sort @timestamp desc\n| limit 30",
-                "region": "us-east-1",
-                "title": "Rollback Operations",
-                "view": "table"
-              }
-            }
-          ]
-        }
+      LogGroupName: !Sub '/aws/stepfunctions/${ProjectName}'
+      RetentionInDays: 14
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: StepFunctionsLogs
 
-# CloudFormation Outputs
 Outputs:
-  LogGroupArn:
-    Description: ARN of the IaL log group
-    Value: !GetAtt IaLLogGroup.Arn
+  IALLogGroupName:
+    Description: Name of the IAL log group
+    Value: !Ref IALLogGroup
     Export:
-      Name: !Sub "${AWS::StackName}-LogGroupArn"
+      Name: !Sub '${ProjectName}-IALLogGroupName'
   
-  DashboardURL:
-    Description: URL to the IaL operations dashboard
-    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=IaL-Operations-Dashboard"
+  IALLogGroupArn:
+    Description: ARN of the IAL log group
+    Value: !GetAtt IALLogGroup.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-DashboardURL"
+      Name: !Sub '${ProjectName}-IALLogGroupArn'

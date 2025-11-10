@@ -1,80 +1,42 @@
-# PHASE 00C - RECONCILIATION WRAPPER
-# Applied to all phases automatically
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Reconciliation Wrapper'
 
-phase: "00c-reconciliation-wrapper"
-description: "Reconciliation logic applied to all resource deployments"
-depends_on: ["00-dynamodb-state", "00b-reconciliation-engine"]
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-fork
+    Description: Project name for resource naming
 
-# This wrapper is automatically applied to phases 01-15
+Resources:
+  # SNS Topic for reconciliation notifications
+  ReconciliationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-reconciliation-notifications'
+      DisplayName: 'IAL Reconciliation Notifications'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: ReconciliationNotifications
 
-pre_execution:
-  step_0_reconcile:
-    description: "Check if resource needs creation/update/skip"
-    action: "invoke_reconciliation_engine"
-    
-    logic: |
-      # 1. Read desired state from YAML
-      DESIRED_STATE=$(cat phases/${PHASE}.yaml)
-      
-      # 2. Read current state from DynamoDB
-      CURRENT_STATE=$(aws dynamodb get-item \
-        --table-name mcp-provisioning-checklist \
-        --key '{"Project":{"S":"'${PROJECT_NAME}'"},"ResourceName":{"S":"'${RESOURCE_NAME}'"}}' \
-        --query 'Item.CurrentState.S' --output text)
-      
-      # 3. Compare states
-      if [ "$DESIRED_STATE" == "$CURRENT_STATE" ]; then
-        echo "✅ Resource matches - SKIP"
-        exit 0
-      else
-        echo "🔄 Resource needs update - PROCEED"
-      fi
-    
-    output:
-      action: "CREATE|UPDATE|SKIP"
-    
-    if_action_skip:
-      message: "✅ Resource already exists and matches desired state"
-      next_step: "SKIP_TO_VERIFICATION"
+  # EventBridge rule for drift detection
+  DriftDetectionRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-drift-detection'
+      Description: 'Periodic drift detection for IAL resources'
+      ScheduleExpression: 'rate(6 hours)'
+      State: ENABLED
+      Targets:
+        - Arn: !Ref ReconciliationTopic
+          Id: DriftDetectionTarget
 
-post_execution:
-  step_final_update_state:
-    description: "Update DynamoDB with current state"
-    action: "update_dynamodb_state"
-    
-    logic: |
-      # Store current AWS state in DynamoDB
-      CURRENT_AWS_STATE=$(aws ${SERVICE} describe-${RESOURCE_TYPE} ...)
-      
-      aws dynamodb update-item \
-        --table-name mcp-provisioning-checklist \
-        --key '{"Project":{"S":"'${PROJECT_NAME}'"},"ResourceName":{"S":"'${RESOURCE_NAME}'"}}' \
-        --update-expression "SET CurrentState = :c, DesiredState = :d, Version = Version + :one" \
-        --expression-attribute-values '{
-          ":c": {"S": "'$CURRENT_AWS_STATE'"},
-          ":d": {"S": "'$DESIRED_STATE'"},
-          ":one": {"N": "1"}
-        }'
-
-verification:
-  reconciliation_check:
-    description: "Verify resource state matches desired state"
-    command: |
-      DESIRED=$(cat phases/${PHASE}.yaml)
-      CURRENT=$(aws dynamodb get-item ... | jq -r '.Item.CurrentState.S')
-      
-      if [ "$DESIRED" == "$CURRENT" ]; then
-        echo "✅ Reconciliation verified"
-      else
-        echo "❌ Reconciliation failed - state mismatch"
-        exit 1
-      fi
-
-notes: |
-  This wrapper provides:
-  - Idempotency: Skip if resource matches
-  - State tracking: Store desired + current state
-  - Version control: Increment version on changes
-  - Verification: Ensure reconciliation succeeded
-  
-  Applied automatically to phases 01-15 without modification.
+Outputs:
+  ReconciliationTopicArn:
+    Description: ARN of the reconciliation topic
+    Value: !Ref ReconciliationTopic
+    Export:
+      Name: !Sub '${ProjectName}-ReconciliationTopicArn'

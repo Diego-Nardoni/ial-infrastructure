@@ -1,23 +1,66 @@
-phase_name: Universal Dynamodb Resources
-description: Auto-generated phase for dynamodb resources
-resource_count: 2
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Additional DynamoDB Tables'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-fork
+    Description: Project name for resource naming
+
 Resources:
-  UniversalTesttable:
-    Type: AWS::DynamoDB::Table
-    Properties: {}
-    Metadata:
-      CreatedVia: universal-tracker
-      Service: dynamodb
-      Operation: create-table
-      Timestamp: '2025-10-23T22:35:43.887361'
-      OriginalName: TestTable
-  UniversalMcpprovisioningchecklist:
+  # Resource catalog table
+  ResourceCatalogTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: mcp-provisioning-checklist
-    Metadata:
-      CreatedVia: universal-tracker
-      Service: dynamodb
-      Operation: create-table
-      Timestamp: '2025-10-23T22:36:29.184740'
-      OriginalName: mcp-provisioning-checklist
+      TableName: !Sub '${ProjectName}-resource-catalog'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: resource_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: resource_id
+          KeyType: HASH
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: ResourceCatalog
+
+  # Deployment history table
+  DeploymentHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-deployment-history'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: deployment_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: deployment_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: DeploymentHistory
+
+Outputs:
+  ResourceCatalogTableName:
+    Description: Name of the resource catalog table
+    Value: !Ref ResourceCatalogTable
+    Export:
+      Name: !Sub '${ProjectName}-ResourceCatalogTableName'
+  
+  DeploymentHistoryTableName:
+    Description: Name of the deployment history table
+    Value: !Ref DeploymentHistoryTable
+    Export:
+      Name: !Sub '${ProjectName}-DeploymentHistoryTableName'

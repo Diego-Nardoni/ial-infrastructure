@@ -1,12 +1,98 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - S3 Storage Buckets'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-fork
+    Description: Project name for resource naming
+
 Resources:
-  AdHocTestautodiscoverybucket1761257199:
+  # Templates bucket
+  TemplatesBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: test-auto-discovery-bucket-1761257199
-    Metadata:
-      CreatedVia: auto-discovery
-      Timestamp: '2025-10-23T22:06:40.052388'
-      OriginalName: test-auto-discovery-bucket-1761257199
-description: Auto-generated phase for ad-hoc 08-s3-storage resources
-phase_name: Ad-hoc Resources - 08-s3-storage
-resource_count: 1
+      BucketName: !Sub '${ProjectName}-templates-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: Templates
+
+  # Artifacts bucket
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-artifacts-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: Artifacts
+
+  # State bucket
+  StateBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-state-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: StateStorage
+
+Outputs:
+  TemplatesBucketName:
+    Description: Name of the templates bucket
+    Value: !Ref TemplatesBucket
+    Export:
+      Name: !Sub '${ProjectName}-TemplatesBucketName'
+  
+  ArtifactsBucketName:
+    Description: Name of the artifacts bucket
+    Value: !Ref ArtifactsBucket
+    Export:
+      Name: !Sub '${ProjectName}-ArtifactsBucketName'
+  
+  StateBucketName:
+    Description: Name of the state bucket
+    Value: !Ref StateBucket
+    Export:
+      Name: !Sub '${ProjectName}-StateBucketName'

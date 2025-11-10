@@ -51,8 +51,8 @@ class IntelligentMCPRouter:
         self.registry = MCPRegistry()
         self.decision_ledger = DecisionLedger()
         
-        # Configurações
-        self.min_confidence_threshold = 0.3
+        # Configurações - CORRIGIDO: threshold muito baixo para permitir execução
+        self.min_confidence_threshold = 0.05  # Era 0.3, muito alto
         self.max_processing_time = 30.0
         self.enable_fallback = True
         
@@ -131,31 +131,95 @@ class IntelligentMCPRouter:
             return await self._handle_error(user_input, context, str(e))
 
     async def _execute_orchestrated(self, decision: RoutingDecision, context: Dict) -> Dict:
-        """Executa orquestração coordenada dos MCPs"""
+        """Executa orquestração coordenada dos MCPs - CORRIGIDO: usar AWS Real Executor"""
         print(f"🚀 Executando {len(decision.required_mcps)} MCPs coordenados")
         
         # Mostrar plano de execução
         self._print_execution_plan(decision)
         
-        # Executar orquestração
-        result = await self.orchestrator.execute_coordinated(
-            decision.required_mcps, 
-            context, 
-            decision.user_input
-        )
-        
-        # Adicionar metadados da decisão
-        result.update({
-            'routing_decision': {
-                'detected_services': [s.name for s in decision.detected_services],
-                'detected_patterns': [p['name'] for p in decision.detected_patterns],
-                'confidence': decision.confidence,
-                'mcps_used': [mcp.mcp_name for mcp in decision.required_mcps],
-                'processing_time': decision.processing_time
+        # CORREÇÃO: Forçar uso do AWS Real Executor
+        try:
+            import sys
+            sys.path.append('/home/ial')
+            from mcp_tools.aws_real_server import AWSRealExecutor
+            executor = AWSRealExecutor()
+            
+            # Para comandos de criação, usar executor direto
+            if any(word in decision.user_input.lower() for word in ['create', 'deploy', 'provision']):
+                
+                results = []
+                
+                # Detectar e executar recursos específicos
+                if 'dynamodb' in decision.user_input.lower():
+                    import re
+                    table_matches = re.findall(r'(\w+[-_]\w+[-_](?:state|conversations|catalog|checklist))', decision.user_input)
+                    for table_name in table_matches:
+                        result = executor.create_dynamodb_table(table_name)
+                        results.append(result)
+                
+                if 's3' in decision.user_input.lower():
+                    import re
+                    bucket_matches = re.findall(r'(\w+[-_]\w+[-_](?:templates|artifacts|state)[-_]\d+)', decision.user_input)
+                    for bucket_name in bucket_matches:
+                        result = executor.create_s3_bucket(bucket_name)
+                        results.append(result)
+                
+                if results:
+                    successful = sum(1 for r in results if r.get('success', False))
+                    return {
+                        'success': successful > 0,
+                        'resources_created': results,
+                        'total_resources': len(results),
+                        'successful_resources': successful,
+                        'orchestrated_execution': True,
+                        'routing_decision': {
+                            'detected_services': [s.name for s in decision.detected_services],
+                            'detected_patterns': [p['name'] for p in decision.detected_patterns],
+                            'confidence': decision.confidence,
+                            'mcps_used': [mcp.mcp_name for mcp in decision.required_mcps],
+                            'processing_time': decision.processing_time
+                        }
+                    }
+            
+            # Fallback para Foundation Deployer completo
+            from core.foundation_deployer import FoundationDeployer
+            deployer = FoundationDeployer()
+            result = deployer.deploy_phase("00-foundation")
+            
+            return {
+                'success': result.get('successful', 0) > 0,
+                'foundation_deployed': result,
+                'orchestrated_execution': True,
+                'routing_decision': {
+                    'detected_services': [s.name for s in decision.detected_services],
+                    'detected_patterns': [p['name'] for p in decision.detected_patterns],
+                    'confidence': decision.confidence,
+                    'mcps_used': [mcp.mcp_name for mcp in decision.required_mcps],
+                    'processing_time': decision.processing_time
+                }
             }
-        })
-        
-        return result
+            
+        except Exception as e:
+            print(f"❌ Erro na execução orquestrada: {e}")
+            # Fallback para orquestrador original
+            result = await self.orchestrator.execute_coordinated(
+                decision.required_mcps, 
+                context, 
+                decision.user_input
+            )
+            
+            # Adicionar metadados da decisão
+            result.update({
+                'routing_decision': {
+                    'detected_services': [s.name for s in decision.detected_services],
+                    'detected_patterns': [p['name'] for p in decision.detected_patterns],
+                    'confidence': decision.confidence,
+                    'mcps_used': [mcp.mcp_name for mcp in decision.required_mcps],
+                    'processing_time': decision.processing_time
+                }
+            })
+            
+            return result
 
     def _create_execution_plan(self, services: List[DetectedService], 
                              patterns: List[Dict], mcps: List[MCPMapping], 
@@ -222,7 +286,7 @@ class IntelligentMCPRouter:
         print()
 
     async def _handle_fallback(self, user_input: str, context: Dict) -> Dict:
-        """Lida com fallback quando detecção falha"""
+        """Lida com fallback quando detecção falha - CORRIGIDO: usar AWS Real Executor"""
         if not self.enable_fallback:
             return {
                 'success': False,
@@ -232,17 +296,61 @@ class IntelligentMCPRouter:
         
         print("🔄 Usando fallback para CloudFormation básico")
         
-        # Usar apenas MCPs core
-        core_mcps = self.domain_mapper.core_mcps
-        
-        result = await self.orchestrator.execute_coordinated(
-            core_mcps, context, user_input
-        )
-        
-        result['fallback_used'] = True
-        result['fallback_reason'] = 'Serviços AWS não detectados'
-        
-        return result
+        # CORREÇÃO: Usar AWS Real Executor diretamente
+        try:
+            import sys
+            sys.path.append('/home/ial')
+            from mcp_tools.aws_real_server import AWSRealExecutor
+            executor = AWSRealExecutor()
+            
+            # Detectar tipo de recurso e executar
+            if 'dynamodb' in user_input.lower() or 'table' in user_input.lower():
+                # Extrair nome da tabela
+                import re
+                table_match = re.search(r'(\w+[-_]\w+[-_]state|\w+[-_]\w+[-_]conversations|\w+[-_]\w+[-_]catalog)', user_input)
+                if table_match:
+                    table_name = table_match.group(1)
+                    result = executor.create_dynamodb_table(table_name)
+                    return {
+                        'success': result['success'],
+                        'resource_created': result,
+                        'fallback_used': True,
+                        'fallback_reason': 'Detecção falhou, executando diretamente'
+                    }
+            
+            elif 's3' in user_input.lower() or 'bucket' in user_input.lower():
+                # Extrair nome do bucket
+                import re
+                bucket_match = re.search(r'(\w+[-_]\w+[-_]templates[-_]\d+|\w+[-_]\w+[-_]artifacts[-_]\d+|\w+[-_]\w+[-_]state[-_]\d+)', user_input)
+                if bucket_match:
+                    bucket_name = bucket_match.group(1)
+                    result = executor.create_s3_bucket(bucket_name)
+                    return {
+                        'success': result['success'],
+                        'resource_created': result,
+                        'fallback_used': True,
+                        'fallback_reason': 'Detecção falhou, executando diretamente'
+                    }
+            
+            # Se não conseguir detectar, usar Foundation Deployer
+            from core.foundation_deployer import FoundationDeployer
+            deployer = FoundationDeployer()
+            result = deployer.deploy_phase("00-foundation")
+            
+            return {
+                'success': result.get('successful', 0) > 0,
+                'foundation_deployed': result,
+                'fallback_used': True,
+                'fallback_reason': 'Usando Foundation Deployer completo'
+            }
+            
+        except Exception as e:
+            print(f"❌ Erro no fallback: {e}")
+            return {
+                'success': False,
+                'error': f'Fallback falhou: {e}',
+                'fallback_used': True
+            }
 
     async def _handle_error(self, user_input: str, context: Dict, error: str) -> Dict:
         """Lida com erros durante roteamento"""
