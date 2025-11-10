@@ -58,7 +58,7 @@ class DependencyGraph:
         
         if self.enable_persistence:
             try:
-                self.resource_catalog = ResourceCatalog(region=region)
+                self.resource_catalog = ResourceCatalog()
                 print("✅ DependencyGraph: Persistência habilitada")
             except Exception as e:
                 print(f"⚠️ DependencyGraph: Erro inicializando persistência: {e}")

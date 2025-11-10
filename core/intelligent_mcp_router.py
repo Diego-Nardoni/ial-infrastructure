@@ -141,7 +141,8 @@ class IntelligentMCPRouter:
         try:
             import sys
             sys.path.append('/home/ial')
-            from mcp_tools.aws_real_server import AWSRealExecutor
+            sys.path.append('/home/ial/mcp-tools')
+            from aws_real_server import AWSRealExecutor
             executor = AWSRealExecutor()
             
             # Para comandos de criação, usar executor direto
@@ -300,7 +301,8 @@ class IntelligentMCPRouter:
         try:
             import sys
             sys.path.append('/home/ial')
-            from mcp_tools.aws_real_server import AWSRealExecutor
+            sys.path.append('/home/ial/mcp-tools')
+            from aws_real_server import AWSRealExecutor
             executor = AWSRealExecutor()
             
             # Detectar tipo de recurso e executar
