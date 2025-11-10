@@ -30,10 +30,41 @@ class PhaseParser:
         return sorted(yaml_files)
     
     def deploy_cloudformation_stack(self, file_path: str, project_name: str = "ial-fork") -> Dict[str, Any]:
-        """Deploy real via CloudFormation"""
+        """Deploy real via CloudFormation com idempotência"""
         try:
             file_name = os.path.basename(file_path).replace('.yaml', '')
             stack_name = f"{project_name}-{file_name}"
+            
+            # IDEMPOTÊNCIA: Verificar se stack já existe
+            try:
+                stack_info = self.cf_client.describe_stacks(StackName=stack_name)
+                stack_status = stack_info['Stacks'][0]['StackStatus']
+                
+                if stack_status in ['CREATE_COMPLETE', 'UPDATE_COMPLETE']:
+                    print(f"✅ Stack {stack_name} já existe e está completo")
+                    return {
+                        'success': True,
+                        'stack_name': stack_name,
+                        'stack_id': stack_info['Stacks'][0]['StackId'],
+                        'status': stack_status,
+                        'file_path': file_path,
+                        'action': 'already_exists',
+                        'idempotent': True
+                    }
+                elif stack_status in ['ROLLBACK_COMPLETE', 'CREATE_FAILED']:
+                    print(f"🔄 Stack {stack_name} em estado de falha, deletando para recriar...")
+                    self.cf_client.delete_stack(StackName=stack_name)
+                    
+                    # Aguardar deleção
+                    waiter = self.cf_client.get_waiter('stack_delete_complete')
+                    waiter.wait(StackName=stack_name, WaiterConfig={'Delay': 10, 'MaxAttempts': 30})
+                    print(f"✅ Stack {stack_name} deletado, prosseguindo com criação...")
+                    
+            except self.cf_client.exceptions.ClientError as e:
+                if 'does not exist' in str(e):
+                    pass  # Stack não existe, pode criar
+                else:
+                    raise
             
             # Ler template
             with open(file_path, 'r') as f:
@@ -55,7 +86,8 @@ class PhaseParser:
                 Tags=[
                     {'Key': 'Project', 'Value': project_name},
                     {'Key': 'Component', 'Value': 'IAL-Foundation'},
-                    {'Key': 'DeployedBy', 'Value': 'IAL-MCP-System'}
+                    {'Key': 'DeployedBy', 'Value': 'IAL-MCP-System'},
+                    {'Key': 'Idempotent', 'Value': 'true'}
                 ]
             )
             
@@ -82,7 +114,9 @@ class PhaseParser:
                         'stack_name': stack_name,
                         'stack_id': stack_id,
                         'status': stack_status,
-                        'file_path': file_path
+                        'file_path': file_path,
+                        'action': 'created',
+                        'idempotent': True
                     }
                 else:
                     print(f"❌ Stack {stack_name} falhou: {stack_status}")
@@ -91,7 +125,8 @@ class PhaseParser:
                         'stack_name': stack_name,
                         'status': stack_status,
                         'error': f'Stack creation failed with status: {stack_status}',
-                        'file_path': file_path
+                        'file_path': file_path,
+                        'idempotent': True
                     }
                     
             except Exception as wait_error:
@@ -100,7 +135,8 @@ class PhaseParser:
                     'success': False,
                     'stack_name': stack_name,
                     'error': f'Timeout waiting for stack creation: {wait_error}',
-                    'file_path': file_path
+                    'file_path': file_path,
+                    'idempotent': True
                 }
                 
         except Exception as e:
@@ -108,7 +144,8 @@ class PhaseParser:
             return {
                 'success': False,
                 'error': str(e),
-                'file_path': file_path
+                'file_path': file_path,
+                'idempotent': True
             }
     
     def parse_phase_file(self, file_path: str) -> Dict[str, Any]:

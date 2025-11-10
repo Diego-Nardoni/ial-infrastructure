@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 MCP Server AWS Real - Executa comandos AWS reais via boto3
-Substitui simulação por execução real de recursos AWS
+CORRIGIDO: Idempotência implementada
 """
 
 import boto3
@@ -16,10 +16,30 @@ class AWSRealExecutor:
         self.session = boto3.Session()
         
     def create_s3_bucket(self, bucket_name: str, region: str = 'us-east-1') -> Dict[str, Any]:
-        """Cria bucket S3 real"""
+        """Cria bucket S3 real com idempotência"""
         try:
             s3 = self.session.client('s3', region_name=region)
             
+            # IDEMPOTÊNCIA: Verificar se bucket já existe
+            try:
+                s3.head_bucket(Bucket=bucket_name)
+                return {
+                    'success': True,
+                    'resource_type': 'AWS::S3::Bucket',
+                    'resource_name': bucket_name,
+                    'arn': f'arn:aws:s3:::{bucket_name}',
+                    'action': 'already_exists',
+                    'idempotent': True
+                }
+            except s3.exceptions.NoSuchBucket:
+                pass  # Bucket não existe, pode criar
+            except Exception as e:
+                if 'NotFound' in str(e):
+                    pass  # Bucket não existe, pode criar
+                else:
+                    raise
+            
+            # Criar bucket
             if region == 'us-east-1':
                 s3.create_bucket(Bucket=bucket_name)
             else:
@@ -33,20 +53,152 @@ class AWSRealExecutor:
                 'resource_type': 'AWS::S3::Bucket',
                 'resource_name': bucket_name,
                 'arn': f'arn:aws:s3:::{bucket_name}',
-                'action': 'created'
+                'action': 'created',
+                'idempotent': True
             }
         except Exception as e:
             return {
                 'success': False,
                 'error': str(e),
                 'resource_type': 'AWS::S3::Bucket',
-                'resource_name': bucket_name
+                'resource_name': bucket_name,
+                'idempotent': True
             }
     
     def create_dynamodb_table(self, table_name: str, hash_key: str = 'id') -> Dict[str, Any]:
-        """Cria tabela DynamoDB real"""
+        """Cria tabela DynamoDB real com idempotência"""
         try:
             dynamodb = self.session.client('dynamodb')
+            
+            # IDEMPOTÊNCIA: Verificar se tabela já existe
+            try:
+                response = dynamodb.describe_table(TableName=table_name)
+                table_status = response['Table']['TableStatus']
+                
+                return {
+                    'success': True,
+                    'resource_type': 'AWS::DynamoDB::Table',
+                    'resource_name': table_name,
+                    'arn': response['Table']['TableArn'],
+                    'action': 'already_exists',
+                    'status': table_status,
+                    'idempotent': True
+                }
+            except dynamodb.exceptions.ResourceNotFoundException:
+                pass  # Tabela não existe, pode criar
+            
+            # Criar tabela
+            response = dynamodb.create_table(
+                TableName=table_name,
+                KeySchema=[
+                    {
+                        'AttributeName': hash_key,
+                        'KeyType': 'HASH'
+                    }
+                ],
+                AttributeDefinitions=[
+                    {
+                        'AttributeName': hash_key,
+                        'AttributeType': 'S'
+                    }
+                ],
+                BillingMode='PAY_PER_REQUEST',
+                Tags=[
+                    {
+                        'Key': 'CreatedBy',
+                        'Value': 'IAL-MCP-System'
+                    },
+                    {
+                        'Key': 'Idempotent',
+                        'Value': 'true'
+                    }
+                ]
+            )
+            
+            return {
+                'success': True,
+                'resource_type': 'AWS::DynamoDB::Table',
+                'resource_name': table_name,
+                'arn': response['TableDescription']['TableArn'],
+                'action': 'created',
+                'idempotent': True
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'resource_type': 'AWS::DynamoDB::Table',
+                'resource_name': table_name,
+                'idempotent': True
+            }
+    
+    def create_lambda_function(self, function_name: str, runtime: str = 'python3.12') -> Dict[str, Any]:
+        """Cria função Lambda real com idempotência"""
+        try:
+            lambda_client = self.session.client('lambda')
+            
+            # IDEMPOTÊNCIA: Verificar se função já existe
+            try:
+                response = lambda_client.get_function(FunctionName=function_name)
+                return {
+                    'success': True,
+                    'resource_type': 'AWS::Lambda::Function',
+                    'resource_name': function_name,
+                    'arn': response['Configuration']['FunctionArn'],
+                    'action': 'already_exists',
+                    'idempotent': True
+                }
+            except lambda_client.exceptions.ResourceNotFoundException:
+                pass  # Função não existe, pode criar
+            
+            # Código básico da função
+            function_code = '''
+import json
+def lambda_handler(event, context):
+    return {
+        'statusCode': 200,
+        'body': json.dumps({
+            'message': 'IAL Lambda function executed successfully',
+            'function_name': context.function_name,
+            'request_id': context.aws_request_id
+        })
+    }
+'''
+            
+            # Criar função
+            response = lambda_client.create_function(
+                FunctionName=function_name,
+                Runtime=runtime,
+                Role='arn:aws:iam::221082174220:role/lambda-execution-role',
+                Handler='index.lambda_handler',
+                Code={'ZipFile': function_code.encode()},
+                Description=f'IAL Lambda function - {function_name}',
+                Timeout=30,
+                MemorySize=128,
+                Tags={
+                    'CreatedBy': 'IAL-MCP-System',
+                    'Idempotent': 'true'
+                }
+            )
+            
+            return {
+                'success': True,
+                'resource_type': 'AWS::Lambda::Function',
+                'resource_name': function_name,
+                'arn': response['FunctionArn'],
+                'action': 'created',
+                'idempotent': True
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'resource_type': 'AWS::Lambda::Function',
+                'resource_name': function_name,
+                'idempotent': True
+            }
             
             response = dynamodb.create_table(
                 TableName=table_name,
