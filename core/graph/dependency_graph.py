@@ -383,3 +383,44 @@ class DependencyGraph:
             "avg_dependencies": sum(len(n.dependencies) for n in self.nodes.values()) / len(self.nodes) if self.nodes else 0,
             "avg_dependents": sum(len(n.dependents) for n in self.nodes.values()) / len(self.nodes) if self.nodes else 0
         }
+    
+    def remove_resource(self, resource_id: str) -> Dict[str, Any]:
+        """Remove resource and handle dependencies"""
+        if resource_id not in self.nodes:
+            return {'success': False, 'error': f'Resource {resource_id} not found'}
+        
+        # Get impacted resources before removal
+        impacted = self._get_all_dependents(resource_id)
+        
+        # Remove from dependents
+        node = self.nodes[resource_id]
+        for dep_id in node.dependencies:
+            if dep_id in self.nodes:
+                self.nodes[dep_id].dependents.remove(resource_id)
+        
+        # Remove from dependencies
+        for dep_id in node.dependents:
+            if dep_id in self.nodes:
+                self.nodes[dep_id].dependencies.remove(resource_id)
+        
+        # Remove edges
+        self.edges = [(src, tgt) for src, tgt in self.edges if src != resource_id and tgt != resource_id]
+        
+        # Remove node
+        del self.nodes[resource_id]
+        
+        # Persist if available
+        if self.persistence_enabled and PERSISTENCE_AVAILABLE:
+            try:
+                self.catalog.remove_resource(resource_id)
+            except Exception as e:
+                print(f"⚠️ Failed to remove from catalog: {e}")
+        
+        self._invalidate_cache()
+        
+        return {
+            'success': True,
+            'removed_resource': resource_id,
+            'impacted_resources': impacted,
+            'cleanup_required': len(impacted) > 0
+        }

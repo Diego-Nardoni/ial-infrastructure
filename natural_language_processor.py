@@ -213,8 +213,10 @@ class IaLNaturalProcessor:
         # Usar router inteligente para solicitações de infraestrutura
         infrastructure_keywords = [
             'deploy', 'create', 'setup', 'build', 'provision',
+            'delete', 'remove', 'destroy', 'cleanup', 'exclude',
             'ecs', 'lambda', 'rds', 'elb', 'vpc', 's3', 'dynamodb',
-            'infrastructure', 'architecture', 'serverless', 'container'
+            'infrastructure', 'architecture', 'serverless', 'container',
+            'phase', 'stack'
         ]
         
         user_lower = user_input.lower()
