@@ -1,20 +1,27 @@
 # IAL Installers
 
-This directory contains the latest compiled IAL installer with complete dual-logic system and all fixes.
+This directory contains the final production-ready IAL installer with all runtime errors fixed.
 
-## 🚀 Current Version: v6.9 (All Fixes Applied)
+## 🚀 Current Version: v6.12 (Production Ready)
 
-- `ialctl` - **Production-ready installer (v6.9)**
-- `ialctl_v6.9_all_fixes` - Source version with all critical fixes
+- `ialctl` - **Production installer (v6.12)**
+- `ialctl_v6.12_final` - Source version with all fixes
 
-## 🔧 v6.9 Features
+## 🔧 v6.12 Final Features
 
-### ✅ All Critical Issues Resolved
+### ✅ All Runtime Errors Fixed
+- **Master Engine Import**: Fixed ial_master_engine import error
+- **Graph Module Import**: Fixed relative import paths for dependency graph
 - **Audit Validator**: Fixed observability_engine and ResourceState imports
 - **IAS ValidationResult**: Fixed method calls and object handling  
 - **Phases Directory**: Fixed absolute path resolution and YAML loading
 - **CF YAML Loader**: Proper CloudFormation template parsing
-- **System Stability**: Clean startup without warnings or errors
+
+### ✅ System Stability
+- Clean startup with minimal warnings
+- All critical components loading successfully
+- Graceful fallbacks for optional dependencies
+- Production-ready execution
 
 ### ✅ Dual Logic System
 - **CORE Resources**: Direct deployment via MCP Infrastructure Manager
@@ -22,18 +29,18 @@ This directory contains the latest compiled IAL installer with complete dual-log
 
 ## 🏗️ Usage
 
-### LÓGICA 1: CORE Resources (Foundation)
+### Foundation Deployment
 ```bash
-./ialctl start  # Direct deployment of 42 foundation components
+./ialctl start  # Deploy 42 foundation components
 ```
 
-### LÓGICA 2: USER Resources (Natural Language)
+### Natural Language Interface
 ```bash
-# Simple operations → MCP Router (direct)
-./ialctl "create s3 bucket"
+# Simple operations → MCP Router
+./ialctl "create s3 bucket with encryption"
 
-# Complex operations → Cognitive Engine (GitOps)
-./ialctl "delete production database"
+# Complex operations → Cognitive Engine
+./ialctl "delete production database with safety checks"
 ```
 
 ## 📦 Installation
@@ -41,27 +48,24 @@ This directory contains the latest compiled IAL installer with complete dual-log
 ### Linux
 ```bash
 chmod +x ialctl
+./ialctl configure
 ./ialctl start
 ```
-
-### Windows
-See `windows/` directory for Windows installers.
 
 ## 🎯 Commands
 
 ```bash
-# Deploy IAL foundation (CORE - direct)
+# Foundation deployment
 ./ialctl start
 
-# Configure settings
+# Configuration
 ./ialctl configure
 
 # Interactive mode
 ./ialctl interactive
 
-# Execute infrastructure commands (USER)
-./ialctl "create S3 bucket for data storage"
-./ialctl "delete production RDS instance"
+# Natural language commands
+./ialctl "your infrastructure request"
 ```
 
 ## 🔧 Architecture
@@ -69,8 +73,12 @@ See `windows/` directory for Windows installers.
 - **CORE Path**: MCP Infrastructure Manager → Direct AWS deployment
 - **USER Simple**: Intelligent MCP Router → aws-real-executor  
 - **USER Complex**: Cognitive Engine → IAS → Cost → YAML → GitHub PR
-- **All Systems**: Clean imports, proper error handling, robust path resolution
+- **All Systems**: Clean imports, robust error handling, production stability
 
 ## 📊 Version History
 
-Previous versions (v6.2-v6.8) have been archived. v6.9 includes all previous features plus critical stability fixes.
+v6.12 represents the culmination of all previous versions with complete runtime stability:
+- All import errors resolved
+- All critical components functional
+- Production-ready deployment
+- Comprehensive error handling
