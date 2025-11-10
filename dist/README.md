@@ -1,18 +1,31 @@
 # IAL Installers
 
-This directory contains compiled IAL installers with complete dual-logic system.
+This directory contains compiled IAL installers with complete dual-logic system and CF YAML support.
 
-## 🚀 Latest Version: v6.7 (Dual Logic System)
+## 🚀 Latest Version: v6.8 (CF YAML Fixed)
 
-- `ialctl` - **Latest stable version (v6.7)**
-- `ialctl_v6.7_dual_logic` - Dual logic system with separated CORE/USER paths
+- `ialctl` - **Latest stable version (v6.8)**
+- `ialctl_v6.8_cf_fixed` - CF YAML Loader fixed + Dual logic system
 
 ## 📋 Version History
 
+- **v6.8** - CF YAML Loader fixed + Dual logic system
 - **v6.7** - Dual logic: CORE (direct) + USER (hybrid routing)
 - **v6.4** - Complete individual resource deletion with dependency cleanup
 - **v6.3** - Phase deletion functionality
 - **v6.2** - Complete pipeline with GitOps integration
+
+## 🔧 v6.8 Improvements
+
+### ✅ CF YAML Loader Fixed
+- No more "CF YAML Loader not available" warnings
+- Proper CloudFormation template parsing
+- Support for intrinsic functions (!Ref, !GetAtt, !Join, !Sub, etc.)
+- Clean YAML processing without fallbacks
+
+### ✅ Dual Logic System Maintained
+- CORE resources: Direct deployment via MCP Infrastructure Manager
+- USER resources: Hybrid routing (MCP Router vs Cognitive Engine)
 
 ## 🏗️ Dual Logic System
 
@@ -65,3 +78,4 @@ See `windows/` directory for Windows installers.
 - **CORE Path**: MCP Infrastructure Manager → Direct AWS deployment
 - **USER Simple**: Intelligent MCP Router → aws-real-executor
 - **USER Complex**: Cognitive Engine → IAS → Cost → YAML → GitHub PR
+- **CF YAML**: Proper CloudFormation template parsing with intrinsic functions
