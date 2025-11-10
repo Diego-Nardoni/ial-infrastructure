@@ -1,97 +1,67 @@
-# IAL v3.1 - Distribution Files
+# IAL Installers
 
-## 📦 Available Packages
+This directory contains compiled IAL installers with complete dual-logic system.
 
-### Windows
-- **ialctl.exe** - Windows executable
-- **install.ps1** - PowerShell installer script
-- **VERSION** - Version information
+## 🚀 Latest Version: v6.7 (Dual Logic System)
+
+- `ialctl` - **Latest stable version (v6.7)**
+- `ialctl_v6.7_dual_logic` - Dual logic system with separated CORE/USER paths
+
+## 📋 Version History
+
+- **v6.7** - Dual logic: CORE (direct) + USER (hybrid routing)
+- **v6.4** - Complete individual resource deletion with dependency cleanup
+- **v6.3** - Phase deletion functionality
+- **v6.2** - Complete pipeline with GitOps integration
+
+## 🏗️ Dual Logic System
+
+### LÓGICA 1: CORE Resources (ialctl start)
+```bash
+./ialctl start  # Direct deployment of 42 foundation components
+```
+
+### LÓGICA 2: USER Resources (natural language)
+```bash
+# Simple operations → MCP Router (direct)
+./ialctl "create s3 bucket"
+
+# Complex operations → Cognitive Engine (GitOps)
+./ialctl "delete production database"
+```
+
+## 📦 Installation
 
 ### Linux
-- **ialctl** - Linux executable  
-- **install.sh** - Bash installer script
-- **VERSION** - Version information
-
-### Packages
-- **ialctl_3.1.0_amd64.deb** - Debian/Ubuntu package
-- **ialctl-3.1.0-1.x86_64.rpm** - RedHat/CentOS package
-
-## 🚀 Installation
-
-### Windows (PowerShell as Administrator)
-```powershell
-cd dist/windows
-.\install.ps1
+```bash
+chmod +x ialctl
+./ialctl start
 ```
 
-### Linux (Bash)
-```bash
-cd dist/linux
-./install.sh
-```
+### Windows
+See `windows/` directory for Windows installers.
 
-### Package Managers
-```bash
-# Debian/Ubuntu
-sudo dpkg -i dist/packages/ialctl_3.1.0_amd64.deb
-
-# RedHat/CentOS
-sudo rpm -i dist/packages/ialctl-3.1.0-1.x86_64.rpm
-```
-
-## 📋 Requirements
-
-### System Requirements
-- **Node.js** v16+ (for CDK support)
-- **AWS CLI** v2+ (configured with credentials)
-- **Python** 3.11+ (included in binary)
-
-### AWS Requirements
-- Valid AWS account with appropriate permissions
-- AWS CLI configured (`aws configure`)
-- Sufficient IAM permissions for CloudFormation
-
-## 🎯 Quick Start
-
-After installation:
+## 🎯 Usage Examples
 
 ```bash
-# Deploy IAL infrastructure
-ialctl start
+# Deploy IAL foundation (CORE - direct)
+./ialctl start
 
 # Configure settings
-ialctl configure
+./ialctl configure
 
 # Interactive mode
-ialctl interactive
+./ialctl interactive
 
-# Get help
-ialctl
+# Simple resource creation (USER - MCP Router)
+./ialctl "create S3 bucket for data storage"
+
+# Complex operations (USER - Cognitive Engine)
+./ialctl "delete production RDS instance"
 ```
 
-## 🔧 New in v3.1
+## 🔧 Architecture
 
-- **`ialctl start`** - One-command infrastructure deployment via CDK
-- **CDK Integration** - Bootstrap foundation infrastructure atomically
-- **Enhanced Validation** - Intent validation and cost guardrails
-- **Intelligent MCP Router** - Automatic service detection and routing
-- **Node.js Support** - Full CDK CLI integration
-
-## 📚 Documentation
-
-- **GitHub**: https://github.com/Diego-Nardoni/ial-infrastructure
-- **Architecture**: See ARCHITECTURE.md
-- **Contributing**: See CONTRIBUTING.md
-
-## 🆘 Support
-
-If you encounter issues:
-
-1. Check Node.js is installed: `node --version`
-2. Check AWS CLI is configured: `aws sts get-caller-identity`
-3. Check IAL version: `ialctl --version`
-4. Open issue on GitHub with error details
-
----
-
-*IAL v3.1 - Infrastructure as Language - November 2025*
+- **CORE Path**: MCP Infrastructure Manager → Direct AWS deployment
+- **USER Simple**: Intelligent MCP Router → aws-real-executor
+- **USER Complex**: Cognitive Engine → IAS → Cost → YAML → GitHub PR
