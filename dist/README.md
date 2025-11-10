@@ -1,33 +1,36 @@
 # IAL Installers
 
-This directory contains compiled IAL installers with complete dual-logic system and CF YAML support.
+This directory contains compiled IAL installers with complete dual-logic system and all fixes.
 
-## 🚀 Latest Version: v6.8 (CF YAML Fixed)
+## 🚀 Latest Version: v6.9 (All Fixes Applied)
 
-- `ialctl` - **Latest stable version (v6.8)**
-- `ialctl_v6.8_cf_fixed` - CF YAML Loader fixed + Dual logic system
+- `ialctl` - **Latest stable version (v6.9)**
+- `ialctl_v6.9_all_fixes` - All critical fixes + Dual logic system
 
 ## 📋 Version History
 
+- **v6.9** - All fixes: Audit Validator, IAS ValidationResult, Phases directory paths
 - **v6.8** - CF YAML Loader fixed + Dual logic system
 - **v6.7** - Dual logic: CORE (direct) + USER (hybrid routing)
 - **v6.4** - Complete individual resource deletion with dependency cleanup
 - **v6.3** - Phase deletion functionality
 - **v6.2** - Complete pipeline with GitOps integration
 
-## 🔧 v6.8 Improvements
+## 🔧 v6.9 Critical Fixes
 
-### ✅ CF YAML Loader Fixed
-- No more "CF YAML Loader not available" warnings
-- Proper CloudFormation template parsing
-- Support for intrinsic functions (!Ref, !GetAtt, !Join, !Sub, etc.)
-- Clean YAML processing without fallbacks
+### ✅ All Import Errors Resolved
+- **Audit Validator**: Fixed observability_engine and ResourceState imports
+- **IAS ValidationResult**: Fixed method calls and object handling
+- **Phases Directory**: Fixed absolute path resolution and YAML loading
+- **CF YAML Loader**: Proper CloudFormation template parsing
 
-### ✅ Dual Logic System Maintained
-- CORE resources: Direct deployment via MCP Infrastructure Manager
-- USER resources: Hybrid routing (MCP Router vs Cognitive Engine)
+### ✅ System Stability
+- No more import warnings or errors
+- Clean startup without error messages
+- Robust path handling regardless of execution context
+- Proper fallbacks for missing dependencies
 
-## 🏗️ Dual Logic System
+## 🏗️ Dual Logic System (Maintained)
 
 ### LÓGICA 1: CORE Resources (ialctl start)
 ```bash
@@ -78,4 +81,4 @@ See `windows/` directory for Windows installers.
 - **CORE Path**: MCP Infrastructure Manager → Direct AWS deployment
 - **USER Simple**: Intelligent MCP Router → aws-real-executor
 - **USER Complex**: Cognitive Engine → IAS → Cost → YAML → GitHub PR
-- **CF YAML**: Proper CloudFormation template parsing with intrinsic functions
+- **All Systems**: Clean imports, proper error handling, robust path resolution
