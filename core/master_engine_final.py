@@ -6,7 +6,7 @@ Entrada única que decide entre Bootstrap CORE ou Pipeline USER
 
 import sys
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
 
 class MasterEngineFinal:
@@ -30,10 +30,16 @@ class MasterEngineFinal:
             self.cognitive_engine = None
         
         try:
-            from core.mcp_infrastructure_manager import MCPInfrastructureManager
             from core.intelligent_mcp_router import IntelligentMCPRouter
-            router = IntelligentMCPRouter()
-            self.mcp_infrastructure_manager = MCPInfrastructureManager(router)
+            self.intelligent_router = IntelligentMCPRouter()
+            print("✅ Intelligent MCP Router carregado")
+        except ImportError as e:
+            print(f"❌ Intelligent MCP Router não disponível: {e}")
+            self.intelligent_router = None
+        
+        try:
+            from core.mcp_infrastructure_manager import MCPInfrastructureManager
+            self.mcp_infrastructure_manager = MCPInfrastructureManager(self.intelligent_router)
             print("✅ MCP Infrastructure Manager carregado")
         except ImportError as e:
             print(f"❌ MCP Infrastructure Manager não disponível: {e}")
@@ -41,14 +47,81 @@ class MasterEngineFinal:
     
     def process_request(self, nl_intent: str, config: Dict = None) -> Dict[str, Any]:
         """
-        ÚNICO ENTRY POINT - TODOS os requests passam pelo Cognitive Engine (GitOps obrigatório)
+        HYBRID APPROACH: MCP Router para execução + Cognitive Engine para governança
         """
         
         print(f"🎯 Master Engine processando: '{nl_intent[:50]}...'")
-        print("🧠 FORÇANDO Cognitive Engine para TODOS os requests (GitOps obrigatório)")
         
-        # TODOS os requests passam pelo Cognitive Engine
-        return self.process_cognitive_engine_path(nl_intent)
+        # Detectar se precisa de governança complexa
+        needs_governance = self._needs_complex_governance(nl_intent)
+        
+        if needs_governance:
+            print("🧠 Roteando para Cognitive Engine (governança complexa)")
+            return self.process_cognitive_engine_path(nl_intent)
+        else:
+            print("⚡ Roteando para Intelligent MCP Router (execução direta)")
+            return self.process_mcp_router_path(nl_intent)
+    
+    def _needs_complex_governance(self, nl_intent: str) -> bool:
+        """Determina se precisa de governança complexa via Cognitive Engine"""
+        
+        # Palavras-chave que indicam necessidade de governança
+        governance_keywords = [
+            'production', 'prod', 'critical', 'database', 'security',
+            'compliance', 'audit', 'policy', 'budget', 'cost',
+            'multi-tier', 'architecture', 'infrastructure'
+        ]
+        
+        # Operações que sempre precisam de governança
+        high_risk_operations = [
+            'delete', 'destroy', 'remove', 'drop',
+            'modify', 'change', 'update', 'alter'
+        ]
+        
+        nl_lower = nl_intent.lower()
+        
+        # Se tem palavras de governança OU operações de alto risco
+        has_governance_keywords = any(keyword in nl_lower for keyword in governance_keywords)
+        has_high_risk_ops = any(op in nl_lower for op in high_risk_operations)
+        
+        return has_governance_keywords or has_high_risk_ops
+    
+    def process_mcp_router_path(self, nl_intent: str) -> Dict[str, Any]:
+        """
+        MCP ROUTER PATH: Execução direta via MCP servers
+        """
+        
+        print("⚡ Executando MCP ROUTER PATH - Execução direta")
+        
+        if not self.intelligent_router:
+            return {
+                'error': 'Intelligent MCP Router não disponível',
+                'status': 'error',
+                'path': 'MCP_ROUTER_PATH'
+            }
+        
+        try:
+            # Executar via Intelligent MCP Router
+            import asyncio
+            result = asyncio.run(
+                self.intelligent_router.route_request(nl_intent)
+            )
+            
+            return {
+                'status': 'success',
+                'path': 'MCP_ROUTER_PATH',
+                'execution_method': 'direct_mcp',
+                'mcps_used': result.get('mcps_executed', []),
+                'message': 'Request executed directly via MCP servers',
+                'result': result
+            }
+            
+        except Exception as e:
+            return {
+                'error': f'MCP Router error: {str(e)}',
+                'status': 'error',
+                'path': 'MCP_ROUTER_PATH'
+            }
     
     def process_cognitive_engine_path(self, nl_intent: str) -> Dict[str, Any]:
         """
