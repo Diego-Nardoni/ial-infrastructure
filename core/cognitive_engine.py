@@ -316,3 +316,155 @@ class CognitiveEngine:
             'rationale': f"Estimated cost ${cost_result['estimated_cost']}/month exceeds budget ${cost_result['budget_limit']}/month",
             'method': 'cognitive_engine'
         }
+    
+    def process_intent(self, nl_intent: str) -> Dict[str, Any]:
+        """
+        PIPELINE COMPLETO: IAS → Cost → Phase Builder → GitHub → CI/CD → Audit
+        Suporta CRIAÇÃO e EXCLUSÃO via GitOps obrigatório
+        """
+        
+        print("🧠 Iniciando Cognitive Engine Pipeline Completo")
+        
+        pipeline_steps = []
+        
+        # Detectar se é criação ou exclusão
+        is_deletion = self._is_deletion_request(nl_intent)
+        operation_type = "deletion" if is_deletion else "creation"
+        
+        print(f"🎯 Operação detectada: {operation_type}")
+        
+        try:
+            # STEP 1: IAS - Intent Validation Sandbox
+            print("1️⃣ IAS - Intent Validation Sandbox")
+            ias_result = self.validate_intent_safety(nl_intent)
+            pipeline_steps.append({"step": "IAS", "result": ias_result})
+            
+            if not ias_result.get('safe', True):
+                return {
+                    'status': 'blocked',
+                    'reason': 'Intent validation failed',
+                    'pipeline_steps': pipeline_steps,
+                    'ias_result': ias_result
+                }
+            
+            # STEP 2: Pre-YAML Cost Guardrails
+            print("2️⃣ Pre-YAML Cost Guardrails")
+            cost_result = self.estimate_before_yaml(ias_result['parsed_intent'])
+            pipeline_steps.append({"step": "Cost Guardrails", "result": cost_result})
+            
+            if cost_result.get('exceeds_budget', False):
+                return {
+                    'status': 'blocked',
+                    'reason': 'Budget exceeded',
+                    'pipeline_steps': pipeline_steps,
+                    'cost_result': cost_result
+                }
+            
+            # STEP 3: Phase Builder (YAML Generation)
+            print("3️⃣ Phase Builder - YAML Generation")
+            if is_deletion:
+                yaml_result = self.generate_deletion_yaml(ias_result['parsed_intent'])
+            else:
+                yaml_result = self.generate_creation_yaml(ias_result['parsed_intent'])
+            pipeline_steps.append({"step": "Phase Builder", "result": yaml_result})
+            
+            # STEP 4: GitHub Integration (PR Creation)
+            print("4️⃣ GitHub Integration - PR Creation")
+            github_result = self.create_github_pr(yaml_result, operation_type)
+            pipeline_steps.append({"step": "GitHub PR", "result": github_result})
+            
+            # STEP 5: CI/CD será executado pelo GitHub Actions
+            print("5️⃣ CI/CD será executado via GitHub Actions")
+            pipeline_steps.append({"step": "CI/CD", "result": {"status": "pending", "message": "Will be executed by GitHub Actions"}})
+            
+            # STEP 6: Audit será executado após CI/CD
+            print("6️⃣ Audit será executado após CI/CD")
+            pipeline_steps.append({"step": "Audit", "result": {"status": "pending", "message": "Will be executed after deployment"}})
+            
+            return {
+                'status': 'success',
+                'operation_type': operation_type,
+                'pipeline_steps': pipeline_steps,
+                'github_pr_url': github_result.get('pr_url'),
+                'message': f'{operation_type.title()} request processed via complete GitOps pipeline'
+            }
+            
+        except Exception as e:
+            pipeline_steps.append({"step": "Error", "result": {"error": str(e)}})
+            return {
+                'status': 'error',
+                'error': str(e),
+                'pipeline_steps': pipeline_steps
+            }
+    
+    def _is_deletion_request(self, nl_intent: str) -> bool:
+        """Detectar se é solicitação de exclusão"""
+        deletion_keywords = ['delete', 'remove', 'destroy', 'cleanup', 'exclude', 'drop']
+        return any(keyword in nl_intent.lower() for keyword in deletion_keywords)
+    
+    def generate_deletion_yaml(self, parsed_intent: Dict) -> Dict[str, Any]:
+        """Gerar YAML para exclusão de recursos"""
+        print("🗑️ Gerando YAML de exclusão")
+        
+        if not self.phase_builder:
+            return {'error': 'Phase Builder not available'}
+        
+        try:
+            # Usar Phase Builder para gerar YAML de exclusão
+            deletion_yaml = self.phase_builder.generate_deletion_template(parsed_intent)
+            
+            return {
+                'status': 'success',
+                'yaml_generated': True,
+                'template': deletion_yaml,
+                'operation': 'deletion'
+            }
+            
+        except Exception as e:
+            return {'error': f'Deletion YAML generation failed: {str(e)}'}
+    
+    def generate_creation_yaml(self, parsed_intent: Dict) -> Dict[str, Any]:
+        """Gerar YAML para criação de recursos"""
+        print("🏗️ Gerando YAML de criação")
+        
+        if not self.phase_builder:
+            return {'error': 'Phase Builder not available'}
+        
+        try:
+            # Usar Phase Builder existente
+            creation_yaml = self.phase_builder.generate_yaml_from_intent(parsed_intent)
+            
+            return {
+                'status': 'success',
+                'yaml_generated': True,
+                'template': creation_yaml,
+                'operation': 'creation'
+            }
+            
+        except Exception as e:
+            return {'error': f'Creation YAML generation failed: {str(e)}'}
+    
+    def create_github_pr(self, yaml_result: Dict, operation_type: str) -> Dict[str, Any]:
+        """Criar PR no GitHub com YAML gerado"""
+        print(f"📋 Criando GitHub PR para {operation_type}")
+        
+        if not self.github_integration:
+            return {'error': 'GitHub Integration not available'}
+        
+        try:
+            # Usar GitHub Integration existente
+            pr_result = self.github_integration.create_pr(
+                yaml_content=yaml_result.get('template'),
+                operation_type=operation_type,
+                description=f"Automated {operation_type} via IAL Cognitive Engine"
+            )
+            
+            return {
+                'status': 'success',
+                'pr_created': True,
+                'pr_url': pr_result.get('pr_url'),
+                'operation': operation_type
+            }
+            
+        except Exception as e:
+            return {'error': f'GitHub PR creation failed: {str(e)}'}

@@ -41,43 +41,47 @@ class MasterEngineFinal:
     
     def process_request(self, nl_intent: str, config: Dict = None) -> Dict[str, Any]:
         """
-        ENTRADA ÚNICA: Decide CORE ou USER path baseado na intenção
-        
-        Args:
-            nl_intent: Intenção em linguagem natural
-            config: Configuração opcional
-            
-        Returns:
-            Resultado do processamento
+        ÚNICO ENTRY POINT - TODOS os requests passam pelo Cognitive Engine (GitOps obrigatório)
         """
         
         print(f"🎯 Master Engine processando: '{nl_intent[:50]}...'")
+        print("🧠 FORÇANDO Cognitive Engine para TODOS os requests (GitOps obrigatório)")
         
-        # Check for deletion requests first
-        if self._is_deletion_request(nl_intent):
-            return self.process_deletion_request(nl_intent)
+        # TODOS os requests passam pelo Cognitive Engine
+        return self.process_cognitive_engine_path(nl_intent)
+    
+    def process_cognitive_engine_path(self, nl_intent: str) -> Dict[str, Any]:
+        """
+        COGNITIVE ENGINE PATH: Todos os recursos via GitOps pipeline completo
+        """
         
-        if not self.resource_router:
-            return {'error': 'Resource Router não disponível', 'status': 'error'}
+        print("🧠 Executando COGNITIVE ENGINE PATH - Pipeline completo")
         
-        # Routing Decision
-        path = self.resource_router.route_request(nl_intent)
-        routing_explanation = self.resource_router.get_routing_explanation(nl_intent)
-        
-        print(f"🔀 Routing: {path}")
-        print(f"📋 Rationale: {routing_explanation['rationale']}")
-        
-        if path == "CORE_PATH":
-            return self.process_core_path(nl_intent, config or {})
-        
-        elif path == "USER_PATH":
-            return self.process_user_path(nl_intent)
-        
-        else:
+        if not self.cognitive_engine:
             return {
-                'error': f'Unknown routing path: {path}',
+                'error': 'Cognitive Engine não disponível',
                 'status': 'error',
-                'routing': routing_explanation
+                'path': 'COGNITIVE_ENGINE_PATH'
+            }
+        
+        try:
+            # PIPELINE COMPLETO: IAS → Cost → Phase Builder → GitHub → CI/CD → Audit
+            result = self.cognitive_engine.process_intent(nl_intent)
+            
+            return {
+                'status': 'success',
+                'path': 'COGNITIVE_ENGINE_PATH',
+                'pipeline_steps': result.get('pipeline_steps', []),
+                'github_pr': result.get('github_pr_url'),
+                'message': 'Request processed via complete GitOps pipeline',
+                'result': result
+            }
+            
+        except Exception as e:
+            return {
+                'error': f'Cognitive Engine error: {str(e)}',
+                'status': 'error',
+                'path': 'COGNITIVE_ENGINE_PATH'
             }
     
     def _is_deletion_request(self, nl_intent: str) -> bool:
