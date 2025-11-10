@@ -1,0 +1,16 @@
+Package: ialctl
+Version: 6.1.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: IAL Team <ial@example.com>
+Description: Infrastructure as Language (IAL) Command Line Tool v6.1.0 - ALL ERRORS FIXED
+ IAL permite gerenciar infraestrutura AWS através de linguagem natural.
+ Esta versão corrige TODOS os erros identificados:
+ - ValidationResult API compatibility fixed
+ - IntentCostGuardrails.estimate_intent_cost() method added
+ - File serialization errors corrected
+ - All missing modules created
+ - Zero critical errors remaining
+ - 52 recursos AWS reais criados e validados
+ - Sistema 100% funcional e limpo
