@@ -15,8 +15,8 @@ class CognitiveEngine:
         
         # Importar componentes existentes
         try:
-            from core.intent_validation.validation_system import ValidationSystem
-            self.ias = ValidationSystem()
+            from core.ias_corrected import IASCorrected
+            self.ias = IASCorrected()
             print("✅ IAS - Intent Validation Sandbox carregado")
         except ImportError as e:
             print(f"⚠️ IAS não disponível: {e}")
@@ -142,26 +142,11 @@ class CognitiveEngine:
             return {'safe': True, 'parsed_intent': {'raw': nl_intent}, 'rationale': 'IAS not available'}
         
         try:
-            # Usar ValidationSystem existente
-            result = self.ias.validate_intent(nl_intent)
+            # Usar IAS correto
+            result = self.ias.validate_intent_with_simulation(nl_intent)
             
-            # CORREÇÃO: Tratar ValidationResult como objeto ou dict
-            if hasattr(result, 'valid'):
-                # Se for objeto, usar atributos
-                return {
-                    'safe': getattr(result, 'valid', True),
-                    'parsed_intent': getattr(result, 'parsed_intent', {'raw': nl_intent}),
-                    'risk_assessment': getattr(result, 'risk_assessment', {}),
-                    'rationale': getattr(result, 'rationale', 'Intent validated')
-                }
-            else:
-                # Se for dict, usar get()
-                return {
-                    'safe': result.get('valid', True),
-                    'parsed_intent': result.get('parsed_intent', {'raw': nl_intent}),
-                    'risk_assessment': result.get('risk_assessment', {}),
-                    'rationale': result.get('rationale', 'Intent validated')
-                }
+            # Resultado já é um dict do IASCorrected
+            return result
         except Exception as e:
             print(f"⚠️ IAS error: {e}")
             return {'safe': True, 'parsed_intent': {'raw': nl_intent}, 'rationale': f'IAS error: {e}'}
@@ -336,7 +321,7 @@ class CognitiveEngine:
         try:
             # STEP 1: IAS - Intent Validation Sandbox
             print("1️⃣ IAS - Intent Validation Sandbox")
-            ias_result = self.validate_intent_safety(nl_intent)
+            ias_result = self.validate_intent_with_simulation(nl_intent)
             pipeline_steps.append({"step": "IAS", "result": ias_result})
             
             if not ias_result.get('safe', True):
