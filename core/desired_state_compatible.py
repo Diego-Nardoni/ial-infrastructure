@@ -25,7 +25,14 @@ except ImportError:
 
 class CompatibleDesiredStateBuilder:
     def __init__(self, phases_dir: str = "./phases"):
-        self.phases_dir = Path(phases_dir)
+        # Usar path absoluto baseado no diretório do projeto
+        if not os.path.isabs(phases_dir):
+            # Se for path relativo, usar baseado no diretório pai do core
+            project_root = Path(__file__).parent.parent
+            self.phases_dir = project_root / phases_dir.lstrip('./')
+        else:
+            self.phases_dir = Path(phases_dir)
+            
         self.reports_dir = Path("./reports")
         self.reports_dir.mkdir(exist_ok=True)
         

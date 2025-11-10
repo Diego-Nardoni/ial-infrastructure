@@ -22,7 +22,14 @@ except ImportError:
 
 class DesiredStateBuilder:
     def __init__(self, phases_dir: str = "phases"):
-        self.phases_dir = Path(phases_dir)
+        # Usar path absoluto baseado no diretório do projeto
+        if not os.path.isabs(phases_dir):
+            # Se for path relativo, usar baseado no diretório pai do core
+            project_root = Path(__file__).parent.parent
+            self.phases_dir = project_root / phases_dir
+        else:
+            self.phases_dir = Path(phases_dir)
+            
         self.reports_dir = Path("./reports")
         self.reports_dir.mkdir(exist_ok=True)
         
@@ -50,7 +57,8 @@ class DesiredStateBuilder:
                 try:
                     # Usar CF YAML loader se disponível
                     if CF_LOADER_AVAILABLE:
-                        content = load_cf_yaml(yaml_file)
+                        with open(yaml_file, 'r') as f:
+                            content = load_cf_yaml(f)
                     else:
                         with open(yaml_file, 'r') as f:
                             content = yaml.safe_load(f)
