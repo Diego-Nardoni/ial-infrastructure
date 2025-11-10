@@ -36,8 +36,12 @@ try:
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     OBSERVABILITY_AVAILABLE = False
-from graph.dependency_graph import DependencyGraph
-from graph.graph_populator import GraphPopulator
+try:
+    from .graph.dependency_graph import DependencyGraph
+    from .graph.graph_populator import GraphPopulator
+    GRAPH_AVAILABLE = True
+except ImportError:
+    GRAPH_AVAILABLE = False
 
 class AuditValidator:
     def __init__(self, region: str = "us-east-1"):
@@ -59,13 +63,19 @@ class AuditValidator:
             self.resource_catalog = ResourceCatalog()  # Use fallback class
         
         # Knowledge Graph components
-        try:
-            self.dependency_graph = DependencyGraph(region=region)
-            self.graph_populator = GraphPopulator(self.dependency_graph)
-            self.graph_enabled = True
-            print("✅ Knowledge Graph habilitado no AuditValidator")
-        except Exception as e:
-            print(f"⚠️ Knowledge Graph desabilitado: {e}")
+        if GRAPH_AVAILABLE:
+            try:
+                self.dependency_graph = DependencyGraph(region=region)
+                self.graph_populator = GraphPopulator(self.dependency_graph)
+                self.graph_enabled = True
+                print("✅ Knowledge Graph habilitado no AuditValidator")
+            except Exception as e:
+                print(f"⚠️ Knowledge Graph desabilitado: {e}")
+                self.dependency_graph = None
+                self.graph_populator = None
+                self.graph_enabled = False
+        else:
+            print("⚠️ Knowledge Graph não disponível")
             self.dependency_graph = None
             self.graph_populator = None
             self.graph_enabled = False
