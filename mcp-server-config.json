@@ -1,13 +1,13 @@
 {
-  "mcps": {
-    "aws-real": {
-      "command": "python3",
-      "args": ["mcp-tools/aws_real_server.py"],
+  "mcpServers": {
+    "aws-real-executor": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_real_executor"],
       "env": {}
     },
     "aws-cloudformation": {
-      "command": "python3", 
-      "args": ["mcp-tools/aws_cloudformation_server.py"],
+      "command": "python", 
+      "args": ["-m", "mcp_aws_cloudformation"],
       "env": {}
     }
   }

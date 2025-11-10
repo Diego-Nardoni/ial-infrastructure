@@ -26,7 +26,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'core'))
 # Try to import Master Engine and Intelligent Router
 try:
     sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
-    from ial_master_engine import IaLMasterEngine
+    from core.master_engine_final import MasterEngineFinal as IaLMasterEngine
     MASTER_ENGINE_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️ Master Engine not available: {e}")
