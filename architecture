@@ -1,0 +1,6 @@
+{
+  "services": [
+    "s3"
+  ],
+  "intent": "--help"
+}
