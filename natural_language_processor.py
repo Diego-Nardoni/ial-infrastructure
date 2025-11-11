@@ -803,7 +803,7 @@ def deploy_foundation_via_cdk(config):
             print("✅ MCP servers conectados (Core + Cloud Control)")
             
             # Deploy Foundation phase
-            result = deployer.deploy_phase("00-foundation", config['PROJECT_NAME'])
+            result = deployer.deploy_phase("00-foundation")
             
             if result.get('success', False):
                 print("✅ FOUNDATION IAL COMPLETA criada com sucesso!")
@@ -836,7 +836,7 @@ def deploy_foundation_via_cdk(config):
         print("📦 Preparando ambiente CDK...")
         import sys
         sys.path.append(os.path.join(os.path.dirname(__file__), 'core'))
-        from cdk_deployment_manager import CDKDeploymentManager
+        from core.cdk_deployment_manager import CDKDeploymentManager
         
         # Create deployment manager
         deployment_manager = CDKDeploymentManager(config)
