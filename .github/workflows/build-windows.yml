@@ -1,0 +1,48 @@
+name: Build Windows Executable
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'natural_language_processor.py'
+      - 'core/**'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller boto3 requests pyyaml
+    
+    - name: Build Windows executable
+      run: |
+        pyinstaller --onefile --name ialctl_v6.29.6_ultra_clean --hidden-import=boto3 natural_language_processor.py
+    
+    - name: Upload Windows executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: ialctl-windows-v6.29.6
+        path: dist/ialctl_v6.29.6_ultra_clean.exe
+    
+    - name: Create Release
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v6.29.6-ultra-clean
+        name: IAL v6.29.6 Ultra Clean
+        files: dist/ialctl_v6.29.6_ultra_clean.exe
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
