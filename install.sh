@@ -4,7 +4,7 @@
 
 set -e
 
-VERSION="6.29.8-smart-routing"
+VERSION="6.29.9-interactive-mode"
 GITHUB_REPO="Diego-Nardoni/ial-infrastructure"
 BINARY_NAME="ialctl"
 
@@ -28,7 +28,7 @@ install_deb() {
     echo "📦 Installing via .deb package..."
     
     # Download .deb package
-    DEB_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl_6.29.8_smart_routing_amd64.deb"
+    DEB_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl_6.29.9_interactive_mode_amd64.deb"
     
     echo "⬇️ Downloading: $DEB_URL"
     wget -q "$DEB_URL" -O "/tmp/ialctl.deb"
@@ -52,7 +52,7 @@ install_rpm() {
     echo "📦 Installing via .rpm package..."
     
     # Download .rpm package
-    RPM_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl-6.29.8_smart-1.x86_64.rpm"
+    RPM_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl-6.29.9_interactive-1.x86_64.rpm"
     
     echo "⬇️ Downloading: $RPM_URL"
     wget -q "$RPM_URL" -O "/tmp/ialctl.rpm"
@@ -110,15 +110,18 @@ if command -v ialctl >/dev/null 2>&1; then
     echo "✅ ialctl installed successfully!"
     echo ""
     echo "📋 Quick Start:"
-    echo "  ialctl --help                    # Show help"
-    echo "  ialctl --verbose \"command\"       # Show verbose logs"
-    echo "  ialctl start                     # Deploy IAL foundation"
-    echo "  ialctl \"oi tudo bem?\"            # Professional conversation"
-    echo "  ialctl \"que dia é hoje?\"         # Date/time with context"
-    echo "  ialctl \"create ECS cluster\"      # Infrastructure deployment"
+    echo "  ialctl                       # Interactive mode (like Amazon Q)"
+    echo "  ialctl --help                # Show help"
+    echo "  ialctl \"oi tudo bem?\"        # Single command mode"
+    echo "  ialctl \"create ECS cluster\"  # Infrastructure deployment"
+    echo ""
+    echo "💬 Interactive Commands:"
+    echo "  /quit, /exit                 # Exit interactive mode"
+    echo "  /help                        # Show help"
+    echo "  /clear                       # Clear screen"
     echo ""
     echo "🎉 IAL v${VERSION} ready to use!"
-    echo "✨ Now with smart conversational routing (iai, mano, td bem)!"
+    echo "✨ Now with Amazon Q-like interactive experience!"
 else
     echo "❌ Installation failed. Please check the logs above."
     exit 1

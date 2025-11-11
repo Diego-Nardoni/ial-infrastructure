@@ -1068,23 +1068,119 @@ def main():
                 else:
                     # Para infraestrutura, exibir resumo
                     print(f"🤖 IaL: ✅ {result.get('method', 'processed')} via {result.get('path', 'unknown')} path")
-                    if result.get('components_created'):
-                        print(f"📊 Components: {result['components_created']}")
-                    if result.get('resources_created'):
-                        print(f"📋 Resources: {len(result['resources_created'])}")
-                    if result.get('pr_url'):
-                        print(f"🔗 PR: {result['pr_url']}")
-            else:
-                print(f"🤖 IaL: ❌ {result.get('error', 'unknown error')}")
-                
         except Exception as e:
-            print(f"⚠️ Master Engine Final not available, using fallback: {e}")
-            # Fallback to original processor
-            processor = IaLNaturalProcessor()
-            user_id = "user-" + str(uuid.uuid4())[:8]
-            full_command = ' '.join(sys.argv[1:])
-            response = processor.process_command(full_command, user_id)
-            print(f"🤖 IaL: {response}")
+            print(f"⚠️ Error: {e}")
+
+def interactive_mode():
+    """Modo interativo Amazon Q-like"""
+    print("🤖 IAL Infrastructure Assistant - Interactive Mode")
+    print("Type your questions or commands. Use /quit to exit, /help for help.")
+    print("=" * 60)
+    
+    while True:
+        try:
+            user_input = input("\n💬 You: ").strip()
+            
+            if not user_input:
+                continue
+                
+            # Comandos especiais
+            if user_input.lower() in ['/quit', '/exit', 'quit', 'exit']:
+                print("👋 Goodbye! Thanks for using IAL!")
+                break
+            elif user_input.lower() in ['/help', 'help']:
+                print("""
+🤖 IAL Interactive Commands:
+  /quit, /exit     - Exit interactive mode
+  /help           - Show this help
+  /clear          - Clear screen
+  
+💬 Conversation Examples:
+  oi, tudo bem?           - Natural conversation
+  que dia é hoje?         - Date/time queries
+  como vai?               - Casual chat
+  
+🏗️ Infrastructure Examples:
+  create ECS cluster      - Deploy infrastructure
+  setup VPC               - Network configuration
+  deploy lambda function  - Serverless deployment
+  start                   - Deploy IAL foundation
+                """)
+                continue
+            elif user_input.lower() in ['/clear', 'clear']:
+                import os
+                os.system('clear' if os.name == 'posix' else 'cls')
+                continue
+            
+            # Processar comando com Master Engine
+            try:
+                from core.master_engine_final import MasterEngineFinal
+                master_engine = MasterEngineFinal()
+                result = master_engine.process_request(user_input)
+                
+                if result.get('success', True):
+                    if result.get('response'):
+                        print(f"🤖 IaL: {result['response']}")
+                    else:
+                        print(f"🤖 IaL: ✅ {result.get('method', 'processed')} via {result.get('path', 'unknown')} path")
+                        if result.get('components_created'):
+                            print(f"📊 Components: {result['components_created']}")
+                        if result.get('resources_created'):
+                            print(f"📋 Resources: {len(result['resources_created'])}")
+                        if result.get('pr_url'):
+                            print(f"🔗 PR: {result['pr_url']}")
+                else:
+                    print(f"🤖 IaL: ❌ {result.get('error', 'unknown error')}")
+                    
+            except Exception as e:
+                # Fallback to original processor
+                processor = IaLNaturalProcessor()
+                user_id = "interactive-" + str(uuid.uuid4())[:8]
+                response = processor.process_command(user_input, user_id)
+                print(f"🤖 IaL: {response}")
+                
+        except KeyboardInterrupt:
+            print("\n👋 Goodbye! Thanks for using IAL!")
+            break
+        except EOFError:
+            print("\n👋 Goodbye! Thanks for using IAL!")
+            break
+
+def main():
+    # Modo interativo se não há argumentos
+    if len(sys.argv) == 1:
+        interactive_mode()
+        return
+        
+    # Modo comando único (comportamento atual)
+    try:
+        from core.master_engine_final import MasterEngineFinal
+        master_engine = MasterEngineFinal()
+        full_command = ' '.join(sys.argv[1:])
+        result = master_engine.process_request(full_command)
+        
+        if result.get('success', True):
+            if result.get('response'):
+                print(f"🤖 IaL: {result['response']}")
+            else:
+                print(f"🤖 IaL: ✅ {result.get('method', 'processed')} via {result.get('path', 'unknown')} path")
+                if result.get('components_created'):
+                    print(f"📊 Components: {result['components_created']}")
+                if result.get('resources_created'):
+                    print(f"📋 Resources: {len(result['resources_created'])}")
+                if result.get('pr_url'):
+                    print(f"🔗 PR: {result['pr_url']}")
+        else:
+            print(f"🤖 IaL: ❌ {result.get('error', 'unknown error')}")
+            
+    except Exception as e:
+        print(f"⚠️ Master Engine Final not available, using fallback: {e}")
+        # Fallback to original processor
+        processor = IaLNaturalProcessor()
+        user_id = "user-" + str(uuid.uuid4())[:8]
+        full_command = ' '.join(sys.argv[1:])
+        response = processor.process_command(full_command, user_id)
+        print(f"🤖 IaL: {response}")
 
 if __name__ == "__main__":
     main()
