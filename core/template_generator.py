@@ -50,11 +50,11 @@ class TemplateGenerator:
         )
         
         # Memory Resources - DynamoDB Tables
-        templates['phases/00-foundation/05-memory-dynamodb.yaml'] = self.load_and_customize_template(
-            '00-foundation/05-memory-dynamodb.yaml'
+        templates['phases/00-foundation/07-conversation-memory.yaml'] = self.load_and_customize_template(
+            '00-foundation/07-conversation-memory.yaml'
         )
         
-        # Memory Resources - S3 Bucket
+        # Memory Resources - S3 Bucket  
         templates['phases/00-foundation/06-memory-s3.yaml'] = self.load_and_customize_template(
             '00-foundation/06-memory-s3.yaml'
         )
