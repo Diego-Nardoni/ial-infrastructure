@@ -47,10 +47,15 @@ class MasterEngineFinal:
     
     def process_request(self, nl_intent: str, config: Dict = None) -> Dict[str, Any]:
         """
-        DUAL LOGIC: CORE resources (direct) vs USER resources (hybrid routing)
+        TRIPLE LOGIC: Conversational vs CORE resources vs USER resources
         """
         
         print(f"🎯 Master Engine processando: '{nl_intent[:50]}...'")
+        
+        # LÓGICA 0: CONVERSATIONAL (saudações, perguntas gerais) - BEDROCK
+        if self._is_conversational_request(nl_intent):
+            print("💬 CONVERSATIONAL REQUEST - Roteando para Bedrock")
+            return self.process_conversational_path(nl_intent)
         
         # LÓGICA 1: CORE RESOURCES (ialctl start) - EXECUÇÃO DIRETA
         if self._is_core_foundation_request(nl_intent):
@@ -69,6 +74,88 @@ class MasterEngineFinal:
         else:
             print("⚡ Roteando para Intelligent MCP Router (execução direta)")
             return self.process_mcp_router_path(nl_intent)
+    
+    def _is_conversational_request(self, nl_intent: str) -> bool:
+        """Detecta se é uma solicitação conversacional (não infraestrutura)"""
+        
+        # Saudações e conversação geral
+        conversational_patterns = [
+            'oi', 'olá', 'hello', 'hi', 'hey',
+            'tudo bem', 'como vai', 'how are you',
+            'bom dia', 'boa tarde', 'boa noite',
+            'obrigado', 'thanks', 'thank you',
+            'tchau', 'bye', 'goodbye',
+            'ajuda', 'help', 'socorro',
+            'o que você faz', 'what do you do',
+            'quem é você', 'who are you',
+            'como funciona', 'how does it work'
+        ]
+        
+        # Keywords de infraestrutura (se tem essas, NÃO é conversacional)
+        infrastructure_keywords = [
+            'deploy', 'create', 'setup', 'build', 'provision',
+            'delete', 'remove', 'destroy', 'cleanup',
+            'ecs', 'lambda', 'rds', 'elb', 'vpc', 's3', 'dynamodb',
+            'infrastructure', 'architecture', 'serverless', 'container',
+            'phase', 'stack', 'cluster', 'database', 'bucket'
+        ]
+        
+        nl_lower = nl_intent.lower()
+        
+        # Se tem keywords de infraestrutura, NÃO é conversacional
+        has_infrastructure = any(keyword in nl_lower for keyword in infrastructure_keywords)
+        if has_infrastructure:
+            return False
+            
+        # Se tem padrões conversacionais, É conversacional
+        has_conversational = any(pattern in nl_lower for pattern in conversational_patterns)
+        
+        # Se é muito curto e não tem infraestrutura, provavelmente é conversacional
+        is_short_and_simple = len(nl_intent.split()) <= 5 and not has_infrastructure
+        
+        return has_conversational or is_short_and_simple
+    
+    def process_conversational_path(self, nl_intent: str) -> Dict[str, Any]:
+        """
+        CONVERSATIONAL PATH: Resposta via Bedrock conversacional
+        """
+        
+        print("💬 Executando CONVERSATIONAL PATH - Bedrock")
+        
+        # Retornar indicação para usar Bedrock conversacional
+        return {
+            'status': 'conversational',
+            'path': 'CONVERSATIONAL_PATH',
+            'execution_method': 'bedrock_conversational',
+            'message': 'Roteando para conversação natural via Bedrock',
+            'use_bedrock': True,
+            'original_request': nl_intent
+        }
+    
+    def process_conversation(self, user_input: str, user_id: str, session_id: str) -> Dict[str, Any]:
+        """
+        Entry point para conversação - roteamento inteligente
+        """
+        
+        # Usar process_request para roteamento inteligente
+        result = self.process_request(user_input)
+        
+        # Se é conversacional, retornar indicação para usar Bedrock
+        if result.get('status') == 'conversational':
+            return {
+                'response': None,  # Indica que deve usar Bedrock
+                'use_bedrock': True,
+                'path': 'CONVERSATIONAL_PATH',
+                'original_request': user_input
+            }
+        
+        # Se é infraestrutura, processar normalmente
+        return {
+            'response': f"🤖 IaL: {result.get('message', 'Processado via ' + result.get('path', 'unknown'))}",
+            'infrastructure_action': True,
+            'action_type': result.get('path', 'unknown'),
+            'details': result
+        }
     
     def _is_core_foundation_request(self, nl_intent: str) -> bool:
         """Detecta se é solicitação de deploy da foundation CORE"""

@@ -216,6 +216,11 @@ class IaLNaturalProcessor:
                 # Use Master Engine for full functionality
                 result = self.master_engine.process_conversation(user_input, user_id, session_id)
                 
+                # Se deve usar Bedrock conversacional
+                if result.get('use_bedrock'):
+                    print("💬 Usando Bedrock para conversação natural")
+                    return self._process_fallback_path(user_input, user_id, session_id)
+                
                 # Extract response and add metadata info if needed
                 response = result.get('response', 'No response generated')
                 
