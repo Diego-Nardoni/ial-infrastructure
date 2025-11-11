@@ -59,8 +59,9 @@ class IntelligentMCPRouterSophisticated:
             domains = self.domain_mapper.map_to_domains(detection_result['detected_services'])
             required_mcps = self.domain_mapper.get_required_mcps(domains)
             
-            # Apply pattern optimizations
+            # Apply pattern optimizations and store pattern
             pattern = detection_result.get('architecture_pattern')
+            self._detected_pattern = pattern  # Store for YAML generation
             if pattern:
                 required_mcps = self.domain_mapper.apply_optimizations(pattern, required_mcps)
                 
@@ -100,6 +101,12 @@ class IntelligentMCPRouterSophisticated:
                     'load_strategy': self.domain_mapper.get_load_strategy(required_mcps)
                 },
                 'execution_results': execution_results,
+                'gitops_info': {
+                    'deployment_method': execution_results.get('deployment_method', 'unknown'),
+                    'github_status': execution_results.get('github_status'),
+                    'pr_url': execution_results.get('pr_url'),
+                    'templates_count': execution_results.get('templates_generated', 0)
+                },
                 'performance_metrics': {
                     'total_time': round(total_time * 1000, 2),  # ms
                     'llm_time': round(llm_time * 1000, 2),
@@ -116,38 +123,402 @@ class IntelligentMCPRouterSophisticated:
             return self._fallback_response(f"Routing failed: {str(e)}", start_time)
             
     async def _execute_mcps_async(self, loaded_mcps: Dict, request: str) -> Dict:
-        """Execute MCPs in parallel"""
+        """Execute MCPs via GitOps workflow (not direct execution)"""
         if not loaded_mcps:
             return {'status': 'no_mcps_loaded'}
             
-        execution_tasks = []
+        try:
+            # Generate optimized YAML templates from MCPs
+            yaml_templates = self._generate_yaml_from_mcps(loaded_mcps, request)
+            
+            if not yaml_templates:
+                return {'status': 'no_templates_generated'}
+            
+            # Use GitHub Integration for GitOps workflow
+            from core.github_integration import GitHubIntegration
+            github_integration = GitHubIntegration()
+            
+            # Create intent for GitHub integration
+            intent = {
+                'request': request,
+                'mcps_used': list(loaded_mcps.keys()),
+                'architecture_pattern': getattr(self, '_detected_pattern', None),
+                'timestamp': time.time()
+            }
+            
+            # Execute GitOps workflow
+            github_result = github_integration.execute_infrastructure_deployment(
+                yaml_templates, intent
+            )
+            
+            return {
+                'status': 'gitops_triggered',
+                'github_status': github_result['status'],
+                'github_response': github_result['response'],
+                'templates_generated': len(yaml_templates),
+                'pr_url': github_result.get('github_url'),
+                'deployment_method': 'gitops'
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'gitops_failed',
+                'error': str(e),
+                'fallback_available': True
+            }
+            
+    def _generate_yaml_from_mcps(self, loaded_mcps: Dict, request: str) -> Dict[str, str]:
+        """Generate optimized YAML templates from loaded MCPs"""
+        templates = {}
         
+        # Generate phase-based templates
         for mcp_name, mcp_instance in loaded_mcps.items():
-            task = self._execute_single_mcp_async(mcp_name, mcp_instance, request)
-            execution_tasks.append((mcp_name, task))
-            
-        if not execution_tasks:
-            return {'status': 'no_tasks_created'}
-            
-        task_names, task_coroutines = zip(*execution_tasks)
-        results = await asyncio.gather(*task_coroutines, return_exceptions=True)
-        
-        execution_results = {}
-        for i, result in enumerate(results):
-            mcp_name = task_names[i]
-            
-            if isinstance(result, Exception):
-                execution_results[mcp_name] = {
-                    'status': 'failed',
-                    'error': str(result)
-                }
-            else:
-                execution_results[mcp_name] = {
-                    'status': 'success',
-                    'result': result
-                }
+            if mcp_instance.get('type') == 'core':
+                continue  # Skip core MCPs for user workloads
                 
-        return execution_results
+            domain = mcp_instance.get('domain', 'unknown')
+            capabilities = mcp_instance.get('capabilities', [])
+            
+            # Generate YAML based on MCP capabilities
+            yaml_content = self._generate_yaml_for_mcp(mcp_name, domain, capabilities, request)
+            
+            if yaml_content:
+                # Determine phase directory
+                phase_dir = self._get_phase_directory(domain)
+                filename = f"{mcp_name.replace('-', '_')}_generated.yaml"
+                templates[f"{phase_dir}/{filename}"] = yaml_content
+                
+        return templates
+        
+    def _generate_yaml_for_mcp(self, mcp_name: str, domain: str, capabilities: List[str], request: str) -> str:
+        """Generate YAML content for specific MCP"""
+        # Extract resource name from request
+        resource_name = self._extract_resource_name(request, domain)
+        
+        if 'ecs' in mcp_name.lower():
+            return self._generate_ecs_yaml(resource_name, capabilities)
+        elif 'rds' in mcp_name.lower():
+            return self._generate_rds_yaml(resource_name, capabilities)
+        elif 'elb' in mcp_name.lower() or 'alb' in mcp_name.lower():
+            return self._generate_elb_yaml(resource_name, capabilities)
+        elif 'lambda' in mcp_name.lower():
+            return self._generate_lambda_yaml(resource_name, capabilities)
+        elif 'dynamodb' in mcp_name.lower():
+            return self._generate_dynamodb_yaml(resource_name, capabilities)
+        else:
+            return self._generate_generic_yaml(mcp_name, resource_name, capabilities)
+            
+    def _extract_resource_name(self, request: str, domain: str) -> str:
+        """Extract resource name from request"""
+        # Simple extraction logic
+        words = request.lower().split()
+        if 'cluster' in words:
+            return 'user-cluster'
+        elif 'database' in words or 'db' in words:
+            return 'user-database'
+        elif 'function' in words:
+            return 'user-function'
+        elif 'table' in words:
+            return 'user-table'
+        else:
+            return f'user-{domain}-resource'
+            
+    def _get_phase_directory(self, domain: str) -> str:
+        """Get phase directory for domain"""
+        phase_mapping = {
+            'compute': 'phases/01-compute',
+            'data': 'phases/02-data',
+            'networking': 'phases/03-networking',
+            'security': 'phases/04-security',
+            'serverless': 'phases/05-serverless',
+            'observability': 'phases/06-observability'
+        }
+        return phase_mapping.get(domain, 'phases/99-misc')
+        
+    def _generate_ecs_yaml(self, resource_name: str, capabilities: List[str]) -> str:
+        """Generate ECS cluster YAML"""
+        return f"""AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ECS Cluster generated by IAL MCP Router'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-user
+    Description: Project name for resource naming
+
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${{ProjectName}}-{resource_name}'
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Name
+          Value: !Sub '${{ProjectName}}-{resource_name}'
+        - Key: ManagedBy
+          Value: IAL-MCP-Router
+        - Key: Domain
+          Value: compute
+
+Outputs:
+  ClusterArn:
+    Description: ECS Cluster ARN
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub '${{ProjectName}}-{resource_name}-arn'
+"""
+
+    def _generate_rds_yaml(self, resource_name: str, capabilities: List[str]) -> str:
+        """Generate RDS database YAML"""
+        return f"""AWSTemplateFormatVersion: '2010-09-09'
+Description: 'RDS Database generated by IAL MCP Router'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-user
+    Description: Project name for resource naming
+
+Resources:
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS database
+      SubnetIds:
+        - !ImportValue VPC-PrivateSubnet1
+        - !ImportValue VPC-PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub '${{ProjectName}}-{resource_name}-subnet-group'
+
+  DatabaseInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub '${{ProjectName}}-{resource_name}'
+      DBInstanceClass: db.t3.micro
+      Engine: mysql
+      EngineVersion: '8.0'
+      MasterUsername: admin
+      ManageMasterUserPassword: true
+      AllocatedStorage: 20
+      StorageType: gp2
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !ImportValue VPC-DatabaseSecurityGroup
+      BackupRetentionPeriod: 7
+      MultiAZ: false
+      StorageEncrypted: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${{ProjectName}}-{resource_name}'
+        - Key: ManagedBy
+          Value: IAL-MCP-Router
+        - Key: Domain
+          Value: data
+
+Outputs:
+  DatabaseEndpoint:
+    Description: RDS Database Endpoint
+    Value: !GetAtt DatabaseInstance.Endpoint.Address
+    Export:
+      Name: !Sub '${{ProjectName}}-{resource_name}-endpoint'
+"""
+
+    def _generate_elb_yaml(self, resource_name: str, capabilities: List[str]) -> str:
+        """Generate Application Load Balancer YAML"""
+        return f"""AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Application Load Balancer generated by IAL MCP Router'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-user
+    Description: Project name for resource naming
+
+Resources:
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${{ProjectName}}-{resource_name}'
+      Type: application
+      Scheme: internet-facing
+      Subnets:
+        - !ImportValue VPC-PublicSubnet1
+        - !ImportValue VPC-PublicSubnet2
+      SecurityGroups:
+        - !ImportValue VPC-LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${{ProjectName}}-{resource_name}'
+        - Key: ManagedBy
+          Value: IAL-MCP-Router
+        - Key: Domain
+          Value: networking
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${{ProjectName}}-{resource_name}-tg'
+      Port: 80
+      Protocol: HTTP
+      VpcId: !ImportValue VPC-Id
+      HealthCheckPath: /health
+      HealthCheckProtocol: HTTP
+      TargetType: ip
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+Outputs:
+  LoadBalancerDNS:
+    Description: Load Balancer DNS Name
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Export:
+      Name: !Sub '${{ProjectName}}-{resource_name}-dns'
+"""
+
+    def _generate_lambda_yaml(self, resource_name: str, capabilities: List[str]) -> str:
+        """Generate Lambda function YAML"""
+        return f"""AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Lambda Function generated by IAL MCP Router'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-user
+    Description: Project name for resource naming
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${{ProjectName}}-{resource_name}-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${{ProjectName}}-{resource_name}'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {{
+                  'statusCode': 200,
+                  'body': 'Hello from IAL MCP Router generated Lambda!'
+              }}
+      Timeout: 30
+      MemorySize: 128
+      Tags:
+        - Key: Name
+          Value: !Sub '${{ProjectName}}-{resource_name}'
+        - Key: ManagedBy
+          Value: IAL-MCP-Router
+        - Key: Domain
+          Value: serverless
+
+Outputs:
+  FunctionArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt LambdaFunction.Arn
+    Export:
+      Name: !Sub '${{ProjectName}}-{resource_name}-arn'
+"""
+
+    def _generate_dynamodb_yaml(self, resource_name: str, capabilities: List[str]) -> str:
+        """Generate DynamoDB table YAML"""
+        return f"""AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DynamoDB Table generated by IAL MCP Router'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-user
+    Description: Project name for resource naming
+
+Resources:
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${{ProjectName}}-{resource_name}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${{ProjectName}}-{resource_name}'
+        - Key: ManagedBy
+          Value: IAL-MCP-Router
+        - Key: Domain
+          Value: data
+
+Outputs:
+  TableName:
+    Description: DynamoDB Table Name
+    Value: !Ref DynamoDBTable
+    Export:
+      Name: !Sub '${{ProjectName}}-{resource_name}-name'
+"""
+
+    def _generate_generic_yaml(self, mcp_name: str, resource_name: str, capabilities: List[str]) -> str:
+        """Generate generic YAML for unknown MCP types"""
+        return f"""AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Generic resource generated by IAL MCP Router for {mcp_name}'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-user
+    Description: Project name for resource naming
+
+Resources:
+  # Generic resource placeholder
+  # MCP: {mcp_name}
+  # Capabilities: {', '.join(capabilities)}
+  # This template needs manual implementation
+  
+  PlaceholderResource:
+    Type: AWS::CloudFormation::WaitConditionHandle
+    Properties: {{}}
+
+Outputs:
+  PlaceholderOutput:
+    Description: Placeholder output for {mcp_name}
+    Value: !Ref PlaceholderResource
+"""
         
     async def _execute_single_mcp_async(self, mcp_name: str, mcp_instance: Any, request: str) -> Dict:
         """Execute single MCP async"""

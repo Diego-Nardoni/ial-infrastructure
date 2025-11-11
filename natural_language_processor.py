@@ -259,13 +259,8 @@ class IaLNaturalProcessor:
         
         # Executar roteamento inteligente (síncrono)
         try:
-            # Usar asyncio para executar função async
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
-                self.intelligent_router.route_request(user_input, context)
-            )
-            loop.close()
+            # Usar método sync que chama async internamente
+            result = self.intelligent_router.route_request(user_input)
             
             # Processar resultado
             return self.format_intelligent_router_response(result, user_input)
@@ -283,7 +278,87 @@ class IaLNaturalProcessor:
             else:
                 return f"❌ {error_msg}"
         
-        # Construir resposta baseada no resultado
+        # Check if GitOps was triggered
+        execution_results = result.get('execution_results', {})
+        gitops_info = result.get('gitops_info', {})
+        
+        if execution_results.get('status') == 'gitops_triggered':
+            # GitOps workflow triggered
+            response_parts = [
+                f"🧠 **Análise Inteligente Concluída**",
+                f"✅ Solicitação: {user_input}",
+                ""
+            ]
+            
+            # LLM Analysis
+            llm_result = result.get('llm_result', {})
+            if llm_result:
+                response_parts.extend([
+                    f"🤖 **Processamento LLM:**",
+                    f"   • Provider: {llm_result.get('provider', 'unknown')}",
+                    f"   • Confiança: {llm_result.get('confidence', 0):.1%}",
+                    f"   • Entidades: {', '.join(llm_result.get('entities', []))}",
+                    ""
+                ])
+            
+            # Architecture Detection
+            detection_result = result.get('detection_result', {})
+            if detection_result:
+                pattern = detection_result.get('pattern')
+                response_parts.extend([
+                    f"🏗️ **Arquitetura Detectada:**",
+                    f"   • Padrão: {pattern or 'Genérico'}",
+                    f"   • Domínios: {', '.join(detection_result.get('domains', []))}",
+                    f"   • Confiança: {detection_result.get('confidence', 0):.1%}",
+                    ""
+                ])
+            
+            # MCP Loading
+            mapping_result = result.get('mapping_result', {})
+            if mapping_result:
+                response_parts.extend([
+                    f"⚡ **MCPs Carregados:**",
+                    f"   • Total: {mapping_result.get('required_mcps', 0)} MCPs",
+                    f"   • Ativos: {', '.join(mapping_result.get('loaded_mcps', [])[:3])}{'...' if len(mapping_result.get('loaded_mcps', [])) > 3 else ''}",
+                    ""
+                ])
+            
+            # GitOps Status
+            github_status = gitops_info.get('github_status')
+            if github_status == 'success':
+                response_parts.extend([
+                    f"🚀 **GitOps Workflow Iniciado:**",
+                    f"   • ✅ Templates YAML gerados: {gitops_info.get('templates_count', 0)}",
+                    f"   • ✅ Commit enviado para GitHub",
+                    f"   • ✅ GitHub Actions será executado automaticamente",
+                    f"   • 🔗 PR: {gitops_info.get('pr_url', 'Será criado em breve')}",
+                    "",
+                    f"⏱️ **Próximos Passos:**",
+                    f"   1. GitHub Actions executará o deployment",
+                    f"   2. Recursos AWS serão provisionados",
+                    f"   3. Audit e compliance serão validados",
+                    f"   4. Você receberá notificação de conclusão"
+                ])
+            else:
+                response_parts.extend([
+                    f"⚠️ **GitOps Workflow:**",
+                    f"   • Status: {github_status or 'Erro'}",
+                    f"   • Detalhes: {execution_results.get('github_response', 'Erro desconhecido')}",
+                    f"   • Fallback disponível se necessário"
+                ])
+            
+            # Performance Metrics
+            perf_metrics = result.get('performance_metrics', {})
+            if perf_metrics:
+                total_time = perf_metrics.get('total_time', 0)
+                response_parts.extend([
+                    "",
+                    f"📊 **Performance:** {total_time}ms total"
+                ])
+            
+            return "\n".join(response_parts)
+        
+        # Fallback to original format for other cases
         response_parts = []
         
         # Cabeçalho com informações da execução
