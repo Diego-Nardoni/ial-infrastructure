@@ -1,0 +1,45 @@
+Package: ialctl
+Version: 6.30.3-interactive-auto
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: Diego Nardoni <diego@nardoni.com>
+Description: IAL Infrastructure CLI v6.30.3 - Interactive Mode Auto-Start
+ Revolutionary AWS Infrastructure deployment with infinite conversational memory
+ and automatic interactive mode when no arguments provided.
+ .
+ v6.30.3 UX IMPROVEMENT:
+ - ialctl (no args) now automatically starts interactive mode
+ - No more usage message - direct conversation interface
+ - Seamless user experience like Amazon Q
+ - Natural language interaction by default
+ .
+ Command Behaviors:
+ - ialctl → Interactive mode (automatic)
+ - ialctl start → Deploy foundation infrastructure
+ - ialctl configure → Configure settings
+ - ialctl interactive → Interactive mode (explicit)
+ - ialctl "command" → Direct execution
+ .
+ Memory Features (Preserved):
+ - Infinite Memory (never forgets conversations or context)
+ - DynamoDB + S3 Glacier persistence (cost: $0.15/user/month)
+ - Bedrock Embeddings for semantic search
+ - Smart context retrieval across sessions
+ - Amazon Q-like interactive experience
+ - Automatic memory resource deployment via ialctl start
+ - Memory commands: /stats, /history, /forget
+ - Local cache fallback (works offline)
+ .
+ Infrastructure Features (Preserved):
+ - Foundation Bootstrap: ialctl start → deploys 45+ resources
+ - Smart Routing: conversation vs infrastructure detection
+ - GitHub as source of truth
+ - YAML template generation with cost guardrails
+ - Complete audit trail and governance
+ - MCP configuration properly embedded
+ .
+ v6.30.3 provides the most natural user experience with
+ automatic interactive mode and infinite conversational memory.
+Depends: python3 (>= 3.8), python3-pip, python3-boto3
+Homepage: https://github.com/Diego-Nardoni/ial-infrastructure

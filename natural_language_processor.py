@@ -1022,12 +1022,8 @@ def deploy_foundation_via_cdk(config):
 def main():
     """Main entry point for IAL"""
     if len(sys.argv) < 2:
-        print("Usage: ialctl <command>")
-        print("Commands:")
-        print("  start        - Deploy IAL foundation infrastructure")
-        print("  configure    - Configure IAL settings")
-        print("  interactive  - Start interactive mode")
-        print("  \"<command>\"  - Execute infrastructure command")
+        # Modo interativo automático quando não há argumentos
+        interactive_mode()
         return
     
     command = sys.argv[1]
