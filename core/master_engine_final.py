@@ -117,36 +117,154 @@ class MasterEngineFinal:
     
     def process_conversational_path(self, nl_intent: str) -> Dict[str, Any]:
         """
-        CONVERSATIONAL PATH: Resposta via Bedrock conversacional
+        CONVERSATIONAL PATH: Resposta DIRETA via Bedrock
         """
         
-        print("💬 Executando CONVERSATIONAL PATH - Bedrock")
+        print("💬 Executando CONVERSATIONAL PATH - Bedrock direto")
         
-        # Retornar indicação para usar Bedrock conversacional
+        try:
+            import boto3
+            import json
+            
+            # Initialize Bedrock client
+            bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
+            
+            # Prepare conversational prompt
+            system_prompt = """Você é um assistente de infraestrutura AWS amigável e conversacional. 
+Responda de forma natural e humana, como se fosse uma conversa entre amigos.
+Se a pergunta for sobre infraestrutura AWS, forneça ajuda técnica.
+Se for uma saudação ou conversa casual, responda de forma amigável e natural."""
+            
+            # Add temporal context if needed
+            enhanced_input = self._add_temporal_context(nl_intent)
+            
+            # Prepare request body for Claude
+            body = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 1000,
+                "system": system_prompt,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": enhanced_input
+                    }
+                ]
+            }
+            
+            # Call Bedrock
+            response = bedrock.invoke_model(
+                modelId='anthropic.claude-3-sonnet-20240229-v1:0',
+                body=json.dumps(body)
+            )
+            
+            # Parse response
+            response_body = json.loads(response['body'].read())
+            
+            if 'content' in response_body and response_body['content']:
+                bedrock_response = response_body['content'][0]['text']
+                
+                return {
+                    'status': 'success',
+                    'path': 'CONVERSATIONAL_PATH',
+                    'execution_method': 'bedrock_direct',
+                    'message': bedrock_response,
+                    'response': bedrock_response
+                }
+            
+        except Exception as e:
+            print(f"⚠️ Bedrock error: {e}")
+            
+            # Fallback to simple response
+            return {
+                'status': 'success',
+                'path': 'CONVERSATIONAL_PATH',
+                'execution_method': 'simple_fallback',
+                'message': self._get_simple_response(nl_intent),
+                'response': self._get_simple_response(nl_intent)
+            }
+        
         return {
-            'status': 'conversational',
+            'status': 'error',
             'path': 'CONVERSATIONAL_PATH',
-            'execution_method': 'bedrock_conversational',
-            'message': 'Roteando para conversação natural via Bedrock',
-            'use_bedrock': True,
-            'original_request': nl_intent
+            'message': 'Erro na conversação'
         }
+    
+    def _add_temporal_context(self, user_input: str) -> str:
+        """Adiciona contexto temporal se necessário"""
+        
+        temporal_keywords = [
+            'que dia', 'what day', 'que data', 'what date',
+            'hoje', 'today', 'agora', 'now',
+            'que horas', 'what time', 'hora atual', 'current time'
+        ]
+        
+        user_lower = user_input.lower()
+        needs_temporal = any(keyword in user_lower for keyword in temporal_keywords)
+        
+        if needs_temporal:
+            from datetime import datetime
+            
+            now = datetime.now()
+            
+            weekdays_pt = {
+                'Monday': 'segunda-feira', 'Tuesday': 'terça-feira', 
+                'Wednesday': 'quarta-feira', 'Thursday': 'quinta-feira',
+                'Friday': 'sexta-feira', 'Saturday': 'sábado', 'Sunday': 'domingo'
+            }
+            
+            months_pt = {
+                'January': 'janeiro', 'February': 'fevereiro', 'March': 'março',
+                'April': 'abril', 'May': 'maio', 'June': 'junho',
+                'July': 'julho', 'August': 'agosto', 'September': 'setembro',
+                'October': 'outubro', 'November': 'novembro', 'December': 'dezembro'
+            }
+            
+            weekday_pt = weekdays_pt.get(now.strftime('%A'), now.strftime('%A'))
+            month_pt = months_pt.get(now.strftime('%B'), now.strftime('%B'))
+            
+            context = f"""CONTEXTO TEMPORAL:
+Data atual: {now.strftime('%d')} de {month_pt} de {now.strftime('%Y')}
+Dia da semana: {weekday_pt}
+Horário: {now.strftime('%H:%M')} UTC
+
+Pergunta do usuário: {user_input}"""
+            
+            return context
+        
+        return user_input
+    
+    def _get_simple_response(self, user_input: str) -> str:
+        """Resposta simples quando Bedrock falha"""
+        
+        user_lower = user_input.lower()
+        
+        if any(word in user_lower for word in ['oi', 'olá', 'hello', 'hi']):
+            return "Olá! Tudo bem! Sou o assistente IAL. Como posso ajudá-lo hoje?"
+        elif any(word in user_lower for word in ['tudo bem', 'como vai']):
+            return "Tudo bem sim, obrigado! Como posso ajudá-lo com sua infraestrutura AWS?"
+        elif any(word in user_lower for word in ['que dia', 'hoje']):
+            from datetime import datetime
+            now = datetime.now()
+            return f"Hoje é {now.strftime('%d/%m/%Y')}, {now.strftime('%A')}."
+        elif any(word in user_lower for word in ['obrigado', 'thanks']):
+            return "De nada! Fico feliz em ajudar. Precisa de mais alguma coisa?"
+        else:
+            return "Olá! Sou o assistente IAL para infraestrutura AWS. Como posso ajudá-lo?"
     
     def process_conversation(self, user_input: str, user_id: str, session_id: str) -> Dict[str, Any]:
         """
-        Entry point para conversação - roteamento inteligente
+        Entry point para conversação - roteamento DIRETO
         """
         
         # Usar process_request para roteamento inteligente
         result = self.process_request(user_input)
         
-        # Se é conversacional, retornar indicação para usar Bedrock
-        if result.get('status') == 'conversational':
+        # Se é conversacional, já tem a resposta direta
+        if result.get('path') == 'CONVERSATIONAL_PATH':
             return {
-                'response': None,  # Indica que deve usar Bedrock
-                'use_bedrock': True,
-                'path': 'CONVERSATIONAL_PATH',
-                'original_request': user_input
+                'response': result.get('response', result.get('message', 'Erro na conversação')),
+                'conversational': True,
+                'path': 'CONVERSATIONAL_PATH'
             }
         
         # Se é infraestrutura, processar normalmente
