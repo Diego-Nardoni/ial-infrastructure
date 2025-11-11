@@ -4,7 +4,7 @@
 
 set -e
 
-VERSION="6.29.7-professional"
+VERSION="6.29.8-smart-routing"
 GITHUB_REPO="Diego-Nardoni/ial-infrastructure"
 BINARY_NAME="ialctl"
 
@@ -28,7 +28,7 @@ install_deb() {
     echo "📦 Installing via .deb package..."
     
     # Download .deb package
-    DEB_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl_6.29.7_professional_amd64.deb"
+    DEB_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl_6.29.8_smart_routing_amd64.deb"
     
     echo "⬇️ Downloading: $DEB_URL"
     wget -q "$DEB_URL" -O "/tmp/ialctl.deb"
@@ -52,7 +52,7 @@ install_rpm() {
     echo "📦 Installing via .rpm package..."
     
     # Download .rpm package
-    RPM_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl-6.29.7-1.x86_64.rpm"
+    RPM_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl-6.29.8_smart-1.x86_64.rpm"
     
     echo "⬇️ Downloading: $RPM_URL"
     wget -q "$RPM_URL" -O "/tmp/ialctl.rpm"
@@ -118,7 +118,7 @@ if command -v ialctl >/dev/null 2>&1; then
     echo "  ialctl \"create ECS cluster\"      # Infrastructure deployment"
     echo ""
     echo "🎉 IAL v${VERSION} ready to use!"
-    echo "✨ Now with professional, enterprise-grade experience!"
+    echo "✨ Now with smart conversational routing (iai, mano, td bem)!"
 else
     echo "❌ Installation failed. Please check the logs above."
     exit 1

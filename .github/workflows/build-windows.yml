@@ -27,21 +27,21 @@ jobs:
     
     - name: Build Windows executable
       run: |
-        pyinstaller --onefile --name ialctl_v6.29.7_professional --hidden-import=boto3 natural_language_processor.py
+        pyinstaller --onefile --name ialctl_v6.29.8_smart_routing --hidden-import=boto3 natural_language_processor.py
     
     - name: Upload Windows executable
       uses: actions/upload-artifact@v3
       with:
-        name: ialctl-windows-v6.29.7
-        path: dist/ialctl_v6.29.7_professional.exe
+        name: ialctl-windows-v6.29.8
+        path: dist/ialctl_v6.29.8_smart_routing.exe
     
     - name: Create Release
       if: github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: v6.29.7-professional
-        name: IAL v6.29.7 Professional
-        files: dist/ialctl_v6.29.7_professional.exe
+        tag_name: v6.29.8-smart-routing
+        name: IAL v6.29.8 Smart Routing
+        files: dist/ialctl_v6.29.8_smart_routing.exe
         draft: false
         prerelease: false
       env:

@@ -70,15 +70,16 @@ class MasterEngineFinal:
         
         # Saudações e conversação geral
         conversational_patterns = [
-            'oi', 'olá', 'hello', 'hi', 'hey',
-            'tudo bem', 'como vai', 'how are you',
+            'oi', 'olá', 'hello', 'hi', 'hey', 'iai', 'eai',
+            'tudo bem', 'td bem', 'como vai', 'how are you', 'beleza',
             'bom dia', 'boa tarde', 'boa noite',
             'obrigado', 'thanks', 'thank you',
             'tchau', 'bye', 'goodbye',
             'ajuda', 'help', 'socorro',
             'o que você faz', 'what do you do',
             'quem é você', 'who are you',
-            'como funciona', 'how does it work'
+            'como funciona', 'how does it work',
+            'mano', 'cara', 'brother', 'parceiro'
         ]
         
         # Keywords de infraestrutura (se tem essas, NÃO é conversacional)
