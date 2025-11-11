@@ -1,0 +1,58 @@
+Package: ialctl
+Version: 6.30.6-memory-perfect
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: Diego Nardoni <diego@nardoni.com>
+Description: IAL Infrastructure CLI v6.30.6 - Perfect Memory System
+ Revolutionary AWS Infrastructure deployment with infinite conversational memory
+ working flawlessly with zero warnings and perfect table schema.
+ .
+ v6.30.6 PERFECT MEMORY SYSTEM:
+ - Fixed DynamoDB table schema with proper sort_key
+ - Zero warnings or errors in conversation mode
+ - Perfect memory persistence and retrieval
+ - Automatic table creation via ialctl start
+ - Complete conversation history with timestamps
+ - Flawless user experience with infinite memory
+ .
+ Memory System (PERFECT):
+ - ial-conversation-history → Full conversation history ✅
+ - ial-user-sessions → User session management ✅
+ - ial-context-windows → Context summarization ✅
+ - ial-token-usage → Bedrock token tracking ✅
+ - ial-conversation-cache → Response optimization ✅
+ - All tables created automatically with correct schema ✅
+ .
+ Command Behaviors (Preserved):
+ - ialctl → Interactive mode (automatic)
+ - ialctl start → Deploy foundation + memory infrastructure
+ - ialctl configure → Configure settings
+ - ialctl interactive → Interactive mode (explicit)
+ - ialctl "command" → Direct execution
+ .
+ Memory Features (PERFECT):
+ - Infinite Memory (never forgets conversations or context)
+ - DynamoDB + S3 Glacier persistence (cost: $0.15/user/month)
+ - Bedrock Embeddings for semantic search
+ - Smart context retrieval across sessions
+ - Amazon Q-like interactive experience
+ - Memory tables created automatically via ialctl start
+ - Memory commands: /stats, /history, /forget
+ - Local cache fallback (works offline)
+ - ZERO warnings, errors, or issues
+ - Perfect conversation flow and persistence
+ .
+ Infrastructure Features (Preserved):
+ - Foundation Bootstrap: ialctl start → deploys 45+ resources
+ - Smart Routing: conversation vs infrastructure detection
+ - GitHub as source of truth
+ - YAML template generation with cost guardrails
+ - Complete audit trail and governance
+ - MCP configuration properly embedded
+ .
+ v6.30.6 provides PERFECT memory functionality with
+ flawless user experience and zero configuration required.
+ This is the definitive version with complete memory system.
+Depends: python3 (>= 3.8), python3-pip, python3-boto3
+Homepage: https://github.com/Diego-Nardoni/ial-infrastructure

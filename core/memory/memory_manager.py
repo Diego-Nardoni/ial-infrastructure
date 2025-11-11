@@ -41,27 +41,11 @@ class MemoryManager:
     
     def _get_table_name(self) -> str:
         """Obtém nome da tabela DynamoDB"""
-        try:
-            cf = boto3.client('cloudformation')
-            stacks = cf.list_stacks(StackStatusFilter=['CREATE_COMPLETE', 'UPDATE_COMPLETE'])
-            for stack in stacks['StackSummaries']:
-                if 'ial-fork-07-conversation-memory' in stack['StackName']:
-                    return f"{stack['StackName']}-conversations"
-        except:
-            pass
-        return "ial-fork-07-conversation-memory-conversations"  # Nome exato da tabela criada
+        return "ial-conversation-history"  # Nome exato da tabela criada pelo MCP
     
     def _get_embeddings_table_name(self) -> str:
         """Obtém nome da tabela de embeddings"""
-        try:
-            cf = boto3.client('cloudformation')
-            stacks = cf.list_stacks(StackStatusFilter=['CREATE_COMPLETE', 'UPDATE_COMPLETE'])
-            for stack in stacks['StackSummaries']:
-                if 'ial-fork-07-conversation-memory' in stack['StackName']:
-                    return f"{stack['StackName']}-embeddings"
-        except:
-            pass
-        return "ial-fork-07-conversation-memory-embeddings"  # Nome exato da tabela criada
+        return "ial-conversation-cache"  # Nome exato da tabela criada pelo MCP
     
     def save_message(self, role: str, content: str, metadata: Dict = None):
         """Salva mensagem no DynamoDB e cache local"""
@@ -69,6 +53,7 @@ class MemoryManager:
         
         item = {
             'user_id': self.user_id,
+            'sort_key': timestamp,  # Usar timestamp como sort_key
             'timestamp': timestamp,
             'session_id': self.session_id,
             'role': role,  # 'user' or 'assistant'
@@ -97,7 +82,7 @@ class MemoryManager:
                 response = table.query(
                     KeyConditionExpression='user_id = :uid',
                     ExpressionAttributeValues={':uid': self.user_id},
-                    ScanIndexForward=False,  # Ordem decrescente
+                    ScanIndexForward=False,  # Ordem decrescente por sort_key
                     Limit=limit
                 )
                 return response['Items']

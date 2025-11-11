@@ -84,8 +84,44 @@ class MCPInfrastructureManager:
             )
             #print("✅ Storage Foundation criada")
             
-            # 6. Core Processing
-            print("📦 6/28 Criando Lambda Functions Core...")
+            # 6. Memory Infrastructure (CONVERSATION TABLES)
+            print("📦 6/28 Criando Tabelas de Memória Conversacional...")
+            results['memory_conversations'] = await self.router.route_request(
+                f"Create DynamoDB table {project_name}-conversation-history with user_id hash key and sort_key range key for conversation storage"
+            )
+            
+            results['memory_sessions'] = await self.router.route_request(
+                f"Create DynamoDB table {project_name}-user-sessions with user_id hash key and session_id range key for session management"
+            )
+            
+            results['memory_context'] = await self.router.route_request(
+                f"Create DynamoDB table {project_name}-context-windows with user_id hash key and window_id range key for context summarization"
+            )
+            
+            results['memory_tokens'] = await self.router.route_request(
+                f"Create DynamoDB table {project_name}-token-usage with user_id hash key and date_hour range key for token tracking"
+            )
+            
+            results['memory_cache'] = await self.router.route_request(
+                f"Create DynamoDB table {project_name}-conversation-cache with cache_key hash key for response optimization"
+            )
+            #print("✅ Memory Infrastructure criada")
+            
+            # 7. Core Processing
+            print("📦 7/28 Criando Lambda Functions Core...")
+            results['lambda_processor'] = await self.router.route_request(
+                f"Create Lambda function {project_name}-processor with Python runtime and DynamoDB permissions"
+            )
+            
+            results['lambda_reconciler'] = await self.router.route_request(
+                f"Create Lambda function {project_name}-reconciler with Python runtime and CloudFormation permissions"
+            )
+            
+            results['lambda_validator'] = await self.router.route_request(
+                f"Create Lambda function {project_name}-validator with Python runtime and IAM permissions"
+            )
+            # 7. Core Processing
+            print("📦 7/28 Criando Lambda Functions Core...")
             results['lambda_processor'] = await self.router.route_request(
                 f"Create Lambda function {project_name}-processor with Python runtime and DynamoDB permissions"
             )
@@ -99,8 +135,8 @@ class MCPInfrastructureManager:
             )
             #print("✅ Core Processing criado")
             
-            # 7. Orchestration Engine
-            print("📦 7/28 Criando Step Functions Orchestrator...")
+            # 8. Orchestration Engine
+            print("📦 8/28 Criando Step Functions Orchestrator...")
             results['stepfunctions_main'] = await self.router.route_request(
                 f"Create Step Functions state machine {project_name}-orchestrator with Lambda integrations"
             )
