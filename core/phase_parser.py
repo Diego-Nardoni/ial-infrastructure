@@ -70,26 +70,42 @@ class PhaseParser:
             with open(file_path, 'r') as f:
                 template_body = f.read()
             
-            # Parâmetros padrão
-            parameters = [
-                {'ParameterKey': 'ProjectName', 'ParameterValue': project_name}
-            ]
+            # Verificar se template tem parâmetros
+            import yaml
+            try:
+                template_dict = yaml.safe_load(template_body)
+                has_parameters = 'Parameters' in template_dict and template_dict['Parameters']
+            except:
+                # Se não conseguir parsear YAML, assumir que não tem parâmetros
+                has_parameters = False
+            
+            # Parâmetros padrão apenas se template os requer
+            parameters = []
+            if has_parameters:
+                parameters = [
+                    {'ParameterKey': 'ProjectName', 'ParameterValue': project_name}
+                ]
             
             # Tentar criar stack
             print(f"📦 Deploying CloudFormation stack: {stack_name}")
             
-            response = self.cf_client.create_stack(
-                StackName=stack_name,
-                TemplateBody=template_body,
-                Parameters=parameters,
-                Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
-                Tags=[
+            create_args = {
+                'StackName': stack_name,
+                'TemplateBody': template_body,
+                'Capabilities': ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
+                'Tags': [
                     {'Key': 'Project', 'Value': project_name},
                     {'Key': 'Component', 'Value': 'IAL-Foundation'},
                     {'Key': 'DeployedBy', 'Value': 'IAL-MCP-System'},
                     {'Key': 'Idempotent', 'Value': 'true'}
                 ]
-            )
+            }
+            
+            # Adicionar parâmetros apenas se necessário
+            if parameters:
+                create_args['Parameters'] = parameters
+            
+            response = self.cf_client.create_stack(**create_args)
             
             stack_id = response['StackId']
             

@@ -6,6 +6,8 @@ Complete system with all phases integrated + Intelligent MCP Router + Intent Val
 
 import sys
 import os
+import uuid
+from datetime import datetime, timezone
 
 # Ultra silent mode - only show LLM response
 ULTRA_SILENT_MODE = not any(flag in sys.argv for flag in ['--help', '--verbose', '-v', '--debug'])
@@ -1072,9 +1074,26 @@ def main():
             print(f"⚠️ Error: {e}")
 
 def interactive_mode():
-    """Modo interativo Amazon Q-like"""
+    """Modo interativo Amazon Q-like com memória"""
     print("🤖 IAL Infrastructure Assistant - Interactive Mode")
     print("Type your questions or commands. Use /quit to exit, /help for help.")
+    
+    # Inicializar engine de contexto
+    try:
+        from core.memory.context_engine import ContextEngine
+        context_engine = ContextEngine()
+        memory_enabled = True
+        
+        # Verificar se há contexto anterior
+        summary = context_engine.get_conversation_summary()
+        if "Primeira conversa" not in summary:
+            print(f"💭 Contexto: {summary}")
+            
+    except Exception as e:
+        print(f"⚠️ Memory not available: {e}")
+        context_engine = None
+        memory_enabled = False
+    
     print("=" * 60)
     
     while True:
@@ -1088,12 +1107,15 @@ def interactive_mode():
             if user_input.lower() in ['/quit', '/exit', 'quit', 'exit']:
                 print("👋 Goodbye! Thanks for using IAL!")
                 break
-            elif user_input.lower() in ['/help', 'help']:
+            elif user_input.lower() in ['/help']:
                 print("""
 🤖 IAL Interactive Commands:
   /quit, /exit     - Exit interactive mode
   /help           - Show this help
   /clear          - Clear screen
+  /history        - Show recent conversation
+  /forget         - Clear session context
+  /stats          - Show memory statistics
   
 💬 Conversation Examples:
   oi, tudo bem?           - Natural conversation
@@ -1111,33 +1133,76 @@ def interactive_mode():
                 import os
                 os.system('clear' if os.name == 'posix' else 'cls')
                 continue
+            elif user_input.lower() in ['/history'] and memory_enabled:
+                recent = context_engine.memory.get_recent_context(limit=10)
+                print("\n📜 Recent Conversation:")
+                for msg in recent[-10:]:
+                    role = "You" if msg['role'] == 'user' else "IAL"
+                    content = msg['content'][:100] + "..." if len(msg['content']) > 100 else msg['content']
+                    print(f"  {role}: {content}")
+                continue
+            elif user_input.lower() in ['/forget'] and memory_enabled:
+                context_engine.clear_session_context()
+                continue
+            elif user_input.lower() in ['/stats'] and memory_enabled:
+                stats = context_engine.get_user_history_summary()
+                print(f"\n📊 Memory Statistics:")
+                print(f"  User ID: {stats['user_id']}")
+                print(f"  Total Messages: {stats['total_messages']}")
+                print(f"  Sessions: {stats['sessions']}")
+                print(f"  Conversation Messages: {stats['conversation_messages']}")
+                print(f"  Infrastructure Messages: {stats['infrastructure_messages']}")
+                continue
             
-            # Processar comando com Master Engine
+            # Construir contexto para a query se memória disponível
+            enhanced_query = user_input
+            if memory_enabled:
+                try:
+                    enhanced_query = context_engine.enhance_query_with_context(user_input)
+                except Exception as e:
+                    print(f"Warning: Could not enhance query: {e}")
+            
+            # Processar com Master Engine
             try:
                 from core.master_engine_final import MasterEngineFinal
                 master_engine = MasterEngineFinal()
-                result = master_engine.process_request(user_input)
+                result = master_engine.process_request(enhanced_query)
                 
                 if result.get('success', True):
-                    if result.get('response'):
-                        print(f"🤖 IaL: {result['response']}")
-                    else:
-                        print(f"🤖 IaL: ✅ {result.get('method', 'processed')} via {result.get('path', 'unknown')} path")
-                        if result.get('components_created'):
-                            print(f"📊 Components: {result['components_created']}")
-                        if result.get('resources_created'):
-                            print(f"📋 Resources: {len(result['resources_created'])}")
-                        if result.get('pr_url'):
-                            print(f"🔗 PR: {result['pr_url']}")
+                    response = result.get('response', 'Processado com sucesso')
+                    print(f"🤖 IaL: {response}")
+                    
+                    # Salvar interação se memória disponível
+                    if memory_enabled:
+                        try:
+                            context_engine.save_interaction(
+                                user_input, 
+                                response,
+                                metadata={
+                                    'path': result.get('path'),
+                                    'method': result.get('method'),
+                                    'timestamp': datetime.now(timezone.utc).isoformat()
+                                }
+                            )
+                        except Exception as e:
+                            print(f"Warning: Could not save interaction: {e}")
                 else:
-                    print(f"🤖 IaL: ❌ {result.get('error', 'unknown error')}")
+                    error_msg = result.get('error', 'Erro desconhecido')
+                    print(f"🤖 IaL: ❌ {error_msg}")
+                    if memory_enabled:
+                        try:
+                            context_engine.save_interaction(user_input, f"Erro: {error_msg}")
+                        except:
+                            pass
                     
             except Exception as e:
-                # Fallback to original processor
-                processor = IaLNaturalProcessor()
-                user_id = "interactive-" + str(uuid.uuid4())[:8]
-                response = processor.process_command(user_input, user_id)
-                print(f"🤖 IaL: {response}")
+                error_msg = f"Erro interno: {str(e)}"
+                print(f"🤖 IaL: ❌ {error_msg}")
+                if memory_enabled:
+                    try:
+                        context_engine.save_interaction(user_input, error_msg)
+                    except:
+                        pass
                 
         except KeyboardInterrupt:
             print("\n👋 Goodbye! Thanks for using IAL!")

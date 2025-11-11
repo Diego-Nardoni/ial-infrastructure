@@ -49,6 +49,21 @@ class TemplateGenerator:
             '00-foundation/04-iam-roles.yaml'
         )
         
+        # Memory Resources - DynamoDB Tables
+        templates['phases/00-foundation/05-memory-dynamodb.yaml'] = self.load_and_customize_template(
+            '00-foundation/05-memory-dynamodb.yaml'
+        )
+        
+        # Memory Resources - S3 Bucket
+        templates['phases/00-foundation/06-memory-s3.yaml'] = self.load_and_customize_template(
+            '00-foundation/06-memory-s3.yaml'
+        )
+        
+        # Memory Resources - IAM Roles
+        templates['phases/00-foundation/07-memory-iam.yaml'] = self.load_and_customize_template(
+            '00-foundation/07-memory-iam.yaml'
+        )
+        
         return templates
     
     def generate_security_templates(self) -> Dict:

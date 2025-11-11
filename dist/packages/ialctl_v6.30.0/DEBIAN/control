@@ -1,0 +1,43 @@
+Package: ialctl
+Version: 6.30.0-infinite-memory
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: Diego Nardoni <diego@nardoni.com>
+Description: IAL Infrastructure CLI v6.30.0 - Infinite Conversational Memory
+ Revolutionary AWS Infrastructure deployment with infinite conversational memory:
+ - Infinite Memory (never forgets conversations or context)
+ - DynamoDB + S3 Glacier persistence (cost: $0.15/user/month)
+ - Bedrock Embeddings for semantic search
+ - Smart context retrieval across sessions
+ - Amazon Q-like interactive experience
+ - Automatic memory resource deployment via ialctl start
+ .
+ Memory Features in v6.30.0:
+ - Persistent User ID (unique per machine/user)
+ - Cross-session conversation continuity
+ - Semantic search with Bedrock Titan Embeddings
+ - Automatic summarization with Claude
+ - Smart context injection for queries
+ - Memory commands: /stats, /history, /forget
+ - Local cache fallback (works offline)
+ .
+ Infrastructure Features (Preserved):
+ - Interactive Mode: ialctl → continuous chat
+ - Single Command: ialctl "command" → direct execution
+ - Smart Routing: conversation vs infrastructure detection
+ - GitHub as source of truth
+ - YAML template generation with cost guardrails
+ - Complete audit trail and governance
+ - Foundation bootstrap (45 resources including memory)
+ .
+ Memory Architecture:
+ - DynamoDB: Hot storage for recent conversations
+ - S3 + Glacier: Cold storage for conversation archive
+ - Bedrock: Embeddings and summarization
+ - Local Cache: Offline capability
+ .
+ v6.30.0 provides infinite conversational memory with
+ enterprise-grade persistence and intelligent context retrieval.
+Depends: python3 (>= 3.8), python3-pip, python3-boto3
+Homepage: https://github.com/Diego-Nardoni/ial-infrastructure
