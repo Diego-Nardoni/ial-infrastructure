@@ -49,12 +49,8 @@ class StateIntegrator:
         self.completeness_validator = CompletenessValidator() if COMPLETENESS_VALIDATOR_AVAILABLE else None
         self.reconcile_engine = ReconcileEngine() if RECONCILE_ENGINE_AVAILABLE else None
         
-        print("🔗 State Integrator inicializado")
         print(f"  ✅ Desired State Builder: Ativo")
         print(f"  ✅ Resource Catalog: Ativo")
-        print(f"  {'✅' if PHASE_MANAGER_AVAILABLE else '⚠️'} Phase Manager: {'Ativo' if PHASE_MANAGER_AVAILABLE else 'Não disponível'}")
-        print(f"  {'✅' if COMPLETENESS_VALIDATOR_AVAILABLE else '⚠️'} Completeness Validator: {'Ativo' if COMPLETENESS_VALIDATOR_AVAILABLE else 'Não disponível'}")
-        print(f"  {'✅' if RECONCILE_ENGINE_AVAILABLE else '⚠️'} Reconcile Engine: {'Ativo' if RECONCILE_ENGINE_AVAILABLE else 'Não disponível'}")
     
     def sync_desired_state_with_phases(self) -> Dict:
         """Sincroniza desired state com phase manager existente"""

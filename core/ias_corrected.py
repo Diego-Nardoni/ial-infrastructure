@@ -14,7 +14,6 @@ class IASCorrected:
             self.validation_system = ValidationSystem()
             self.available = True
         except ImportError as e:
-            print(f"⚠️ ValidationSystem não disponível: {e}")
             self.validation_system = None
             self.available = False
     

@@ -14,7 +14,6 @@ class CostGuardrailsCorrected:
             self.cost_guardrails = IntentCostGuardrails()
             self.available = True
         except ImportError as e:
-            print(f"⚠️ IntentCostGuardrails não disponível: {e}")
             self.cost_guardrails = None
             self.available = False
     

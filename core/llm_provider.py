@@ -28,7 +28,6 @@ class LLMProvider:
             if config_file.exists():
                 with open(config_file, 'r') as f:
                     config = yaml.safe_load(f)
-                    print(f"✅ LLM config carregado: {self.config_path}")
                     return config
         except Exception as e:
             print(f"⚠️ Erro carregando LLM config: {e}")

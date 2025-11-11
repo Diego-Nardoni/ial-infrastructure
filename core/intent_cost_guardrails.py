@@ -81,7 +81,6 @@ class IntentCostGuardrails:
             'apigateway': 12.0
         }
         
-        print("💰 Intent Cost Guardrails inicializado")
     
     def estimate_intent_cost(self, parsed_intent: Dict) -> float:
         """

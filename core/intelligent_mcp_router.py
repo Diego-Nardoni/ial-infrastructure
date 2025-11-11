@@ -15,14 +15,11 @@ from core.mcp_orchestrator import MCPOrchestrator
 try:
     from mcp_registry import MCPRegistry
     MCP_REGISTRY_AVAILABLE = True
-    print("✅ MCPRegistry importado com sucesso")
 except ImportError:
     try:
         from core.mcp_registry import MCPRegistry
         MCP_REGISTRY_AVAILABLE = True
-        print("✅ MCPRegistry importado do core")
     except ImportError:
-        print("❌ ERRO CRÍTICO: MCPRegistry não disponível")
         MCP_REGISTRY_AVAILABLE = False
 from core.decision_ledger import DecisionLedger
 
@@ -53,7 +50,6 @@ class IntelligentMCPRouter:
             return
         
         _router_initialized = True
-        print("🧠 Intelligent MCP Router inicializado")
         
         # Componentes core
         self.service_detector = ServiceDetector()
@@ -61,7 +57,6 @@ class IntelligentMCPRouter:
         self.orchestrator = MCPOrchestrator()
         if MCP_REGISTRY_AVAILABLE:
             self.registry = MCPRegistry()
-            print("✅ MCPRegistry carregado e operacional")
         else:
             raise ImportError("❌ ERRO CRÍTICO: Sistema não pode funcionar sem MCPRegistry")
         self.decision_ledger = DecisionLedger()

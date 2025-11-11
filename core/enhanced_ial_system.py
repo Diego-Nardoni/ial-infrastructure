@@ -21,7 +21,6 @@ try:
     INTELLIGENT_ROUTER_AVAILABLE = True
 except ImportError:
     INTELLIGENT_ROUTER_AVAILABLE = False
-    print("⚠️ Enhanced IAL System: Intelligent MCP Router não disponível")
 
 class EnhancedIALSystem:
     def __init__(self, region: str = "us-east-1"):
@@ -38,7 +37,6 @@ class EnhancedIALSystem:
                 print(f"⚠️ Enhanced IAL System: Erro integrando router: {e}")
         
         print("🚀 Inicializando Enhanced IAL System v8.0 (Graph-based Self-Healing + Safe Chaos + Intelligent MCP Router)...")
-        print("✅ Todos os componentes inicializados")
     
     def execute_full_workflow(self, create_version: bool = True, 
                             auto_remediate: bool = False,

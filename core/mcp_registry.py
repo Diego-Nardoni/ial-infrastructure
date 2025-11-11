@@ -135,7 +135,6 @@ class MCPRegistry:
         config = self.servers[name]
         
         try:
-            print(f"📦 Carregando MCP: {name}")
             
             # Marcar como carregando
             self.active_servers[name] = {
@@ -162,7 +161,6 @@ class MCPRegistry:
                 'success': True
             }
             
-            print(f"✅ MCP {name} carregado com sucesso")
             return True
             
         except Exception as e:
@@ -190,7 +188,6 @@ class MCPRegistry:
         """Descarrega um MCP"""
         if name in self.active_servers:
             self.active_servers[name]['status'] = MCPStatus.INACTIVE
-            print(f"📤 MCP {name} descarregado")
             return True
         return False
 

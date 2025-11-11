@@ -17,57 +17,43 @@ class CognitiveEngine:
         try:
             from core.ias_corrected import IASCorrected
             self.ias = IASCorrected()
-            print("✅ IAS - Intent Validation Sandbox carregado")
         except ImportError as e:
-            print(f"⚠️ IAS não disponível: {e}")
             self.ias = None
         
         try:
             from core.intent_cost_guardrails import IntentCostGuardrails
             self.cost_guardrails = IntentCostGuardrails()
-            print("✅ Cost Guardrails carregado")
         except ImportError as e:
-            print(f"⚠️ Cost Guardrails não disponível: {e}")
             self.cost_guardrails = None
         
         try:
             from core.desired_state import DesiredStateBuilder
             self.phase_builder = DesiredStateBuilder()
-            print("✅ Phase Builder carregado")
         except ImportError as e:
-            print(f"⚠️ Phase Builder não disponível: {e}")
             self.phase_builder = None
         
         try:
             from core.github_integration import GitHubIntegration
             self.github_integration = GitHubIntegration()
-            print("✅ GitHub Integration carregado")
         except ImportError as e:
-            print(f"⚠️ GitHub Integration não disponível: {e}")
             self.github_integration = None
         
         try:
             from core.audit_validator import AuditValidator
             self.audit_validator = AuditValidator()
-            print("✅ Audit Validator carregado")
         except ImportError as e:
-            print(f"⚠️ Audit Validator não disponível: {e}")
             self.audit_validator = None
         
         try:
             from core.drift.auto_healer import AutoHealer
             self.auto_healer = AutoHealer()
-            print("✅ Auto-Healer carregado")
         except ImportError as e:
-            print(f"⚠️ Auto-Healer não disponível: {e}")
             self.auto_healer = None
         
         try:
             from lib.knowledge_base_engine import KnowledgeBaseEngine
             self.rag_engine = KnowledgeBaseEngine()
-            print("✅ RAG Engine carregado")
         except ImportError as e:
-            print(f"⚠️ RAG Engine não disponível: {e}")
             self.rag_engine = None
     
     def process_user_request(self, nl_intent: str) -> Dict[str, Any]:

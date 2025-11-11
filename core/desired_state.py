@@ -41,7 +41,6 @@ class DesiredStateBuilder:
             print(f"❌ Diretório de fases não encontrado: {self.phases_dir}")
             return phases
             
-        print(f"🔍 Carregando fases de: {self.phases_dir}")
         
         for domain_dir in self.phases_dir.iterdir():
             if not domain_dir.is_dir() or domain_dir.name.startswith('.'):

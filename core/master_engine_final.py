@@ -16,33 +16,25 @@ class MasterEngineFinal:
         try:
             from core.resource_router import ResourceRouter
             self.resource_router = ResourceRouter()
-            print("✅ Resource Router carregado")
         except ImportError as e:
-            print(f"❌ Resource Router não disponível: {e}")
             self.resource_router = None
         
         try:
             from core.cognitive_engine import CognitiveEngine
             self.cognitive_engine = CognitiveEngine()
-            print("✅ Cognitive Engine carregado")
         except ImportError as e:
-            print(f"❌ Cognitive Engine não disponível: {e}")
             self.cognitive_engine = None
         
         try:
             from core.intelligent_mcp_router import IntelligentMCPRouter
             self.intelligent_router = IntelligentMCPRouter()
-            print("✅ Intelligent MCP Router carregado")
         except ImportError as e:
-            print(f"❌ Intelligent MCP Router não disponível: {e}")
             self.intelligent_router = None
         
         try:
             from core.mcp_infrastructure_manager import MCPInfrastructureManager
             self.mcp_infrastructure_manager = MCPInfrastructureManager(self.intelligent_router)
-            print("✅ MCP Infrastructure Manager carregado")
         except ImportError as e:
-            print(f"❌ MCP Infrastructure Manager não disponível: {e}")
             self.mcp_infrastructure_manager = None
     
     def process_request(self, nl_intent: str, config: Dict = None) -> Dict[str, Any]:

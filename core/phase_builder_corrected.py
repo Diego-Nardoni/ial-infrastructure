@@ -17,7 +17,6 @@ class PhaseBuildercorrected:
             self.desired_state_builder = DesiredStateBuilder()
             self.dsb_available = True
         except ImportError as e:
-            print(f"⚠️ DesiredStateBuilder não disponível: {e}")
             self.desired_state_builder = None
             self.dsb_available = False
         
@@ -26,7 +25,6 @@ class PhaseBuildercorrected:
             self.rag_engine = KnowledgeBaseEngine()
             self.rag_available = True
         except ImportError as e:
-            print(f"⚠️ KnowledgeBaseEngine não disponível: {e}")
             self.rag_engine = None
             self.rag_available = False
     

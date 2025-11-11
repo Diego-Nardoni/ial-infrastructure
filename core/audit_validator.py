@@ -68,14 +68,12 @@ class AuditValidator:
                 self.dependency_graph = DependencyGraph(region=region)
                 self.graph_populator = GraphPopulator(self.dependency_graph)
                 self.graph_enabled = True
-                print("✅ Knowledge Graph habilitado no AuditValidator")
             except Exception as e:
                 print(f"⚠️ Knowledge Graph desabilitado: {e}")
                 self.dependency_graph = None
                 self.graph_populator = None
                 self.graph_enabled = False
         else:
-            print("⚠️ Knowledge Graph não disponível")
             self.dependency_graph = None
             self.graph_populator = None
             self.graph_enabled = False
@@ -181,7 +179,6 @@ class AuditValidator:
         else:
             self.observability = None
         
-        print("🔍 Audit Validator inicializado")
     
     def load_desired_spec(self, path: str = "./reports/desired_spec.json") -> Dict:
         """Carrega especificação desejada"""
@@ -193,7 +190,6 @@ class AuditValidator:
             with open(spec_path, 'r') as f:
                 spec = json.load(f)
             
-            print(f"📋 Desired spec carregado: {len(spec.get('resources', []))} recursos")
             return spec
             
         except Exception as e:

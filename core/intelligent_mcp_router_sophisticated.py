@@ -30,7 +30,6 @@ class IntelligentMCPRouterSophisticated:
             name="routing"
         )
         
-        print("🧠 Intelligent MCP Router Sophisticated inicializado")
         print(f"✅ LLM Provider: {self.llm_provider.current_provider}")
         print(f"✅ MCP Domains: {len(self.mesh_loader.get_all_domains())}")
         print(f"✅ Circuit Breakers: Ativo")

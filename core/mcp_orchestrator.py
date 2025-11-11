@@ -285,7 +285,6 @@ class MCPOrchestrator:
                 load_tasks.append(task)
         
         if load_tasks:
-            print(f"📦 Carregando {len(load_tasks)} MCPs...")
             await asyncio.gather(*load_tasks)
 
     async def _load_mcp(self, mcp) -> None:
@@ -306,7 +305,6 @@ class MCPOrchestrator:
                 'config': mcp
             }
             
-            print(f"✅ MCP {mcp_name} carregado")
             
         except asyncio.TimeoutError:
             print(f"⏰ Timeout carregando MCP {mcp_name}")

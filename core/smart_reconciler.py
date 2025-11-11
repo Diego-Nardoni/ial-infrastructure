@@ -30,7 +30,6 @@ class SmartReconciler:
             self.bedrock = boto3.client('bedrock-runtime', region_name=region)
             self.ai_available = True
         except Exception as e:
-            print(f"⚠️ Bedrock não disponível: {e}")
             self.ai_available = False
         
         # Drift classification rules
