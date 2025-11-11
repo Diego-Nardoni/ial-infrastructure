@@ -26,25 +26,15 @@ class ContextEngine:
         # 3. Montar contexto final
         context_parts = []
         
-        # Contexto da sessão atual
-        session_messages = [msg for msg in recent_context if msg.get('session_id') == self.memory.session_id]
-        if session_messages and len(session_messages) > 1:  # Mais de 1 mensagem na sessão
-            context_parts.append("## Conversa Atual:")
-            for msg in session_messages[-5:]:  # Últimas 5 da sessão
+        # Contexto completo do usuário (todas as sessões)
+        if recent_context and len(recent_context) > 1:  # Mais de 1 mensagem total
+            context_parts.append("## Histórico de Conversas:")
+            for msg in recent_context[-8:]:  # Últimas 8 mensagens de todas as sessões
                 role = "Você" if msg['role'] == 'user' else "IAL"
                 content = msg['content'][:150] + "..." if len(msg['content']) > 150 else msg['content']
                 context_parts.append(f"{role}: {content}")
         
-        # Contexto de sessões anteriores
-        previous_messages = [msg for msg in recent_context if msg.get('session_id') != self.memory.session_id]
-        if previous_messages:
-            context_parts.append("\n## Conversas Anteriores:")
-            for msg in previous_messages[-3:]:  # Últimas 3 de outras sessões
-                role = "Você" if msg['role'] == 'user' else "IAL"
-                content = msg['content'][:100] + "..." if len(msg['content']) > 100 else msg['content']
-                context_parts.append(f"- {role}: {content}")
-        
-        # Contexto semântico relevante
+        # Contexto semântico relevante (removido código duplicado)
         if semantic_context:
             context_parts.append("\n## Tópicos Relacionados:")
             for msg in semantic_context:

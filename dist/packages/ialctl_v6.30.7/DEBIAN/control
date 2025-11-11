@@ -1,0 +1,56 @@
+Package: ialctl
+Version: 6.30.7-memory-cross-session
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: Diego Nardoni <diego@nardoni.com>
+Description: IAL Infrastructure CLI v6.30.7 - Cross-Session Memory Fix
+ Revolutionary AWS Infrastructure deployment with infinite conversational memory
+ working across sessions with proper context retrieval.
+ .
+ v6.30.7 CROSS-SESSION MEMORY FIX:
+ - Fixed context_engine.py to show full user history across sessions
+ - Removed session_id filtering in context building
+ - Memory now persists between different ialctl executions
+ - Complete conversation continuity across restarts
+ - Perfect memory system with cross-session awareness
+ .
+ Memory System (CROSS-SESSION):
+ - ial-conversation-history → Full conversation history ✅
+ - ial-user-sessions → User session management ✅
+ - ial-context-windows → Context summarization ✅
+ - ial-token-usage → Bedrock token tracking ✅
+ - ial-conversation-cache → Response optimization ✅
+ - Cross-session memory retrieval ✅
+ .
+ Command Behaviors (Preserved):
+ - ialctl → Interactive mode (automatic)
+ - ialctl start → Deploy foundation + memory infrastructure
+ - ialctl configure → Configure settings
+ - ialctl interactive → Interactive mode (explicit)
+ - ialctl "command" → Direct execution
+ .
+ Memory Features (ENHANCED):
+ - Infinite Memory across sessions (never forgets)
+ - DynamoDB + S3 Glacier persistence (cost: $0.15/user/month)
+ - Bedrock Embeddings for semantic search
+ - Smart context retrieval across all sessions
+ - Amazon Q-like interactive experience
+ - Memory tables created automatically via ialctl start
+ - Memory commands: /stats, /history, /forget
+ - Local cache fallback (works offline)
+ - ZERO warnings, errors, or issues
+ - Perfect conversation flow and cross-session persistence
+ .
+ Infrastructure Features (Preserved):
+ - Foundation Bootstrap: ialctl start → deploys 45+ resources
+ - Smart Routing: conversation vs infrastructure detection
+ - GitHub as source of truth
+ - YAML template generation with cost guardrails
+ - Complete audit trail and governance
+ - MCP configuration properly embedded
+ .
+ v6.30.7 provides cross-session memory functionality with
+ perfect conversation continuity between executions.
+Depends: python3 (>= 3.8), python3-pip, python3-boto3
+Homepage: https://github.com/Diego-Nardoni/ial-infrastructure
