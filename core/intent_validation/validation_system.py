@@ -39,7 +39,7 @@ class ValidationSystem:
             from intent_cost_guardrails import IntentCostGuardrails
             self.cost_guardrails = IntentCostGuardrails()
             self.cost_guardrails_available = True
-            print("✅ Cost Guardrails integrado ao ValidationSystem")
+            #print("✅ Cost Guardrails integrado ao ValidationSystem")
         except ImportError as e:
             print(f"⚠️ Cost Guardrails não disponível: {e}")
             self.cost_guardrails = None
@@ -49,7 +49,7 @@ class ValidationSystem:
         self.enabled = os.getenv('IAL_VALIDATION_ENABLED', 'true').lower() == 'true'
         self.max_processing_time = 5.0  # 5 segundos máximo
         
-        print("✅ Sistema de Validação de Intenção inicializado")
+        #print("✅ Sistema de Validação de Intenção inicializado")
 
     def validate_intent(self, user_input: str, context: Optional[Dict] = None) -> ValidationResult:
         """

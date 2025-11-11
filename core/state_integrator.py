@@ -66,7 +66,7 @@ class StateIntegrator:
             try:
                 # Atualizar deployment order baseado no desired state
                 self._update_deployment_order(desired_spec)
-                print("✅ Deployment order atualizado")
+                #print("✅ Deployment order atualizado")
             except Exception as e:
                 print(f"⚠️ Erro ao atualizar deployment order: {e}")
         
@@ -313,7 +313,7 @@ class StateIntegrator:
     
     def generate_comprehensive_report(self) -> Dict:
         """Gera relatório abrangente do estado do sistema"""
-        print("📊 Gerando relatório abrangente...")
+        #print("📊 Gerando relatório abrangente...")
         
         report = {
             'timestamp': datetime.utcnow().isoformat(),

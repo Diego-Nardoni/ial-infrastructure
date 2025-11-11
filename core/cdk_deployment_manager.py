@@ -86,7 +86,7 @@ class CDKDeploymentManager:
             self.pip_path, "install", "-r", "requirements.txt"
         ], check=True, capture_output=True)
         
-        print("✅ Ambiente CDK preparado")
+        #print("✅ Ambiente CDK preparado")
     
     def _bootstrap_cdk(self) -> Dict:
         """Bootstrap CDK in the target account/region"""
@@ -98,7 +98,7 @@ class CDKDeploymentManager:
             
             try:
                 cf_client.describe_stacks(StackName='CDKToolkit')
-                print("✅ CDK já está bootstrapped")
+                #print("✅ CDK já está bootstrapped")
                 return {'success': True}
             except cf_client.exceptions.ClientError:
                 # Need to bootstrap
@@ -115,7 +115,7 @@ class CDKDeploymentManager:
                         'message': f'CDK bootstrap failed: {result.stderr}'
                     }
                 
-                print("✅ CDK bootstrap concluído")
+                #print("✅ CDK bootstrap concluído")
                 return {'success': True}
                 
         except Exception as e:
@@ -161,7 +161,7 @@ class CDKDeploymentManager:
                     'message': f'CDK deploy failed: {result.stderr}'
                 }
             
-            print("✅ Stack deployado com sucesso")
+            #print("✅ Stack deployado com sucesso")
             return {'success': True}
             
         except Exception as e:
@@ -172,7 +172,7 @@ class CDKDeploymentManager:
     
     def _get_stack_outputs(self) -> Dict:
         """Get CloudFormation stack outputs"""
-        print("📋 Coletando outputs do stack...")
+        #print("📋 Coletando outputs do stack...")
         
         try:
             # Read outputs from CDK outputs file
@@ -234,7 +234,7 @@ class CDKDeploymentManager:
             for key, value in existing_config.items():
                 f.write(f"{key}={value}\n")
         
-        print("✅ Configuração local atualizada")
+        #print("✅ Configuração local atualizada")
     
     def _test_connectivity(self, outputs: Dict) -> Dict:
         """Test connectivity to deployed resources"""

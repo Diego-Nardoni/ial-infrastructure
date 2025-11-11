@@ -52,7 +52,7 @@ class GraphQueryAPI:
         self._cache = {}
         self._cache_ttl = 300
         
-        print("✅ GraphQueryAPI inicializada")
+        #print("✅ GraphQueryAPI inicializada")
     
     def get_impacted_resources(self, resource_id: str, max_depth: int = 5) -> ImpactAnalysisResult:
         """

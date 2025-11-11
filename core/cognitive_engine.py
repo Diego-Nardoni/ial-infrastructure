@@ -64,43 +64,43 @@ class CognitiveEngine:
         
         try:
             # 1. IAS - Intent Validation Sandbox
-            print("📋 1/7 IAS - Intent Validation Sandbox")
+            #print("📋 1/7 IAS - Intent Validation Sandbox")
             ias_result = self.validate_intent_with_simulation(nl_intent)
             if not ias_result['safe']:
                 return self.reject_unsafe_intent(ias_result)
-            print("✅ IAS validation passed")
+            #print("✅ IAS validation passed")
             
             # 2. Pre-YAML Cost Guardrails
-            print("📋 2/7 Pre-YAML Cost Guardrails")
+#            #print("📋 2/7 Pre-YAML Cost Guardrails")
             cost_result = self.estimate_before_yaml(ias_result['parsed_intent'])
             if cost_result['exceeds_budget']:
                 return self.reject_over_budget(cost_result)
             print(f"✅ Cost check passed (${cost_result['estimated_cost']}/month)")
             
             # 3. Phase Builder com RAG
-            print("📋 3/7 Phase Builder com RAG")
+            #print("📋 3/7 Phase Builder com RAG")
             yaml_phases = self.generate_phases_with_rag(ias_result['parsed_intent'])
             print(f"✅ Generated {len(yaml_phases['yaml_files'])} YAML phases")
             
             # 4. GitHub PR (GitOps obrigatório)
-            print("📋 4/7 GitHub PR (GitOps obrigatório)")
+            #print("📋 4/7 GitHub PR (GitOps obrigatório)")
             pr_result = self.create_mandatory_pr(yaml_phases)
             print(f"✅ GitHub PR created: {pr_result.get('pr_url', 'N/A')}")
             
             # 5. Monitor CI/CD Pipeline
-            print("📋 5/7 Monitor CI/CD Pipeline")
+            #print("📋 5/7 Monitor CI/CD Pipeline")
             cicd_result = self.monitor_cicd_pipeline(pr_result.get('pr_id'))
             print(f"✅ CI/CD completed: {cicd_result.get('status', 'unknown')}")
             
             # 6. Audit Validator (prova de criação 100%)
-            print("📋 6/7 Audit Validator (prova de criação 100%)")
+            #print("📋 6/7 Audit Validator (prova de criação 100%)")
             audit_success = self.verify_creation_100_percent(cicd_result.get('resources', []))
             print(f"✅ Audit validation: {audit_success}")
             
             # 7. Setup Auto-Heal monitoring
-            print("📋 7/7 Setup Auto-Heal monitoring")
+            #print("📋 7/7 Setup Auto-Heal monitoring")
             self.setup_auto_heal_monitoring(cicd_result.get('resources', []))
-            print("✅ Auto-heal monitoring active")
+            #print("✅ Auto-heal monitoring active")
             
             return {
                 'status': 'success',
@@ -167,7 +167,7 @@ class CognitiveEngine:
                     'rationale': f"Estimated ${estimate.get('monthly_cost', 0.0)}/month vs ${budget_limit} budget"
                 }
         except Exception as e:
-            print(f"⚠️ Cost Guardrails error: {e}")
+#            print(f"⚠️ Cost Guardrails error: {e}")
             return {'estimated_cost': 0.0, 'exceeds_budget': False, 'rationale': f'Cost error: {e}'}
     
     def generate_phases_with_rag(self, parsed_intent: Dict) -> Dict[str, Any]:
@@ -319,7 +319,7 @@ class CognitiveEngine:
                 }
             
             # STEP 2: Pre-YAML Cost Guardrails
-            print("2️⃣ Pre-YAML Cost Guardrails")
+#            print("2️⃣ Pre-YAML Cost Guardrails")
             cost_result = self.estimate_before_yaml(ias_result['parsed_intent'])
             pipeline_steps.append({"step": "Cost Guardrails", "result": cost_result})
             

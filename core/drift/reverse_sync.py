@@ -25,7 +25,7 @@ class ReverseSync:
                 self.dependency_graph = DependencyGraph(enable_persistence=True)
                 self.graph_api = GraphQueryAPI(self.dependency_graph)
                 self.graph_enabled = True
-                print("✅ ReverseSync: Knowledge Graph habilitado")
+                #print("✅ ReverseSync: Knowledge Graph habilitado")
             except Exception as e:
                 print(f"⚠️ ReverseSync: Erro inicializando grafo: {e}")
                 self.graph_enabled = False

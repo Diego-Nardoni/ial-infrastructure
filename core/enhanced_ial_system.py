@@ -32,7 +32,7 @@ class EnhancedIALSystem:
         if INTELLIGENT_ROUTER_AVAILABLE:
             try:
                 self.intelligent_router = IntelligentMCPRouter()
-                print("✅ Enhanced IAL System: Intelligent MCP Router integrado")
+                #print("✅ Enhanced IAL System: Intelligent MCP Router integrado")
             except Exception as e:
                 print(f"⚠️ Enhanced IAL System: Erro integrando router: {e}")
         

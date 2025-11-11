@@ -7,13 +7,17 @@ Complete system with all phases integrated + Intelligent MCP Router + Intent Val
 import sys
 import os
 
-# Silent mode - only show logs with --help or --verbose
-SILENT_MODE = not any(flag in sys.argv for flag in ['--help', '--verbose', '-v'])
+# Ultra silent mode - only show LLM response
+ULTRA_SILENT_MODE = not any(flag in sys.argv for flag in ['--help', '--verbose', '-v', '--debug'])
 
-def silent_print(*args, **kwargs):
-    """Print only if not in silent mode"""
-    if not SILENT_MODE:
+def ultra_silent_print(*args, **kwargs):
+    """Print only if not in ultra silent mode"""
+    if not ULTRA_SILENT_MODE:
         print(*args, **kwargs)
+
+def ultra_ultra_silent_print(*args, **kwargs):
+    """Never print in ultra silent mode"""
+    pass
 import uuid
 import json
 import readline
@@ -71,7 +75,7 @@ except ImportError as e:
 try:
     from core.intelligent_mcp_router_sophisticated import IntelligentMCPRouterSophisticated
     INTELLIGENT_ROUTER_AVAILABLE = True
-    silent_print("🧠 Intelligent MCP Router Sophisticated disponível") if "--help" in sys.argv else None
+    ultra_silent_print("🧠 Intelligent MCP Router Sophisticated disponível") if "--help" in sys.argv else None
 except ImportError as e:
     print(f"⚠️ Intelligent MCP Router not available: {e}")
     INTELLIGENT_ROUTER_AVAILABLE = False
@@ -80,7 +84,7 @@ except ImportError as e:
 try:
     from intent_validation import ValidationSystem
     VALIDATION_SYSTEM_AVAILABLE = True
-    silent_print("🛡️ Sistema de Validação de Intenção disponível") if "--help" in sys.argv else None
+#    ultra_silent_print("🛡️ Sistema de Validação de Intenção disponível") if "--help" in sys.argv else None
 except ImportError as e:
     print(f"⚠️ Intent Validation System not available: {e}")
     VALIDATION_SYSTEM_AVAILABLE = False
@@ -92,7 +96,7 @@ class IaLNaturalProcessor:
         if VALIDATION_SYSTEM_AVAILABLE:
             try:
                 self.validation_system = ValidationSystem()
-                silent_print("✅ Sistema de Validação de Intenção inicializado")
+#                ultra_silent_ultra_silent_print("✅ Sistema de Validação de Intenção inicializado")
             except Exception as e:
                 print(f"⚠️ Erro inicializando Validation System: {e}")
                 self.validation_system = None
@@ -111,15 +115,15 @@ class IaLNaturalProcessor:
                 self.master_engine = IaLMasterEngine()
                 self.advanced_mode = True
                 print("🚀 IaL v3.1 - Advanced Mode: ALL SYSTEMS OPERATIONAL")
-                silent_print("✅ Bedrock Conversational AI")
-                silent_print("✅ Infrastructure Integration") 
-                silent_print("✅ Response Caching & Optimization")
-                silent_print("✅ Knowledge Base & RAG")
-                silent_print("✅ Cost Monitoring & Rate Limiting")
+                ultra_silent_ultra_silent_print("✅ Bedrock Conversational AI")
+                ultra_silent_ultra_silent_print("✅ Infrastructure Integration") 
+                ultra_silent_ultra_silent_print("✅ Response Caching & Optimization")
+                ultra_silent_ultra_silent_print("✅ Knowledge Base & RAG")
+                ultra_silent_ultra_silent_print("✅ Cost Monitoring & Rate Limiting")
                 if self.intelligent_router:
-                    silent_print("✅ Intelligent MCP Router")
+                    ultra_silent_ultra_silent_print("✅ Intelligent MCP Router")
                 if self.validation_system:
-                    silent_print("✅ Intent Validation System")
+                    ultra_silent_ultra_silent_print("✅ Intent Validation System")
             except Exception as e:
                 print(f"⚠️ Master Engine initialization failed: {e}")
                 self.advanced_mode = False
@@ -198,7 +202,7 @@ class IaLNaturalProcessor:
         # Try intelligent MCP routing first if available
         if self.intelligent_router and self.should_use_intelligent_routing(user_input):
             try:
-                silent_print("🧠 Usando Intelligent MCP Router")
+                ultra_silent_print("🧠 Usando Intelligent MCP Router")
                 response = self.process_with_intelligent_router(user_input, user_id, session_id)
             except Exception as e:
                 print(f"⚠️ Erro no Intelligent Router: {e}, usando fallback")
@@ -738,7 +742,7 @@ def interactive_mode():
     
     system_status = processor.get_system_status()
     if processor.advanced_mode:
-        silent_print("✅ ADVANCED MODE: All systems operational")
+        ultra_silent_ultra_silent_print("✅ ADVANCED MODE: All systems operational")
         print("   🤖 Bedrock Conversational AI")
         print("   🏗️ Infrastructure Integration")
         print("   💾 Response Caching & Optimization")
@@ -766,11 +770,11 @@ def interactive_mode():
             if user_input.lower() in ['clear', 'cls']:
                 clear_screen()
                 print("🚀 IaL v3.0 - Advanced Mode: ALL SYSTEMS OPERATIONAL")
-                silent_print("✅ Bedrock Conversational AI")
-                silent_print("✅ Infrastructure Integration") 
-                silent_print("✅ Response Caching & Optimization")
-                silent_print("✅ Knowledge Base & RAG")
-                silent_print("✅ Cost Monitoring & Rate Limiting")
+                ultra_silent_ultra_silent_print("✅ Bedrock Conversational AI")
+                ultra_silent_ultra_silent_print("✅ Infrastructure Integration") 
+                ultra_silent_ultra_silent_print("✅ Response Caching & Optimization")
+                ultra_silent_ultra_silent_print("✅ Knowledge Base & RAG")
+                ultra_silent_ultra_silent_print("✅ Cost Monitoring & Rate Limiting")
                 print("=" * 60)
                 print("Commands: 'quit' to exit, 'clear' to clear screen, 'status' for system status")
                 print("Ask me anything about infrastructure! (Ctrl+L also clears screen)")
@@ -850,7 +854,7 @@ def start_ial_infrastructure():
 
 def collect_infrastructure_config():
     """Coleta configurações para deploy da infraestrutura"""
-    print("📋 Coletando informações para deploy da infraestrutura IAL...")
+    ultra_silent_print("📋 Coletando informações para deploy da infraestrutura IAL...")
     print()
     
     config = {}
@@ -937,13 +941,13 @@ def deploy_foundation_via_cdk(config):
             router = IntelligentMCPRouterSophisticated()
             deployer = FoundationDeployer()
             
-            silent_print("✅ MCP servers conectados (Core + Cloud Control)")
+            ultra_silent_ultra_silent_print("✅ MCP servers conectados (Core + Cloud Control)")
             
             # Deploy Foundation phase
             result = deployer.deploy_phase("00-foundation")
             
             if result.get('success', False):
-                silent_print("✅ FOUNDATION IAL COMPLETA criada com sucesso!")
+                ultra_silent_ultra_silent_print("✅ FOUNDATION IAL COMPLETA criada com sucesso!")
                 
                 # Show detailed summary
                 print(f"📊 Foundation Components: {result.get('successful', 0)}/{result.get('total_resources', 0)}")

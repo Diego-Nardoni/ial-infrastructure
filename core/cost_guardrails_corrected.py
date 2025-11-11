@@ -57,7 +57,7 @@ class CostGuardrailsCorrected:
             }
             
         except Exception as e:
-            print(f"⚠️ Cost Guardrails error: {e}")
+#            print(f"⚠️ Cost Guardrails error: {e}")
             return {
                 'estimated_cost': 5.0,
                 'budget_limit': 100.0,

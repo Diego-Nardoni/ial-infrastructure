@@ -29,7 +29,7 @@ def main():
         drift_items = detector.detect_drift()
         
         if not drift_items:
-            print("✅ No drift detected - infrastructure is in sync")
+            #print("✅ No drift detected - infrastructure is in sync")
         else:
             print(f"⚠️ Found {len(drift_items)} drift items:")
             for i, item in enumerate(drift_items, 1):

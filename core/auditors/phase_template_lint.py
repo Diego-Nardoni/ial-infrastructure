@@ -143,7 +143,7 @@ def main():
         print(f"\n❌ Phase Template Gate: FAILED ({len(all_errors)} errors)")
         sys.exit(1)
     else:
-        print("✅ Phase Template Gate: OK")
+        #print("✅ Phase Template Gate: OK")
         print(f"Validated {len(phase_files)} phase files successfully")
 
 if __name__ == "__main__":

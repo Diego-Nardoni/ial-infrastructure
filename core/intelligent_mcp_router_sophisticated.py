@@ -620,4 +620,4 @@ Outputs:
     async def cleanup(self):
         """Cleanup all resources"""
         await self.orchestrator.cleanup()
-        print("✅ Router cleanup completed")
+        #print("✅ Router cleanup completed")

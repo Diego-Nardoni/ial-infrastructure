@@ -25,7 +25,7 @@ class GraphBasedHealingOrchestrator:
         
         # Initialize dependency graph with persistence
         self.dependency_graph = DependencyGraph(region=region, enable_persistence=True)
-        print("✅ HealingOrchestrator: Grafo persistente habilitado")
+        #print("✅ HealingOrchestrator: Grafo persistente habilitado")
         
     def orchestrate_healing(self, failed_resources: List[str] = None) -> Dict[str, any]:
         """Orchestrate intelligent healing based on persistent dependency graph"""
@@ -48,7 +48,7 @@ class GraphBasedHealingOrchestrator:
         healing_order = self.dependency_graph.get_healing_order()
         
         if not healing_order:
-            print("✅ No resources need healing")
+            #print("✅ No resources need healing")
             return {
                 "status": "no_healing_needed",
                 "resources_healed": 0,

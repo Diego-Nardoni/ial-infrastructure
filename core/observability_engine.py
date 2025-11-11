@@ -545,7 +545,7 @@ class ObservabilityEngine:
 
 def main():
     """Função principal para testes"""
-    print("📊 IAL Observability Engine v3.1")
+    #print("📊 IAL Observability Engine v3.1")
     print("=" * 50)
     
     obs = ObservabilityEngine()
@@ -559,7 +559,7 @@ def main():
     obs.log_audit_event('test_event', {'test_key': 'test_value'})
     
     # Criar dashboard
-    print("📊 Criando dashboard...")
+    #print("📊 Criando dashboard...")
     obs.create_dashboard('IAL-Test-Dashboard')
     
     # Criar alarmes

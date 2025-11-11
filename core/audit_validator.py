@@ -390,7 +390,7 @@ class AuditValidator:
         registered_count = 0
         
         try:
-            print("📊 Processando recursos para Knowledge Graph...")
+            #print("📊 Processando recursos para Knowledge Graph...")
             
             for resource in catalog_resources:
                 success = self._register_resource_in_graph(resource)

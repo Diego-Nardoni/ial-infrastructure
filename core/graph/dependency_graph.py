@@ -59,7 +59,7 @@ class DependencyGraph:
         if self.enable_persistence:
             try:
                 self.resource_catalog = ResourceCatalog()
-                print("✅ DependencyGraph: Persistência habilitada")
+                #print("✅ DependencyGraph: Persistência habilitada")
             except Exception as e:
                 print(f"⚠️ DependencyGraph: Erro inicializando persistência: {e}")
                 self.enable_persistence = False
@@ -74,11 +74,11 @@ class DependencyGraph:
             if not self.resource_catalog:
                 return
             
-            print("📊 DependencyGraph: Carregando grafo do DynamoDB...")
+            #print("📊 DependencyGraph: Carregando grafo do DynamoDB...")
             
             # Por enquanto, carregamento sob demanda
             # TODO: Implementar carregamento completo se necessário
-            print("✅ DependencyGraph: Modo carregamento sob demanda ativo")
+            #print("✅ DependencyGraph: Modo carregamento sob demanda ativo")
             
         except Exception as e:
             print(f"⚠️ Erro carregando grafo da persistência: {e}")

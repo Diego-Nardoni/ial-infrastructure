@@ -38,14 +38,14 @@ class MCPInfrastructureManager:
             results['dynamodb_checklist'] = await self.router.route_request(
                 f"Create DynamoDB table mcp-provisioning-checklist with hash key phase_id for IAL provisioning tracking"
             )
-            print("✅ State Tables criadas")
+            #print("✅ State Tables criadas")
             
             # 2. Security Foundation
             print("📦 2/28 Configurando KMS Keys...")
             results['kms_keys'] = await self.router.route_request(
                 f"Create KMS key for {project_name} with alias {project_name}-foundation-key"
             )
-            print("✅ KMS Keys configuradas")
+            #print("✅ KMS Keys configuradas")
             
             # 3. IAM Foundation
             print("📦 3/28 Criando IAM Roles Foundation...")
@@ -56,7 +56,7 @@ class MCPInfrastructureManager:
             results['iam_github'] = await self.router.route_request(
                 f"Create IAM role {project_name}-github-role with OIDC provider for GitHub Actions"
             )
-            print("✅ IAM Foundation criada")
+            #print("✅ IAM Foundation criada")
             
             # 4. Logging Infrastructure
             print("📦 4/28 Configurando CloudWatch Logs...")
@@ -67,7 +67,7 @@ class MCPInfrastructureManager:
             results['cloudwatch_stepfunctions'] = await self.router.route_request(
                 f"Create CloudWatch Log Group /aws/stepfunctions/{project_name} with 30 days retention"
             )
-            print("✅ Logging Infrastructure configurada")
+            #print("✅ Logging Infrastructure configurada")
             
             # 5. Storage Foundation
             print("📦 5/28 Criando S3 Buckets...")
@@ -82,7 +82,7 @@ class MCPInfrastructureManager:
             results['s3_state'] = await self.router.route_request(
                 f"Create S3 bucket {project_name}-state-{aws_account} with encryption enabled"
             )
-            print("✅ Storage Foundation criada")
+            #print("✅ Storage Foundation criada")
             
             # 6. Core Processing
             print("📦 6/28 Criando Lambda Functions Core...")
@@ -97,7 +97,7 @@ class MCPInfrastructureManager:
             results['lambda_validator'] = await self.router.route_request(
                 f"Create Lambda function {project_name}-validator with Python runtime and IAM permissions"
             )
-            print("✅ Core Processing criado")
+            #print("✅ Core Processing criado")
             
             # 7. Orchestration Engine
             print("📦 7/28 Criando Step Functions Orchestrator...")
@@ -108,14 +108,14 @@ class MCPInfrastructureManager:
             results['stepfunctions_migration'] = await self.router.route_request(
                 f"Create Step Functions state machine {project_name}-migration with parallel execution"
             )
-            print("✅ Orchestration Engine criado")
+            #print("✅ Orchestration Engine criado")
             
             # 8. API Gateway
             print("📦 8/28 Criando API Gateway...")
             results['api_gateway'] = await self.router.route_request(
                 f"Create API Gateway REST API {project_name}-api with Lambda proxy integration"
             )
-            print("✅ API Gateway criado")
+            #print("✅ API Gateway criado")
             
             # 9. Event Infrastructure
             print("📦 9/28 Configurando EventBridge...")
@@ -126,14 +126,14 @@ class MCPInfrastructureManager:
             results['sns_notifications'] = await self.router.route_request(
                 f"Create SNS topic {project_name}-notifications for IAL system alerts"
             )
-            print("✅ Event Infrastructure configurada")
+            #print("✅ Event Infrastructure configurada")
             
             # 10. Systems Manager
             print("📦 10/28 Configurando Systems Manager...")
             results['ssm_parameters'] = await self.router.route_request(
                 f"Create SSM Parameter Store hierarchy /{project_name}/ for configuration management"
             )
-            print("✅ Systems Manager configurado")
+            #print("✅ Systems Manager configurado")
             
             # 11. Observability Foundation
             print("📦 11/28 Criando CloudWatch Dashboards...")
@@ -144,7 +144,7 @@ class MCPInfrastructureManager:
             results['cloudwatch_alarms'] = await self.router.route_request(
                 f"Create CloudWatch Alarms for {project_name} Lambda functions and Step Functions"
             )
-            print("✅ Observability Foundation criada")
+            #print("✅ Observability Foundation criada")
             
             # 12. RAG Infrastructure
             print("📦 12/28 Configurando RAG Vector Store...")
@@ -155,7 +155,7 @@ class MCPInfrastructureManager:
             results['rag_lambda'] = await self.router.route_request(
                 f"Create Lambda function {project_name}-rag-processor for document processing"
             )
-            print("✅ RAG Infrastructure configurada")
+            #print("✅ RAG Infrastructure configurada")
             
             # 13. Drift Detection
             print("📦 13/28 Configurando Drift Detection...")
@@ -166,7 +166,7 @@ class MCPInfrastructureManager:
             results['drift_scheduler'] = await self.router.route_request(
                 f"Create EventBridge rule {project_name}-drift-schedule for periodic drift detection"
             )
-            print("✅ Drift Detection configurado")
+            #print("✅ Drift Detection configurado")
             
             # 14. Backup Strategy
             print("📦 14/28 Configurando AWS Backup...")
@@ -177,49 +177,49 @@ class MCPInfrastructureManager:
             results['backup_plan'] = await self.router.route_request(
                 f"Create AWS Backup plan {project_name}-daily for DynamoDB and S3"
             )
-            print("✅ Backup Strategy configurada")
+            #print("✅ Backup Strategy configurada")
             
             # 15. Chaos Engineering
             print("📦 15/28 Configurando Chaos Engineering...")
             results['chaos_lambda'] = await self.router.route_request(
                 f"Create Lambda function {project_name}-chaos-controller for fault injection"
             )
-            print("✅ Chaos Engineering configurado")
+            #print("✅ Chaos Engineering configurado")
             
             # 16. Feature Flags
             print("📦 16/28 Configurando Feature Flags...")
             results['feature_flags'] = await self.router.route_request(
                 f"Create AppConfig application {project_name}-features for feature flag management"
             )
-            print("✅ Feature Flags configuradas")
+            #print("✅ Feature Flags configuradas")
             
             # 17. FinOps Budget Enforcement
             print("📦 17/28 Configurando Budget Enforcement...")
             results['budget'] = await self.router.route_request(
                 f"Create AWS Budget {project_name}-monthly with cost alerts and actions"
             )
-            print("✅ Budget Enforcement configurado")
+            #print("✅ Budget Enforcement configurado")
             
             # 18. Test Validation
             print("📦 18/28 Configurando Test Infrastructure...")
             results['test_lambda'] = await self.router.route_request(
                 f"Create Lambda function {project_name}-test-validator for infrastructure testing"
             )
-            print("✅ Test Infrastructure configurada")
+            #print("✅ Test Infrastructure configurada")
             
             # 19. Conversation Memory
             print("📦 19/28 Configurando Conversation Memory...")
             results['conversation_table'] = await self.router.route_request(
                 f"Create DynamoDB table {project_name}-conversations with TTL for session management"
             )
-            print("✅ Conversation Memory configurada")
+            #print("✅ Conversation Memory configurada")
             
             # 20. GitHub OIDC Provider
             print("📦 20/28 Configurando GitHub OIDC...")
             results['github_oidc'] = await self.router.route_request(
                 f"Create IAM OIDC Identity Provider for GitHub Actions integration"
             )
-            print("✅ GitHub OIDC configurado")
+            #print("✅ GitHub OIDC configurado")
             
             # 21-28. Additional Foundation Components
             print("📦 21-28/28 Finalizando Foundation Components...")
@@ -263,7 +263,7 @@ class MCPInfrastructureManager:
                 f"Enable X-Ray tracing for {project_name} Lambda functions and Step Functions"
             )
             
-            print("✅ Foundation Components finalizados")
+            #print("✅ Foundation Components finalizados")
             
             # Summary
             total_components = len([k for k, v in results.items() if k != 'deployment_summary' and v is not None])
@@ -278,7 +278,7 @@ class MCPInfrastructureManager:
                 'phase': '00-foundation-complete'
             }
             
-            print("✅ FOUNDATION IAL COMPLETA criada com sucesso!")
+            #print("✅ FOUNDATION IAL COMPLETA criada com sucesso!")
             print(f"📊 Foundation Components: {total_components}/28")
             print(f"🌐 Região: {aws_region}")
             print(f"📋 Projeto: {project_name}")

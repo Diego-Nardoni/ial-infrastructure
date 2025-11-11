@@ -222,7 +222,7 @@ def main():
     if args.deployment_file:
         print(f"📋 Using deployment file: {args.deployment_file}")
     else:
-        print("📋 Using legacy directory scan mode")
+        #print("📋 Using legacy directory scan mode")
     print("=" * 50)
     
     builder = CompatibleDesiredStateBuilder()

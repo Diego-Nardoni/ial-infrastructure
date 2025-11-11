@@ -30,7 +30,7 @@ class MCPRegistry:
     def _load(self):
         """Carrega configuração dos MCPs"""
         if not os.path.exists(self.config_path):
-            print(f"MCP config not found: {self.config_path}")
+#            print(f"MCP config not found: {self.config_path}")
             # Usar configuração padrão embarcada
             self._load_default_config()
             return
@@ -47,12 +47,12 @@ class MCPRegistry:
                     'configured_at': time.time()
                 }
         except Exception as e:
-            print(f"⚠️ Erro carregando MCP config: {e}")
+#            print(f"⚠️ Erro carregando MCP config: {e}")
             self._load_default_config()
     
     def _load_default_config(self):
         """Carrega configuração padrão quando arquivo não existe"""
-        print("✅ Usando configuração MCP padrão embarcada")
+#        #print("✅ Usando configuração MCP padrão embarcada")
         default_config = {
             "mcpServers": {
                 "aws-real-executor": {
@@ -78,10 +78,10 @@ class MCPRegistry:
             }
                 }
             
-            print(f"📋 {len(self.servers)} MCPs configurados")
+#            print(f"📋 {len(self.servers)} MCPs configurados")
             
         except Exception as e:
-            print(f"❌ Erro carregando configuração MCP: {e}")
+#            print(f"❌ Erro carregando configuração MCP: {e}")
 
     def list(self) -> List[str]:
         """Lista todos os MCPs configurados"""

@@ -27,21 +27,21 @@ jobs:
     
     - name: Build Windows executable
       run: |
-        pyinstaller --onefile --name ialctl_v6.29.6_ultra_clean --hidden-import=boto3 natural_language_processor.py
+        pyinstaller --onefile --name ialctl_v6.29.7_professional --hidden-import=boto3 natural_language_processor.py
     
     - name: Upload Windows executable
       uses: actions/upload-artifact@v3
       with:
-        name: ialctl-windows-v6.29.6
-        path: dist/ialctl_v6.29.6_ultra_clean.exe
+        name: ialctl-windows-v6.29.7
+        path: dist/ialctl_v6.29.7_professional.exe
     
     - name: Create Release
       if: github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: v6.29.6-ultra-clean
-        name: IAL v6.29.6 Ultra Clean
-        files: dist/ialctl_v6.29.6_ultra_clean.exe
+        tag_name: v6.29.7-professional
+        name: IAL v6.29.7 Professional
+        files: dist/ialctl_v6.29.7_professional.exe
         draft: false
         prerelease: false
       env:
