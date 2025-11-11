@@ -50,11 +50,9 @@ class MasterEngineFinal:
         TRIPLE LOGIC: Conversational vs CORE resources vs USER resources
         """
         
-        print(f"🎯 Master Engine processando: '{nl_intent[:50]}...'")
         
         # LÓGICA 0: CONVERSATIONAL (saudações, perguntas gerais) - BEDROCK
         if self._is_conversational_request(nl_intent):
-            print("💬 CONVERSATIONAL REQUEST - Roteando para Bedrock")
             return self.process_conversational_path(nl_intent)
         
         # LÓGICA 1: CORE RESOURCES (ialctl start) - EXECUÇÃO DIRETA
@@ -120,7 +118,6 @@ class MasterEngineFinal:
         CONVERSATIONAL PATH: Resposta DIRETA via Bedrock
         """
         
-        print("💬 Executando CONVERSATIONAL PATH - Bedrock direto")
         
         try:
             import boto3
@@ -295,7 +292,6 @@ Pergunta do usuário: {user_input}"""
         CORE FOUNDATION PATH: Deploy direto dos 42 componentes via MCP Infrastructure Manager
         """
         
-        print("🏗️ Executando CORE FOUNDATION PATH - Deploy direto (sem governança)")
         
         if not self.mcp_infrastructure_manager:
             return {
@@ -356,7 +352,6 @@ Pergunta do usuário: {user_input}"""
         MCP ROUTER PATH: Execução direta via MCP servers
         """
         
-        print("⚡ Executando MCP ROUTER PATH - Execução direta")
         
         if not self.intelligent_router:
             return {
@@ -393,7 +388,6 @@ Pergunta do usuário: {user_input}"""
         COGNITIVE ENGINE PATH: Todos os recursos via GitOps pipeline completo
         """
         
-        print("🧠 Executando COGNITIVE ENGINE PATH - Pipeline completo")
         
         if not self.cognitive_engine:
             return {
@@ -587,7 +581,6 @@ Pergunta do usuário: {user_input}"""
         CORE PATH: Bootstrap CORE resources via MCP Infrastructure Manager
         """
         
-        print("🔧 Executando CORE PATH - Bootstrap IAL Foundation")
         
         if not self.mcp_infrastructure_manager:
             return {
@@ -626,7 +619,6 @@ Pergunta do usuário: {user_input}"""
         USER PATH: Arquitetura de referência completa via Cognitive Engine
         """
         
-        print("👤 Executando USER PATH - Arquitetura de Referência")
         
         if not self.cognitive_engine:
             return {

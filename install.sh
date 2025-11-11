@@ -1,10 +1,10 @@
 #!/bin/bash
-# IAL Infrastructure CLI - Installation Script v6.29.4 Working Bedrock
+# IAL Infrastructure CLI - Installation Script v6.29.5 Clean Professional
 # Supports: Ubuntu, Debian, Amazon Linux, CentOS, RHEL, Fedora
 
 set -e
 
-VERSION="6.29.4-working-bedrock"
+VERSION="6.29.5-clean-logs"
 GITHUB_REPO="Diego-Nardoni/ial-infrastructure"
 BINARY_NAME="ialctl"
 
@@ -28,7 +28,7 @@ install_deb() {
     echo "📦 Installing via .deb package..."
     
     # Download .deb package
-    DEB_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl_6.29.4_working_bedrock_amd64.deb"
+    DEB_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl_6.29.5_clean_logs_amd64.deb"
     
     echo "⬇️ Downloading: $DEB_URL"
     wget -q "$DEB_URL" -O "/tmp/ialctl.deb"
@@ -52,7 +52,7 @@ install_rpm() {
     echo "📦 Installing via .rpm package..."
     
     # Download .rpm package
-    RPM_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl-6.29.4_working-1.x86_64.rpm"
+    RPM_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl-6.29.5_clean-1.x86_64.rpm"
     
     echo "⬇️ Downloading: $RPM_URL"
     wget -q "$RPM_URL" -O "/tmp/ialctl.rpm"
@@ -110,14 +110,14 @@ if command -v ialctl >/dev/null 2>&1; then
     echo "✅ ialctl installed successfully!"
     echo ""
     echo "📋 Quick Start:"
-    echo "  ialctl --help                    # Show help"
+    echo "  ialctl --help                    # Show help (with verbose logs)"
     echo "  ialctl start                     # Deploy IAL foundation"
-    echo "  ialctl \"oi tudo bem?\"            # Natural conversation (working!)"
+    echo "  ialctl \"oi tudo bem?\"            # Clean natural conversation"
     echo "  ialctl \"que dia é hoje?\"         # Date/time with context"
     echo "  ialctl \"create ECS cluster\"      # Infrastructure deployment"
     echo ""
     echo "🎉 IAL v${VERSION} ready to use!"
-    echo "🗣️ Now with WORKING Bedrock conversation responses!"
+    echo "✨ Now with clean, professional output experience!"
 else
     echo "❌ Installation failed. Please check the logs above."
     exit 1

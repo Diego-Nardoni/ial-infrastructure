@@ -63,7 +63,7 @@ except ImportError as e:
 try:
     from core.intelligent_mcp_router_sophisticated import IntelligentMCPRouterSophisticated
     INTELLIGENT_ROUTER_AVAILABLE = True
-    print("🧠 Intelligent MCP Router Sophisticated disponível")
+    print("🧠 Intelligent MCP Router Sophisticated disponível") if "--help" in sys.argv else None
 except ImportError as e:
     print(f"⚠️ Intelligent MCP Router not available: {e}")
     INTELLIGENT_ROUTER_AVAILABLE = False
@@ -72,7 +72,7 @@ except ImportError as e:
 try:
     from intent_validation import ValidationSystem
     VALIDATION_SYSTEM_AVAILABLE = True
-    print("🛡️ Sistema de Validação de Intenção disponível")
+    print("🛡️ Sistema de Validação de Intenção disponível") if "--help" in sys.argv else None
 except ImportError as e:
     print(f"⚠️ Intent Validation System not available: {e}")
     VALIDATION_SYSTEM_AVAILABLE = False
