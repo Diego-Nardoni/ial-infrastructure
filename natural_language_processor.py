@@ -1050,13 +1050,18 @@ def main():
             
             # Format response
             if result.get('status') == 'success':
-                print(f"🤖 IaL: ✅ {result.get('method', 'processed')} via {result.get('path', 'unknown')} path")
-                if result.get('components_created'):
-                    print(f"📊 Components: {result['components_created']}")
-                if result.get('resources_created'):
-                    print(f"📋 Resources: {len(result['resources_created'])}")
-                if result.get('pr_url'):
-                    print(f"🔗 PR: {result['pr_url']}")
+                # Se é conversacional, exibir a resposta direta
+                if result.get('path') == 'CONVERSATIONAL_PATH':
+                    print(f"🤖 IaL: {result.get('response', result.get('message', 'Resposta não disponível'))}")
+                else:
+                    # Para infraestrutura, exibir resumo
+                    print(f"🤖 IaL: ✅ {result.get('method', 'processed')} via {result.get('path', 'unknown')} path")
+                    if result.get('components_created'):
+                        print(f"📊 Components: {result['components_created']}")
+                    if result.get('resources_created'):
+                        print(f"📋 Resources: {len(result['resources_created'])}")
+                    if result.get('pr_url'):
+                        print(f"🔗 PR: {result['pr_url']}")
             else:
                 print(f"🤖 IaL: ❌ {result.get('error', 'unknown error')}")
                 

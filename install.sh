@@ -1,10 +1,10 @@
 #!/bin/bash
-# IAL Infrastructure CLI - Installation Script v6.29.3 Direct Bedrock
+# IAL Infrastructure CLI - Installation Script v6.29.4 Working Bedrock
 # Supports: Ubuntu, Debian, Amazon Linux, CentOS, RHEL, Fedora
 
 set -e
 
-VERSION="6.29.3-direct-bedrock"
+VERSION="6.29.4-working-bedrock"
 GITHUB_REPO="Diego-Nardoni/ial-infrastructure"
 BINARY_NAME="ialctl"
 
@@ -28,7 +28,7 @@ install_deb() {
     echo "📦 Installing via .deb package..."
     
     # Download .deb package
-    DEB_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl_6.29.3_direct_bedrock_amd64.deb"
+    DEB_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl_6.29.4_working_bedrock_amd64.deb"
     
     echo "⬇️ Downloading: $DEB_URL"
     wget -q "$DEB_URL" -O "/tmp/ialctl.deb"
@@ -52,7 +52,7 @@ install_rpm() {
     echo "📦 Installing via .rpm package..."
     
     # Download .rpm package
-    RPM_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl-6.29.3_direct-1.x86_64.rpm"
+    RPM_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl-6.29.4_working-1.x86_64.rpm"
     
     echo "⬇️ Downloading: $RPM_URL"
     wget -q "$RPM_URL" -O "/tmp/ialctl.rpm"
@@ -112,12 +112,12 @@ if command -v ialctl >/dev/null 2>&1; then
     echo "📋 Quick Start:"
     echo "  ialctl --help                    # Show help"
     echo "  ialctl start                     # Deploy IAL foundation"
-    echo "  ialctl \"oi tudo bem?\"            # Natural conversation (Bedrock)"
+    echo "  ialctl \"oi tudo bem?\"            # Natural conversation (working!)"
     echo "  ialctl \"que dia é hoje?\"         # Date/time with context"
     echo "  ialctl \"create ECS cluster\"      # Infrastructure deployment"
     echo ""
     echo "🎉 IAL v${VERSION} ready to use!"
-    echo "🗣️ Now with direct Bedrock conversation like Amazon Q!"
+    echo "🗣️ Now with WORKING Bedrock conversation responses!"
 else
     echo "❌ Installation failed. Please check the logs above."
     exit 1
