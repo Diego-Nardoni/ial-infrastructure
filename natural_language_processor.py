@@ -59,11 +59,11 @@ except ImportError as e:
     print(f"⚠️ Master Engine not available: {e}")
     MASTER_ENGINE_AVAILABLE = False
 
-# Try to import Intelligent MCP Router
+# Try to import Intelligent MCP Router Sophisticated
 try:
-    from core.intelligent_mcp_router import IntelligentMCPRouter
+    from core.intelligent_mcp_router_sophisticated import IntelligentMCPRouterSophisticated
     INTELLIGENT_ROUTER_AVAILABLE = True
-    print("🧠 Intelligent MCP Router disponível")
+    print("🧠 Intelligent MCP Router Sophisticated disponível")
 except ImportError as e:
     print(f"⚠️ Intelligent MCP Router not available: {e}")
     INTELLIGENT_ROUTER_AVAILABLE = False
@@ -93,7 +93,7 @@ class IaLNaturalProcessor:
         self.intelligent_router = None
         if INTELLIGENT_ROUTER_AVAILABLE:
             try:
-                self.intelligent_router = IntelligentMCPRouter()
+                self.intelligent_router = IntelligentMCPRouterSophisticated()
             except Exception as e:
                 print(f"⚠️ Erro inicializando Intelligent Router: {e}")
                 self.intelligent_router = None
@@ -719,10 +719,10 @@ def deploy_foundation_via_cdk(config):
         # Check if Foundation Deployer is available
         try:
             from core.foundation_deployer import FoundationDeployer
-            from core.intelligent_mcp_router import IntelligentMCPRouter
+            from core.intelligent_mcp_router_sophisticated import IntelligentMCPRouterSophisticated
             
             # Initialize components
-            router = IntelligentMCPRouter()
+            router = IntelligentMCPRouterSophisticated()
             deployer = FoundationDeployer()
             
             print("✅ MCP servers conectados (Core + Cloud Control)")
