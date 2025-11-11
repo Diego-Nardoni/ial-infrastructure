@@ -45,11 +45,11 @@ class MemoryManager:
             cf = boto3.client('cloudformation')
             stacks = cf.list_stacks(StackStatusFilter=['CREATE_COMPLETE', 'UPDATE_COMPLETE'])
             for stack in stacks['StackSummaries']:
-                if 'ial-fork-05-memory-dynamodb' in stack['StackName']:
+                if 'ial-fork-07-conversation-memory' in stack['StackName']:
                     return f"{stack['StackName']}-conversations"
         except:
             pass
-        return "ial-fork-05-memory-dynamodb-conversations"  # Nome exato da tabela criada
+        return "ial-fork-07-conversation-memory-conversations"  # Nome exato da tabela criada
     
     def _get_embeddings_table_name(self) -> str:
         """Obtém nome da tabela de embeddings"""
@@ -57,11 +57,11 @@ class MemoryManager:
             cf = boto3.client('cloudformation')
             stacks = cf.list_stacks(StackStatusFilter=['CREATE_COMPLETE', 'UPDATE_COMPLETE'])
             for stack in stacks['StackSummaries']:
-                if 'ial-fork-05-memory-dynamodb' in stack['StackName']:
+                if 'ial-fork-07-conversation-memory' in stack['StackName']:
                     return f"{stack['StackName']}-embeddings"
         except:
             pass
-        return "ial-fork-05-memory-dynamodb-embeddings"  # Nome exato da tabela criada
+        return "ial-fork-07-conversation-memory-embeddings"  # Nome exato da tabela criada
     
     def save_message(self, role: str, content: str, metadata: Dict = None):
         """Salva mensagem no DynamoDB e cache local"""

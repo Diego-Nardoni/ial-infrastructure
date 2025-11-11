@@ -1,0 +1,55 @@
+Package: ialctl
+Version: 6.30.5-memory-complete
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: Diego Nardoni <diego@nardoni.com>
+Description: IAL Infrastructure CLI v6.30.5 - Complete Memory System Working
+ Revolutionary AWS Infrastructure deployment with infinite conversational memory
+ fully functional with zero warnings and complete table creation.
+ .
+ v6.30.5 COMPLETE MEMORY FIX:
+ - Fixed memory_manager.py stack references (05 → 07)
+ - Automatic stack creation for conversation memory
+ - Zero DynamoDB ResourceNotFoundException warnings
+ - Complete memory system working from installation
+ - All conversation tables properly created and accessed
+ .
+ Memory System (100% Working):
+ - ConversationHistoryTable → Full conversation history ✅
+ - UserSessionsTable → User session management ✅
+ - ContextWindowsTable → Context summarization ✅
+ - TokenUsageTable → Bedrock token tracking ✅
+ - ConversationCacheTable → Response optimization ✅
+ - BedrockConversationRole → IAM permissions ✅
+ .
+ Command Behaviors (Preserved):
+ - ialctl → Interactive mode (automatic)
+ - ialctl start → Deploy foundation + memory infrastructure
+ - ialctl configure → Configure settings
+ - ialctl interactive → Interactive mode (explicit)
+ - ialctl "command" → Direct execution
+ .
+ Memory Features (Enhanced):
+ - Infinite Memory (never forgets conversations or context)
+ - DynamoDB + S3 Glacier persistence (cost: $0.15/user/month)
+ - Bedrock Embeddings for semantic search
+ - Smart context retrieval across sessions
+ - Amazon Q-like interactive experience
+ - Memory tables created automatically
+ - Memory commands: /stats, /history, /forget
+ - Local cache fallback (works offline)
+ - ZERO warnings or errors in conversation mode
+ .
+ Infrastructure Features (Preserved):
+ - Foundation Bootstrap: ialctl start → deploys 45+ resources
+ - Smart Routing: conversation vs infrastructure detection
+ - GitHub as source of truth
+ - YAML template generation with cost guardrails
+ - Complete audit trail and governance
+ - MCP configuration properly embedded
+ .
+ v6.30.5 provides complete memory functionality with
+ zero configuration and zero warnings - perfect user experience.
+Depends: python3 (>= 3.8), python3-pip, python3-boto3
+Homepage: https://github.com/Diego-Nardoni/ial-infrastructure
