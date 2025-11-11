@@ -132,7 +132,16 @@ class ContextEngine:
         if not context:
             return user_query
         
-        # Adicionar contexto de forma não intrusiva
-        enhanced_query = f"{user_query}\n\n--- Contexto da Conversa ---\n{context}"
+        # Adicionar contexto de forma explícita para o Bedrock
+        if "ultima pergunta" in user_query.lower() or "histórico" in user_query.lower() or "conversa anterior" in user_query.lower():
+            enhanced_query = f"""Pergunta do usuário: {user_query}
+
+IMPORTANTE: Use o contexto abaixo para responder sobre o histórico de conversas:
+
+{context}
+
+Responda baseado no histórico acima."""
+        else:
+            enhanced_query = f"{user_query}\n\n--- Contexto da Conversa ---\n{context}"
         
         return enhanced_query

@@ -4,7 +4,7 @@
 
 set -e
 
-VERSION="6.30.7-memory-cross-session"
+VERSION="6.30.8-memory-complete-final"
 GITHUB_REPO="Diego-Nardoni/ial-infrastructure"
 BINARY_NAME="ialctl"
 
@@ -28,7 +28,7 @@ install_deb() {
     echo "📦 Installing via .deb package..."
     
     # Download .deb package
-    DEB_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl_6.30.7_memory_cross_session_amd64.deb"
+    DEB_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl_6.30.8_memory_complete_final_amd64.deb"
     
     echo "⬇️ Downloading: $DEB_URL"
     wget -q "$DEB_URL" -O "/tmp/ialctl.deb"
@@ -52,7 +52,7 @@ install_rpm() {
     echo "📦 Installing via .rpm package..."
     
     # Download .rpm package
-    RPM_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl-6.30.7_memory_cross-1.x86_64.rpm"
+    RPM_URL="https://github.com/${GITHUB_REPO}/raw/main/dist/packages/ialctl-6.30.8_memory_complete-1.x86_64.rpm"
     
     echo "⬇️ Downloading: $RPM_URL"
     wget -q "$RPM_URL" -O "/tmp/ialctl.rpm"
