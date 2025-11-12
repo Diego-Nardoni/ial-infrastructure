@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""
+IALCTL - Interface de linha de comando do IAL
+"""
+
+import sys
+import os
+
+# Adicionar diretório do IAL ao path
+sys.path.insert(0, '/home/ial')
+
+# Importar e executar
+from ialctl_integrated import main
+
+if __name__ == "__main__":
+    sys.exit(main())
