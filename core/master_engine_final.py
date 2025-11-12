@@ -52,22 +52,28 @@ class MasterEngineFinal:
             print("🏗️ CORE FOUNDATION REQUEST - Execução direta via MCP Infrastructure Manager")
             return self.process_core_foundation_path(nl_intent, config or {})
         
-        # NOVA LÓGICA 2: RESOURCE QUERY (consulta recursos existentes) - BOTO3 DIRETO
-        if self._is_resource_query_request(nl_intent):
-            print("🔍 RESOURCE QUERY REQUEST - Consulta via boto3")
-            return self.process_resource_query_path(nl_intent)
+        # NOVA ARQUITETURA: LLM+MCP SEMPRE PRIMEIRO
+        print("🧠 INTELLIGENT REQUEST - Roteando para LLM+MCP Router")
         
-        # LÓGICA 3: USER RESOURCES (linguagem natural) - ROTEAMENTO HÍBRIDO
-        print("👤 USER RESOURCE REQUEST - Roteamento híbrido")
-        
-        # Detectar se precisa de governança complexa
-        needs_governance = self._needs_complex_governance(nl_intent)
-        
-        if needs_governance:
-            print("🧠 Roteando para Cognitive Engine (governança complexa)")
-            return self.process_cognitive_engine_path(nl_intent)
-        else:
-            print("⚡ Roteando para Intelligent MCP Router (execução direta)")
+        # Tentar LLM+MCP Router primeiro (para TUDO)
+        try:
+            return self.process_intelligent_mcp_path(nl_intent)
+        except Exception as e:
+            print(f"⚠️ LLM+MCP falhou: {e}")
+            
+            # Fallback 1: Verificar se é consulta simples de recursos
+            if self._is_resource_query_request(nl_intent):
+                print("🔄 Fallback: Consulta via boto3 direto")
+                return self.process_resource_query_path(nl_intent)
+            
+            # Fallback 2: Governança complexa
+            elif self._needs_complex_governance(nl_intent):
+                print("🔄 Fallback: Cognitive Engine")
+                return self.process_cognitive_engine_path(nl_intent)
+            
+            # Fallback 3: CloudFormation básico
+            else:
+                print("🔄 Fallback: CloudFormation básico")
             return self.process_mcp_router_path(nl_intent)
     
     def _is_conversational_request(self, nl_intent: str) -> bool:
@@ -331,6 +337,27 @@ Pergunta do usuário: {user_input}"""
                 'status': 'error',
                 'path': 'CORE_FOUNDATION_PATH'
             }
+    
+    def process_intelligent_mcp_path(self, nl_intent: str) -> Dict[str, Any]:
+        """INTELLIGENT MCP PATH: Usa LLM+MCP Router para interpretar e executar"""
+        
+        if not self.intelligent_router:
+            raise Exception("Intelligent MCP Router não disponível")
+        
+        try:
+            # Usar MCP Router para interpretar e executar
+            result = self.intelligent_router.route_request(nl_intent)
+            
+            return {
+                'status': 'success',
+                'path': 'INTELLIGENT_MCP_PATH',
+                'response': result.get('response', 'Processado via LLM+MCP'),
+                'mcp_used': True,
+                'llm_interpretation': True
+            }
+            
+        except Exception as e:
+            raise Exception(f"MCP Router falhou: {e}")
     
     def _needs_complex_governance(self, nl_intent: str) -> bool:
         """Determina se precisa de governança complexa via Cognitive Engine"""
@@ -682,17 +709,22 @@ Pergunta do usuário: {user_input}"""
             # Detectar tipo de recurso
             resource_type = self._detect_resource_type(nl_intent)
             
-            # Executar consulta
+            # Executar consulta e formatar resultado
             if resource_type == 'dynamodb':
-                resources = self._list_dynamodb_tables()
+                resources_data = self._list_dynamodb_tables()
+                resources = [f"📋 {table['name']} (status: {table['status']})" for table in resources_data]
             elif resource_type == 's3':
-                resources = self._list_s3_buckets()
+                resources_data = self._list_s3_buckets()
+                resources = [f"🪣 {bucket['name']} (criado: {bucket['created'][:10]})" for bucket in resources_data]
             elif resource_type == 'ec2':
-                resources = self._list_ec2_instances()
+                resources_data = self._list_ec2_instances()
+                resources = [f"💻 {instance['id']} ({instance['state']}) - {instance['type']}" for instance in resources_data]
             elif resource_type == 'lambda':
-                resources = self._list_lambda_functions()
+                resources_data = self._list_lambda_functions()
+                resources = [f"⚡ {func['name']} (runtime: {func['runtime']})" for func in resources_data]
             else:
-                resources = self._list_all_resources()
+                resources_data = self._list_all_resources()
+                resources = [str(item) for item in resources_data]
             
             return {
                 'status': 'success',

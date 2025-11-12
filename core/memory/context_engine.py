@@ -62,26 +62,34 @@ class ContextEngine:
     
     def get_conversation_summary(self) -> str:
         """Gera resumo da conversa para continuidade"""
-        recent_messages = self.memory.get_recent_context(limit=20)
+        # Buscar apenas mensagens da sessão atual
+        current_session = self.memory.session_id
+        recent_messages = self.memory.get_recent_context(limit=10)
         
         if not recent_messages:
             return "Primeira conversa com o usuário."
         
-        # Verificar se há mensagens de sessões anteriores
-        previous_sessions = set()
-        current_session = self.memory.session_id
+        # Filtrar apenas mensagens da sessão atual
+        current_session_messages = [
+            msg for msg in recent_messages 
+            if msg.get('session_id', '') == current_session
+        ]
         
-        for msg in recent_messages:
-            session_id = msg.get('session_id', '')
-            if session_id and session_id != current_session:
-                previous_sessions.add(session_id)
-        
-        if not previous_sessions:
+        if len(current_session_messages) < 2:
             return "Primeira conversa com o usuário."
         
-        # Gerar resumo usando Bedrock
-        if self.embeddings.available:
-            return self.embeddings.generate_summary(recent_messages)
+        # Gerar resumo simples das últimas interações
+        last_topics = []
+        for msg in current_session_messages[-3:]:  # Últimas 3 mensagens
+            content = msg.get('content', '').strip()
+            if content and len(content) > 10:
+                # Extrair tópico principal (primeiras palavras)
+                topic = content.split('.')[0][:50]
+                if topic not in last_topics:
+                    last_topics.append(topic)
+        
+        if last_topics:
+            return f"Últimas interações: {', '.join(last_topics)}"
         else:
             # Fallback simples
             last_topics = []
