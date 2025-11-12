@@ -6,6 +6,8 @@ Inicializa e valida os 17 MCP servers configurados
 
 import yaml
 import asyncio
+import os
+import sys
 from typing import Dict, List
 from pathlib import Path
 
@@ -13,7 +15,15 @@ from pathlib import Path
 class MCPServersInitializer:
     """Inicializador dos MCP servers"""
     
-    def __init__(self, config_path: str = "/home/ial/config/mcp-mesh.yaml"):
+    def __init__(self, config_path: str = None):
+        if config_path is None:
+            # Detectar se está rodando como binário PyInstaller
+            if getattr(sys, 'frozen', False):
+                base_path = sys._MEIPASS
+            else:
+                base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            config_path = os.path.join(base_path, "config", "mcp-mesh.yaml")
+        
         self.config_path = Path(config_path)
         self.config = self._load_config()
         self.initialized_servers = {}

@@ -21,7 +21,7 @@ Resources:
               Service: states.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSXRayDaemonWriteAccess
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
       Policies:
         - PolicyName: StepFunctionsExecutionPolicy
           PolicyDocument:
@@ -146,25 +146,14 @@ Resources:
               "Default": "CircuitClosed"
             },
             "CircuitClosed": {
-              "Type": "Succeed",
-              "Result": {
-                "circuit_state": "CLOSED",
-                "allow_request": true
-              }
+              "Type": "Succeed"
             },
             "CircuitHalfOpen": {
-              "Type": "Succeed",
-              "Result": {
-                "circuit_state": "HALF_OPEN",
-                "allow_request": true
-              }
+              "Type": "Succeed"
             },
             "CircuitOpen": {
-              "Type": "Succeed",
-              "Result": {
-                "circuit_state": "OPEN",
-                "allow_request": false
-              }
+              "Type": "Fail",
+              "Cause": "Circuit breaker is OPEN"
             }
           }
         }
