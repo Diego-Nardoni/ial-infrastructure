@@ -5,7 +5,7 @@ a = Analysis(
     ['ialctl'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('config', 'config'), ('phases', 'phases')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

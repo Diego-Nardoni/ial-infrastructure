@@ -98,47 +98,55 @@ class FoundationDeployer:
         print("🎯 Deploying IAL Foundation Core Resources")
         print("=" * 40)
         
-        # Recursos críticos da Foundation
-        core_resources = [
-            'dynamodb-state',
-            'kms-keys', 
-            'logging-infrastructure',
-            'reconciliation-engine',
-            'iam-roles',
-            'sns-topics'
+        # Arquivos específicos para deploy (evita duplicação)
+        core_files = [
+            '01-dynamodb-state.yaml',
+            '02-kms-keys.yaml',
+            '04-iam-roles.yaml',
+            '11-ial-s3-storage.yaml',
+            '24-ial-sns-topics.yaml',
+            '33-ial-cloudwatch-log-groups.yaml'
         ]
         
+        phase_path = os.path.join(self.phases_dir, '00-foundation')
         results = []
-        for resource in core_resources:
+        
+        for file_name in core_files:
+            file_path = os.path.join(phase_path, file_name)
+            
+            if not os.path.exists(file_path):
+                print(f"⚠️  {file_name} not found, skipping")
+                continue
+            
             try:
-                print(f"\n🔄 Deploying: {resource}")
-                result = deploy_phase_resources('00-foundation', resource)
+                print(f"\n🔄 Deploying: {file_name}")
+                result = self.parser.deploy_cloudformation_stack(file_path, "ial-fork")
                 results.append({
-                    'resource': resource,
+                    'file': file_name,
                     'result': result
                 })
                 
-                if result['successful'] > 0:
-                    print(f"   ✅ {result['successful']} resources deployed")
+                if result['success']:
+                    print(f"   ✅ {file_name} deployed")
                 else:
-                    print(f"   ⚠️  No resources deployed")
+                    print(f"   ⚠️  {file_name} skipped or failed")
                     
             except Exception as e:
                 print(f"   ❌ Failed: {str(e)}")
                 results.append({
-                    'resource': resource,
+                    'file': file_name,
                     'error': str(e)
                 })
         
-        successful_deployments = len([r for r in results if 'error' not in r and r['result']['successful'] > 0])
+        successful_deployments = len([r for r in results if 'error' not in r and r['result']['success']])
         
         print(f"\n🎉 Foundation Core Deployment Complete!")
-        print(f"   📊 {successful_deployments}/{len(core_resources)} resource groups deployed")
+        print(f"   📊 {successful_deployments}/{len(core_files)} files deployed")
         
         return {
             'core_resources': results,
             'successful_deployments': successful_deployments,
-            'total_resource_groups': len(core_resources)
+            'total_resource_groups': len(core_files)
         }
 
 def deploy_complete_foundation() -> Dict[str, Any]:
