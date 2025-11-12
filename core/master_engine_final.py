@@ -898,7 +898,7 @@ Pergunta do usuário: {user_input}"""
         print("🔍 Verificando dependências críticas...")
         
         # 1. Dependências Python
-        python_deps = ['aiohttp', 'boto3', 'psutil']
+        python_deps = ['aiohttp', 'boto3', 'psutil', 'openai', 'pyyaml', 'requests']
         for dep in python_deps:
             try:
                 __import__(dep)
