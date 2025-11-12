@@ -700,7 +700,8 @@ Pergunta do usuário: {user_input}"""
                 'resource_type': resource_type,
                 'resources': resources,
                 'count': len(resources),
-                'message': f'Encontrados {len(resources)} recursos do tipo {resource_type}'
+                'message': f'Encontrados {len(resources)} recursos do tipo {resource_type}',
+                'response': f"📋 **{resource_type.upper()} Resources**\n\n{chr(10).join(resources) if resources else 'Nenhum recurso encontrado'}\n\n✅ Total: {len(resources)} recursos"
             }
             
         except Exception as e:
@@ -708,7 +709,8 @@ Pergunta do usuário: {user_input}"""
                 'status': 'error',
                 'path': 'RESOURCE_QUERY_PATH',
                 'error': str(e),
-                'message': 'Erro ao consultar recursos AWS'
+                'message': 'Erro ao consultar recursos AWS',
+                'response': f"❌ **Erro na Consulta**\n\n{str(e)}\n\n💡 Verifique suas credenciais AWS e tente novamente."
             }
 
     def _detect_resource_type(self, nl_intent: str) -> str:

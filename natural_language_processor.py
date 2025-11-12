@@ -1110,7 +1110,7 @@ def interactive_mode():
         
         # Verificar se há contexto anterior DA SESSÃO ATUAL
         summary = context_engine.get_conversation_summary()
-        if "Primeira conversa" not in summary and len(summary) < 200:  # Apenas contexto recente/relevante
+        if "Primeira conversa" not in summary and len(summary.strip()) > 10:  # Mostra contexto relevante
             print(f"💭 Contexto: {summary}")
             
     except Exception as e:
