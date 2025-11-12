@@ -897,8 +897,8 @@ Pergunta do usuário: {user_input}"""
         
         print("🔍 Verificando dependências críticas...")
         
-        # 1. Dependências Python
-        python_deps = ['aiohttp', 'boto3', 'psutil', 'openai', 'pyyaml', 'requests']
+        # 1. Dependências Python ESSENCIAIS
+        python_deps = ['aiohttp', 'boto3', 'psutil', 'pyyaml', 'requests']
         for dep in python_deps:
             try:
                 __import__(dep)
@@ -935,10 +935,22 @@ Pergunta do usuário: {user_input}"""
         import subprocess
         import sys
         
+        # Mapeamento correto: módulo Python -> nome do pacote apt
+        package_mapping = {
+            'aiohttp': 'python3-aiohttp',
+            'boto3': 'python3-boto3', 
+            'psutil': 'python3-psutil',
+            'openai': 'python3-openai',
+            'pyyaml': 'python3-yaml',  # CORREÇÃO: pyyaml -> python3-yaml
+            'requests': 'python3-requests'
+        }
+        
+        apt_package = package_mapping.get(package, f'python3-{package}')
+        
         try:
-            subprocess.run(['apt', 'install', '-y', f'python3-{package}'], 
+            subprocess.run(['apt', 'install', '-y', apt_package], 
                          check=True, capture_output=True)
-            print(f"✅ {package} instalado via apt")
+            print(f"✅ {package} instalado via apt ({apt_package})")
         except:
             try:
                 subprocess.run([sys.executable, '-m', 'pip', 'install', package, '--break-system-packages'], 
