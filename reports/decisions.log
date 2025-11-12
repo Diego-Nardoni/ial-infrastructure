@@ -467,3 +467,5 @@
 {"id": "64807b26-e788-4f0e-971c-5055eb9b406c", "ts": 1762795163286, "phase": "routing", "mcp": "intelligent_router", "tool": "route_request", "rationale": "Detected 3 services, confidence: 0.11", "status": "ROUTED"}
 {"id": "8c1a571e-ad92-4da8-bf9d-d74771afb77f", "ts": 1762795172289, "phase": "routing", "mcp": "intelligent_router", "tool": "route_request", "rationale": "Detected 4 services, confidence: 0.01", "status": "FALLBACK"}
 {"id": "3bd61452-b0ea-4520-a692-cc9df2950a52", "ts": 1762795172290, "phase": "routing", "mcp": "intelligent_router", "tool": "route_request", "rationale": "Detected 1 services, confidence: 0.35", "status": "ROUTED"}
+{"id": "928e40fe-e5d9-4fe7-aa40-56c005963cce", "ts": 1762887521357, "phase": "routing", "mcp": "intelligent_router", "tool": "route_request", "rationale": "Detected 3 services, confidence: 0.11", "status": "ROUTED"}
+{"id": "c58460fa-7157-4ad7-8bb5-2a9fce8d7f7d", "ts": 1762887522134, "phase": "routing", "mcp": "intelligent_router", "tool": "route_request", "rationale": "Detected 4 services, confidence: 0.01", "status": "FALLBACK"}
