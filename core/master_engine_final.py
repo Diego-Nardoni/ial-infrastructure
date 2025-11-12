@@ -664,9 +664,9 @@ Pergunta do usuário: {user_input}"""
         """Detecta solicitações de consulta de recursos"""
         query_patterns = [
             'quais tabelas', 'what tables', 'list tables', 'show tables',
-            'quais buckets', 'list buckets', 'show buckets', 'list s3',
-            'quais instancias', 'list instances', 'show instances', 'show ec2',
-            'recursos existentes', 'existing resources', 'list lambda', 'show lambda'
+            'quais buckets', 'list buckets', 'show buckets', 'list s3', 'liste todos os buckets',
+            'quais instancias', 'list instances', 'show instances', 'show ec2', 'liste todas as instancias',
+            'recursos existentes', 'existing resources', 'list lambda', 'show lambda', 'liste todos'
         ]
         
         nl_lower = nl_intent.lower()

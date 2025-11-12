@@ -202,9 +202,9 @@ class IaLNaturalProcessor:
         # ===== FIM DA INSERÇÃO =====
         
         # Try intelligent MCP routing first if available
-        if self.intelligent_router and self.should_use_intelligent_routing(user_input):
+        if self.intelligent_router:
             try:
-                ultra_silent_print("🧠 Usando Intelligent MCP Router")
+                ultra_silent_print("🧠 Tentando Intelligent MCP Router primeiro")
                 response = self.process_with_intelligent_router(user_input, user_id, session_id)
             except Exception as e:
                 print(f"⚠️ Erro no Intelligent Router: {e}, usando fallback")
