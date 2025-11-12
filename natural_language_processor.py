@@ -1108,9 +1108,9 @@ def interactive_mode():
         context_engine = ContextEngine()
         memory_enabled = True
         
-        # Verificar se há contexto anterior
+        # Verificar se há contexto anterior DA SESSÃO ATUAL
         summary = context_engine.get_conversation_summary()
-        if "Primeira conversa" not in summary:
+        if "Primeira conversa" not in summary and len(summary) < 200:  # Apenas contexto recente/relevante
             print(f"💭 Contexto: {summary}")
             
     except Exception as e:

@@ -298,6 +298,9 @@ Pergunta do usuário: {user_input}"""
         CORE FOUNDATION PATH: Deploy direto dos 42 componentes via MCP Infrastructure Manager
         """
         
+        # NOVO: Verificar e instalar dependências críticas
+        print("🔍 Verificando dependências do sistema...")
+        self._check_and_install_dependencies()
         
         if not self.mcp_infrastructure_manager:
             return {
@@ -885,3 +888,100 @@ Pergunta do usuário: {user_input}"""
         response_parts.append(f"\n💡 **Total**: {count} recursos encontrados")
         
         return "\n".join(response_parts)
+    
+    def _check_and_install_dependencies(self):
+        """Verifica e instala dependências críticas do sistema"""
+        import subprocess
+        import sys
+        import shutil
+        
+        print("🔍 Verificando dependências críticas...")
+        
+        # 1. Dependências Python
+        python_deps = ['aiohttp', 'boto3', 'psutil']
+        for dep in python_deps:
+            try:
+                __import__(dep)
+                print(f"✅ Python: {dep}")
+            except ImportError:
+                print(f"⚠️ Instalando {dep}...")
+                self._install_python_package(dep)
+        
+        # 2. AWS CLI
+        if shutil.which('aws'):
+            print("✅ AWS CLI disponível")
+        else:
+            print("⚠️ AWS CLI não encontrado, instalando...")
+            self._install_aws_cli()
+        
+        # 3. Node.js (necessário para CDK)
+        if shutil.which('node'):
+            print("✅ Node.js disponível")
+        else:
+            print("⚠️ Node.js não encontrado, instalando...")
+            self._install_nodejs()
+        
+        # 4. AWS CDK
+        if shutil.which('cdk'):
+            print("✅ AWS CDK disponível")
+        else:
+            print("⚠️ AWS CDK não encontrado, instalando...")
+            self._install_aws_cdk()
+        
+        print("🔧 Todas as dependências verificadas")
+
+    def _install_python_package(self, package):
+        """Instala pacote Python via apt ou pip"""
+        import subprocess
+        import sys
+        
+        try:
+            subprocess.run(['apt', 'install', '-y', f'python3-{package}'], 
+                         check=True, capture_output=True)
+            print(f"✅ {package} instalado via apt")
+        except:
+            try:
+                subprocess.run([sys.executable, '-m', 'pip', 'install', package, '--break-system-packages'], 
+                             check=True, capture_output=True)
+                print(f"✅ {package} instalado via pip")
+            except Exception as e:
+                print(f"❌ Falha ao instalar {package}: {e}")
+
+    def _install_aws_cli(self):
+        """Instala AWS CLI v2"""
+        import subprocess
+        
+        try:
+            # Método oficial AWS CLI v2
+            subprocess.run(['curl', 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip', '-o', '/tmp/awscliv2.zip'], check=True)
+            subprocess.run(['unzip', '-q', '/tmp/awscliv2.zip', '-d', '/tmp/'], check=True)
+            subprocess.run(['/tmp/aws/install'], check=True)
+            print("✅ AWS CLI v2 instalado")
+        except Exception as e:
+            print(f"❌ Falha ao instalar AWS CLI: {e}")
+            print("💡 Execute manualmente: curl + install AWS CLI v2")
+
+    def _install_nodejs(self):
+        """Instala Node.js via NodeSource"""
+        import subprocess
+        
+        try:
+            # NodeSource oficial (LTS)
+            subprocess.run(['curl', '-fsSL', 'https://deb.nodesource.com/setup_lts.x', '|', 'bash', '-'], 
+                         shell=True, check=True)
+            subprocess.run(['apt', 'install', '-y', 'nodejs'], check=True)
+            print("✅ Node.js LTS instalado")
+        except Exception as e:
+            print(f"❌ Falha ao instalar Node.js: {e}")
+            print("💡 Execute manualmente: apt install nodejs npm")
+
+    def _install_aws_cdk(self):
+        """Instala AWS CDK via npm"""
+        import subprocess
+        
+        try:
+            subprocess.run(['npm', 'install', '-g', 'aws-cdk'], check=True)
+            print("✅ AWS CDK instalado globalmente")
+        except Exception as e:
+            print(f"❌ Falha ao instalar CDK: {e}")
+            print("💡 Execute manualmente: npm install -g aws-cdk")
