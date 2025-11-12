@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Reconciliation Wrapper'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-fork
+    Description: Project name for resource naming
+
+Resources:
+  # SNS Topic for reconciliation notifications
+  ReconciliationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-reconciliation-notifications'
+      DisplayName: 'IAL Reconciliation Notifications'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: ReconciliationNotifications
+
+  # EventBridge rule for drift detection
+  DriftDetectionRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-drift-detection'
+      Description: 'Periodic drift detection for IAL resources'
+      ScheduleExpression: 'rate(6 hours)'
+      State: ENABLED
+      Targets:
+        - Arn: !Ref ReconciliationTopic
+          Id: DriftDetectionTarget
+
+Outputs:
+  ReconciliationTopicArn:
+    Description: ARN of the reconciliation topic
+    Value: !Ref ReconciliationTopic
+    Export:
+      Name: !Sub '${ProjectName}-ReconciliationTopicArn'

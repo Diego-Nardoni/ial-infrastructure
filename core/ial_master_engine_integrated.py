@@ -1,0 +1,542 @@
+#!/usr/bin/env python3
+"""
+IAL Master Engine Integrated - Usando arquitetura existente robusta
+Integra BedrockConversationEngine + Memory + Query/Provisioning engines
+"""
+
+import json
+import asyncio
+from typing import Dict, List, Optional, Any
+from datetime import datetime
+import hashlib
+import platform
+import getpass
+
+class IALMasterEngineIntegrated:
+    """Master Engine usando componentes robustos existentes"""
+    
+    def __init__(self):
+        # Engines especializados
+        self.bedrock_engine = self._initialize_bedrock_engine()
+        self.context_engine = self._initialize_context_engine()
+        self.query_engine = self._initialize_query_engine()
+        self.troubleshooting_engine = self._initialize_troubleshooting_engine()
+        self.cost_optimization_engine = self._initialize_cost_optimization_engine()
+        
+        # Orquestradores existentes
+        self.orchestrators = self._initialize_orchestrators()
+        
+        # User ID único
+        self.user_id = self._generate_user_id()
+        self.current_session_id = None
+        
+        # Capacidades
+        self.capabilities = {
+            'conversational': True,
+            'memory_persistent': True,
+            'semantic_search': True,
+            'query': True,
+            'provisioning': True,
+            'observability': True,
+            'security': True,
+            'troubleshooting': True,
+            'cost_optimization': True
+        }
+    
+    def _generate_user_id(self) -> str:
+        """Gera ID único baseado em hostname + username"""
+        hostname = platform.node()
+        username = getpass.getuser()
+        unique_string = f"{hostname}-{username}"
+        return hashlib.sha256(unique_string.encode()).hexdigest()[:16]
+    
+    def _initialize_bedrock_engine(self):
+        """Inicializar Bedrock Conversation Engine existente"""
+        try:
+            from lib.bedrock_conversation_engine import BedrockConversationEngine
+            return BedrockConversationEngine()
+        except ImportError as e:
+            print(f"⚠️ BedrockConversationEngine não encontrado: {e}")
+            return None
+    
+    def _initialize_context_engine(self):
+        """Inicializar Context Engine existente"""
+        try:
+            from core.memory.context_engine import ContextEngine
+            return ContextEngine()
+        except ImportError as e:
+            print(f"⚠️ ContextEngine não encontrado: {e}")
+            return None
+    
+    def _initialize_query_engine(self):
+        """Inicializar Query Engine existente"""
+        try:
+            from core.ial_query_engine import QueryEngineIntegration
+            return QueryEngineIntegration()
+        except ImportError as e:
+            print(f"⚠️ QueryEngine não encontrado: {e}")
+            return None
+    
+    def _initialize_troubleshooting_engine(self):
+        """Inicializar Troubleshooting Engine"""
+        try:
+            from .ial_troubleshooting_engine import TroubleshootingIntegration
+            return TroubleshootingIntegration()
+        except ImportError as e:
+            print(f"⚠️ TroubleshootingEngine não encontrado: {e}")
+            return None
+    
+    def _initialize_cost_optimization_engine(self):
+        """Inicializar Cost Optimization Engine"""
+        try:
+            from .cost_optimization_engine import CostOptimizationIntegration
+            return CostOptimizationIntegration()
+        except ImportError as e:
+            print(f"⚠️ CostOptimizationEngine não encontrado: {e}")
+            return None
+    
+    def _initialize_orchestrators(self):
+        """Inicializar orquestradores existentes"""
+        orchestrators = {}
+        
+        # Step Functions Orchestrator
+        try:
+            from core.ial_orchestrator_stepfunctions import IALOrchestratorStepFunctions
+            orchestrators['stepfunctions'] = IALOrchestratorStepFunctions()
+        except ImportError:
+            orchestrators['stepfunctions'] = None
+        
+        # MCP First Orchestrator
+        try:
+            from core.ial_orchestrator_mcp_first import IALOrchestratorMCPFirst
+            orchestrators['mcp_first'] = IALOrchestratorMCPFirst()
+        except ImportError:
+            orchestrators['mcp_first'] = None
+        
+        # Python Orchestrator
+        try:
+            from core.ial_orchestrator import IALOrchestrator
+            orchestrators['python'] = IALOrchestrator()
+        except ImportError:
+            orchestrators['python'] = None
+        
+        return orchestrators
+    
+    async def process_user_input(self, user_input: str) -> str:
+        """Interface principal usando Bedrock + Context Engine"""
+        
+        try:
+            # 1. Classificar intenção
+            intent = await self._classify_intent(user_input)
+            
+            # 2. Processar baseado na intenção
+            if intent['type'] == 'conversational':
+                return await self._process_conversational_intent(user_input)
+            elif intent['type'] == 'query':
+                return await self._process_query_intent(user_input)
+            elif intent['type'] == 'provisioning':
+                return await self._process_provisioning_intent(user_input)
+            elif intent['type'] == 'troubleshooting':
+                return await self._process_troubleshooting_intent(user_input)
+            elif intent['type'] == 'cost_optimization':
+                return await self._process_cost_optimization_intent(user_input)
+            else:
+                return await self._process_conversational_intent(user_input)
+                
+        except Exception as e:
+            return f"❌ **Erro interno:** {str(e)}\n\n💡 **Tente:** Reformular a pergunta."
+    
+    async def _classify_intent(self, user_input: str) -> Dict:
+        """Classificar intenção do usuário"""
+        
+        user_lower = user_input.lower()
+        
+        # Padrões de query específicos
+        query_patterns = [
+            'liste', 'quantos', 'quantas', 'mostrar', 'ver', 'status', 
+            'describe', 'bucket', 'ec2', 'custo', 'cost'
+        ]
+        
+        # Padrões de provisioning específicos
+        provisioning_patterns = [
+            'criar', 'quero', 'preciso', 'deploy', 'provisionar', 
+            'create', 'setup', 'infrastructure'
+        ]
+        
+        # Padrões de troubleshooting específicos
+        troubleshooting_patterns = [
+            'problema', 'erro', 'lento', 'falha', 'debug', 'não funciona',
+            'slow', 'error', 'issue', 'timeout', 'connection'
+        ]
+        
+        # Padrões de cost optimization específicos
+        cost_optimization_patterns = [
+            'reduzir custo', 'otimizar', 'economia', 'savings', 'expensive',
+            'billing alto', 'cost optimization', 'rightsizing'
+        ]
+        
+        if any(pattern in user_lower for pattern in query_patterns):
+            return {'type': 'query', 'confidence': 0.8}
+        elif any(pattern in user_lower for pattern in provisioning_patterns):
+            return {'type': 'provisioning', 'confidence': 0.8}
+        elif any(pattern in user_lower for pattern in troubleshooting_patterns):
+            return {'type': 'troubleshooting', 'confidence': 0.8}
+        elif any(pattern in user_lower for pattern in cost_optimization_patterns):
+            return {'type': 'cost_optimization', 'confidence': 0.8}
+        else:
+            return {'type': 'conversational', 'confidence': 0.6}
+    
+    async def _process_conversational_intent(self, user_input: str) -> str:
+        """Processar via Bedrock Conversation Engine"""
+        
+        if not self.bedrock_engine:
+            return "❌ Bedrock Conversation Engine não disponível"
+        
+        try:
+            # Usar Bedrock Engine com contexto
+            result = self.bedrock_engine.process_conversation(
+                user_input=user_input,
+                user_id=self.user_id,
+                session_id=self.current_session_id
+            )
+            
+            # Atualizar session ID
+            self.current_session_id = result['session_id']
+            
+            # Salvar interação no Context Engine se disponível
+            if self.context_engine:
+                self.context_engine.save_interaction(
+                    user_input, 
+                    result['response'],
+                    {'model_used': result['model_used'], 'usage': result['usage']}
+                )
+            
+            return result['response']
+            
+        except Exception as e:
+            return f"❌ Erro no Bedrock: {str(e)}"
+    
+    async def _process_query_intent(self, user_input: str) -> str:
+        """Processar query via Query Engine + Bedrock para formatação"""
+        
+        if not self.query_engine:
+            return "❌ Query Engine não disponível"
+        
+        try:
+            # 1. Executar query
+            if hasattr(self.query_engine, 'process_query_sync'):
+                query_result = self.query_engine.process_query_sync(user_input)
+            else:
+                query_result = await self.query_engine.process_query_async(user_input)
+            
+            # 2. Usar Bedrock para formatação inteligente
+            if self.bedrock_engine and query_result:
+                formatted_prompt = f"""O usuário perguntou: "{user_input}"
+
+Dados obtidos:
+{json.dumps(query_result, indent=2)}
+
+Formate estes dados de forma clara e conversacional, usando tabelas quando apropriado e adicionando insights úteis."""
+                
+                bedrock_result = self.bedrock_engine.process_conversation(
+                    user_input=formatted_prompt,
+                    user_id=self.user_id,
+                    session_id=self.current_session_id
+                )
+                
+                self.current_session_id = bedrock_result['session_id']
+                return bedrock_result['response']
+            
+            # Fallback para formatação simples
+            return self._format_query_result_simple(query_result)
+            
+        except Exception as e:
+            return f"❌ Erro na query: {str(e)}"
+    
+    async def _process_provisioning_intent(self, user_input: str) -> str:
+        """Processar provisioning via orquestradores + Bedrock"""
+        
+        try:
+            # 1. Tentar orquestradores em ordem de prioridade
+            provisioning_result = None
+            
+            for orchestrator_name in ['stepfunctions', 'mcp_first', 'python']:
+                orchestrator = self.orchestrators.get(orchestrator_name)
+                if orchestrator:
+                    try:
+                        if hasattr(orchestrator, 'process_nl_intent_async'):
+                            provisioning_result = await orchestrator.process_nl_intent_async(user_input)
+                        elif hasattr(orchestrator, 'process_nl_intent'):
+                            provisioning_result = orchestrator.process_nl_intent(user_input)
+                        
+                        if provisioning_result and provisioning_result.get('status') != 'error':
+                            break
+                    except Exception as e:
+                        print(f"⚠️ {orchestrator_name} falhou: {e}")
+                        continue
+            
+            # 2. Usar Bedrock para formatação da resposta
+            if self.bedrock_engine:
+                if provisioning_result:
+                    formatted_prompt = f"""O usuário solicitou: "{user_input}"
+
+Resultado do provisioning:
+{json.dumps(provisioning_result, indent=2)}
+
+Formate esta resposta de forma conversacional, explicando o que foi feito e próximos passos."""
+                else:
+                    formatted_prompt = f"""O usuário solicitou provisioning: "{user_input}"
+
+Infelizmente, todos os orquestradores falharam. Explique de forma amigável que houve um problema técnico e sugira alternativas ou próximos passos."""
+                
+                bedrock_result = self.bedrock_engine.process_conversation(
+                    user_input=formatted_prompt,
+                    user_id=self.user_id,
+                    session_id=self.current_session_id
+                )
+                
+                self.current_session_id = bedrock_result['session_id']
+                return bedrock_result['response']
+            
+            # Fallback sem Bedrock
+            if provisioning_result:
+                return f"✅ **Provisioning iniciado:** {provisioning_result.get('message', 'Sucesso')}"
+            else:
+                return "❌ **Erro:** Todos os orquestradores de provisioning falharam"
+                
+        except Exception as e:
+            return f"❌ Erro no provisioning: {str(e)}"
+    
+    async def _process_troubleshooting_intent(self, user_input: str) -> str:
+        """Processar troubleshooting via Troubleshooting Engine + Bedrock"""
+        
+        if not self.troubleshooting_engine:
+            return "❌ Troubleshooting Engine não disponível"
+        
+        try:
+            # Executar diagnóstico
+            troubleshooting_result = await self.troubleshooting_engine.process_troubleshooting_request(
+                user_input, self.user_id
+            )
+            
+            # Usar Bedrock para formatação se disponível
+            if self.bedrock_engine and troubleshooting_result:
+                formatted_prompt = f"""O usuário relatou: "{user_input}"
+
+Diagnóstico técnico realizado:
+{json.dumps(troubleshooting_result, indent=2)}
+
+Formate este diagnóstico de forma conversacional e acionável, explicando o problema e próximos passos de forma clara."""
+                
+                bedrock_result = self.bedrock_engine.process_conversation(
+                    user_input=formatted_prompt,
+                    user_id=self.user_id,
+                    session_id=self.current_session_id
+                )
+                
+                self.current_session_id = bedrock_result['session_id']
+                return bedrock_result['response']
+            
+            # Fallback sem Bedrock
+            return troubleshooting_result.get('diagnosis', 'Diagnóstico realizado')
+            
+        except Exception as e:
+            return f"❌ Erro no troubleshooting: {str(e)}"
+    
+    async def _process_cost_optimization_intent(self, user_input: str) -> str:
+        """Processar cost optimization via Cost Optimization Engine + Bedrock"""
+        
+        if not self.cost_optimization_engine:
+            return "❌ Cost Optimization Engine não disponível"
+        
+        try:
+            # Executar análise de otimização
+            optimization_result = await self.cost_optimization_engine.process_cost_optimization_request(
+                user_input, self.user_id
+            )
+            
+            # Retornar relatório inteligente (já formatado via Bedrock)
+            return optimization_result.get('intelligent_report', 'Análise de otimização concluída')
+            
+        except Exception as e:
+            return f"❌ Erro na otimização de custos: {str(e)}"
+    
+    def _format_query_result_simple(self, result: Dict) -> str:
+        """Formatação simples de query (fallback)"""
+        
+        result_type = result.get('type', 'unknown')
+        
+        if result_type == 's3_buckets':
+            buckets = result.get('buckets', [])
+            if buckets:
+                bucket_list = "\n".join([f"• {b.get('name', '')} ({b.get('size', '')}, {b.get('cost', '')})" for b in buckets[:5]])
+                return f"📦 **Buckets S3 ({result.get('total', 0)} total):**\n{bucket_list}"
+        
+        elif result_type == 'ec2_instances':
+            total = result.get('total', 0)
+            cost = result.get('total_cost', '0')
+            return f"🖥️ **Instâncias EC2:** {total} ativas (${cost}/mês)"
+        
+        elif result_type == 'cost_analysis':
+            current = result.get('current_month', '0')
+            return f"💰 **Custo atual:** ${current} este mês"
+        
+        return f"📊 **Resultado:** {result.get('message', 'Query processada')}"
+    
+    def get_system_status(self) -> Dict:
+        """Status do sistema integrado"""
+        
+        return {
+            'user_id': self.user_id,
+            'session_id': self.current_session_id,
+            'capabilities': self.capabilities,
+            'engines_status': {
+                'bedrock_conversation': self.bedrock_engine is not None,
+                'context_engine': self.context_engine is not None,
+                'query_engine': self.query_engine is not None
+            },
+            'orchestrators_status': {
+                name: orch is not None 
+                for name, orch in self.orchestrators.items()
+            },
+            'memory_stats': self._get_memory_stats()
+        }
+    
+    def _get_memory_stats(self) -> Dict:
+        """Estatísticas de memória"""
+        
+        if self.context_engine and hasattr(self.context_engine, 'memory'):
+            try:
+                return self.context_engine.memory.get_user_stats()
+            except:
+                pass
+        
+        return {'status': 'Memory stats not available'}
+    
+    def clear_session(self):
+        """Limpar sessão atual"""
+        
+        if self.context_engine:
+            self.context_engine.clear_session_context()
+        
+        self.current_session_id = None
+        print("🧹 Sessão limpa")
+
+# Interface CLI integrada
+class IALCLIIntegrated:
+    """CLI usando Master Engine integrado"""
+    
+    def __init__(self):
+        self.engine = IALMasterEngineIntegrated()
+    
+    async def run_interactive_mode(self):
+        """Modo interativo com engines robustos"""
+        
+        print("🤖 **IAL Assistant - Arquitetura Integrada**")
+        print("Usando: Bedrock + DynamoDB + Context Engine + MCP Servers")
+        
+        # Status inicial
+        status = self.engine.get_system_status()
+        active_engines = sum(1 for engine in status["engines_status"].values() if engine)
+        active_orchestrators = sum(1 for orch in status["orchestrators_status"].values() if orch)
+        
+        print(f"📊 **Sistema:** {active_engines}/3 engines, {active_orchestrators}/3 orquestradores")
+        print(f"👤 **User ID:** {status['user_id']}")
+        print("Digite 'help', 'status' ou 'clear' para comandos especiais\n")
+        
+        while True:
+            try:
+                user_input = input("IAL> ").strip()
+                
+                if user_input.lower() in ['quit', 'exit', 'sair']:
+                    print("👋 Até logo!")
+                    break
+                
+                if user_input.lower() == 'status':
+                    self._show_detailed_status()
+                    continue
+                
+                if user_input.lower() == 'clear':
+                    self.engine.clear_session()
+                    continue
+                
+                if user_input.lower() in ['help', 'ajuda']:
+                    self._show_help()
+                    continue
+                
+                if user_input:
+                    response = await self.engine.process_user_input(user_input)
+                    print(f"\n{response}\n")
+                
+            except KeyboardInterrupt:
+                print("\n👋 Até logo!")
+                break
+            except Exception as e:
+                print(f"❌ Erro: {e}")
+    
+    def _show_detailed_status(self):
+        """Mostrar status detalhado"""
+        
+        status = self.engine.get_system_status()
+        
+        print("\n📊 **Status do Sistema Integrado:**")
+        print(f"👤 **User ID:** {status['user_id']}")
+        print(f"🔗 **Session ID:** {status.get('session_id', 'Nova sessão')}")
+        
+        print("\n🧠 **Engines Robustos:**")
+        engines = status["engines_status"]
+        print(f"• Bedrock Conversation: {'✅' if engines['bedrock_conversation'] else '❌'}")
+        print(f"• Context Engine: {'✅' if engines['context_engine'] else '❌'}")
+        print(f"• Query Engine: {'✅' if engines['query_engine'] else '❌'}")
+        
+        print("\n🔄 **Orquestradores:**")
+        orchestrators = status["orchestrators_status"]
+        for name, active in orchestrators.items():
+            print(f"• {name}: {'✅' if active else '❌'}")
+        
+        print("\n💾 **Memória:**")
+        memory_stats = status.get('memory_stats', {})
+        if 'total_messages' in memory_stats:
+            print(f"• Total mensagens: {memory_stats['total_messages']}")
+            print(f"• Sessões: {memory_stats['sessions']}")
+        else:
+            print(f"• Status: {memory_stats.get('status', 'N/A')}")
+    
+    def _show_help(self):
+        """Mostrar ajuda"""
+        
+        print("""
+🤖 **IAL Assistant - Guia Integrado**
+
+**💬 CONVERSAÇÃO NATURAL:**
+• "Olá, preciso de ajuda"
+• "Como está meu ambiente AWS?"
+• "Explique o que é ECS"
+
+**📊 CONSULTAS:**
+• "liste todos os buckets"
+• "quantas EC2 eu tenho"
+• "qual o custo atual"
+
+**🚀 PROVISIONING:**
+• "quero ECS com Redis"
+• "criar VPC privada"
+• "deploy aplicação serverless"
+
+**⚙️ COMANDOS:**
+• "status" - Status do sistema
+• "clear" - Limpar sessão
+• "help" - Esta ajuda
+• "quit" - Sair
+
+💡 **Diferencial:** Memória persistente + Bedrock + Contexto inteligente
+""")
+
+# Função principal
+async def main():
+    """Função principal integrada"""
+    cli = IALCLIIntegrated()
+    await cli.run_interactive_mode()
+
+if __name__ == "__main__":
+    asyncio.run(main())

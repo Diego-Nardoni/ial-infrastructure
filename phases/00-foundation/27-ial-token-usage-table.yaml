@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Token Usage Table'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  TokenUsageTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ial-token-usage
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: date
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+Outputs:
+  TokenUsageTableName:
+    Description: Token usage table name
+    Value: !Ref TokenUsageTable
+    Export:
+      Name: !Sub '${ProjectName}-TokenUsageTable'

@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Resource Catalog Table'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  ResourceCatalogTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ial-resource-catalog
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: resource_type
+          AttributeType: S
+        - AttributeName: resource_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: resource_type
+          KeyType: HASH
+        - AttributeName: resource_id
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+Outputs:
+  ResourceCatalogTableName:
+    Description: Resource catalog table name
+    Value: !Ref ResourceCatalogTable
+    Export:
+      Name: !Sub '${ProjectName}-ResourceCatalogTable'

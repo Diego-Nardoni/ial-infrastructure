@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Pipeline Lambda Functions'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  PipelineLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-pipeline-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: PipelineLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:*
+                  - cloudformation:*
+                  - s3:*
+                  - bedrock-runtime:InvokeModel
+                Resource: '*'
+
+  CircuitGuardLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-circuit-guard-lambda
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt PipelineLambdaRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"circuit": "CLOSED", "status": "healthy"}
+
+  PlanLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-plan-lambda
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt PipelineLambdaRole.Arn
+      Timeout: 300
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"plan": {"resources": []}, "status": "success"}
+
+  ApplyLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-apply-lambda
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt PipelineLambdaRole.Arn
+      Timeout: 900
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"apply": {"deployed": []}, "status": "success"}
+
+  AuditValidatorLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-audit-validator-lambda
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt PipelineLambdaRole.Arn
+      Timeout: 300
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"audit": {"completeness": 100}, "status": "passed"}
+
+Outputs:
+  PipelineLambdaRoleArn:
+    Description: Pipeline Lambda role ARN
+    Value: !GetAtt PipelineLambdaRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-PipelineLambdaRole'

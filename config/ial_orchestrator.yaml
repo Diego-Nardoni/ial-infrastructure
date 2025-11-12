@@ -1,0 +1,29 @@
+orchestrator:
+  compatibility_mode: false  # NOVO: Desativar fallback automático
+  
+components:
+  ias:
+    enabled: true
+    fallback_mode: "safe_approval"
+    
+  cost_guardrails:
+    enabled: true
+    fallback_mode: "skip_validation"
+    
+  phase_builder:
+    enabled: true
+    fallback_mode: "use_existing"
+    
+  github_integration:
+    enabled: true
+    fallback_mode: "manual_pr"
+    
+  drift_detection:
+    enabled: true
+    fallback_mode: "periodic_check"
+
+timeouts:
+  ias_timeout: 30
+  cost_timeout: 60
+  phase_timeout: 120
+  github_timeout: 30

@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - System State Table'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  SystemStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ial-state
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: system_id
+          AttributeType: S
+        - AttributeName: component
+          AttributeType: S
+      KeySchema:
+        - AttributeName: system_id
+          KeyType: HASH
+        - AttributeName: component
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+Outputs:
+  SystemStateTableName:
+    Description: System state table name
+    Value: !Ref SystemStateTable
+    Export:
+      Name: !Sub '${ProjectName}-SystemStateTable'

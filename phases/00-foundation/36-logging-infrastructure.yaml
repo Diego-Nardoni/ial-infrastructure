@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Logging Infrastructure'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-fork
+    Description: Project name for resource naming
+
+Resources:
+  # CloudWatch Log Group for IAL operations
+  IALLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '${ProjectName}-infrastructure'
+      RetentionInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: Logging
+
+  # Lambda functions log group
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ProjectName}'
+      RetentionInDays: 14
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: LambdaLogs
+
+  # Step Functions log group
+  StepFunctionsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/stepfunctions/${ProjectName}'
+      RetentionInDays: 14
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+        - Key: Purpose
+          Value: StepFunctionsLogs
+
+Outputs:
+  IALLogGroupName:
+    Description: Name of the IAL log group
+    Value: !Ref IALLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-IALLogGroupName'
+  
+  IALLogGroupArn:
+    Description: ARN of the IAL log group
+    Value: !GetAtt IALLogGroup.Arn
+    Export:
+      Name: !Sub '${ProjectName}-IALLogGroupArn'

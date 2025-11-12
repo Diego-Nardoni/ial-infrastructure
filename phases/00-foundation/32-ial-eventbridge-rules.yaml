@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - EventBridge Rules'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  EventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-eventbridge-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EventBridgePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                  - lambda:InvokeFunction
+                Resource: '*'
+
+  ScheduledDriftCheckRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ial-scheduled-drift-check
+      Description: Scheduled drift detection check
+      ScheduleExpression: 'rate(1 hour)'
+      State: ENABLED
+      Targets:
+        - Arn: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:ial-drift-autoheal'
+          Id: DriftCheckTarget
+          RoleArn: !GetAtt EventBridgeRole.Arn
+
+  CostMonitoringRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ial-cost-monitoring
+      Description: Cost monitoring and alerting
+      ScheduleExpression: 'rate(6 hours)'
+      State: ENABLED
+      Targets:
+        - Arn: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:ial-cost-monitor'
+          Id: CostMonitorTarget
+
+  HealthCheckRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ial-health-check
+      Description: System health check
+      ScheduleExpression: 'rate(30 minutes)'
+      State: ENABLED
+      Targets:
+        - Arn: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:ial-health-monitor'
+          Id: HealthCheckTarget
+
+Outputs:
+  EventBridgeRoleArn:
+    Description: EventBridge role ARN
+    Value: !GetAtt EventBridgeRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-EventBridgeRole'

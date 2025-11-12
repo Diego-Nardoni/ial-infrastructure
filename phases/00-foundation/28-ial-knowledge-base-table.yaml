@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Knowledge Base Table'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  KnowledgeBaseTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ial-knowledge-base
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: topic
+          AttributeType: S
+        - AttributeName: document_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: topic
+          KeyType: HASH
+        - AttributeName: document_id
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+Outputs:
+  KnowledgeBaseTableName:
+    Description: Knowledge base table name
+    Value: !Ref KnowledgeBaseTable
+    Export:
+      Name: !Sub '${ProjectName}-KnowledgeBaseTable'

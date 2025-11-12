@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - CloudWatch Log Groups'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  StepFunctionsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/stepfunctions/ial-state-machines
+      RetentionInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/ial-functions
+      RetentionInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+  IALMainLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: IaLLogGroup
+      RetentionInDays: 90
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+  IALRollbackLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: IaLRollbackLogGroup
+      RetentionInDays: 90
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+  ContainerInsightsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: ContainerInsightsLogGroup
+      RetentionInDays: 14
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+Outputs:
+  StepFunctionsLogGroupName:
+    Description: Step Functions log group name
+    Value: !Ref StepFunctionsLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-StepFunctionsLogGroup'
+
+  LambdaLogGroupName:
+    Description: Lambda log group name
+    Value: !Ref LambdaLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-LambdaLogGroup'

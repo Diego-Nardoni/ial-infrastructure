@@ -74,7 +74,8 @@ class MCPOrchestrator:
         finally:
             results['execution_time'] = time.time() - execution_start
         
-        return results
+        execution_result = results
+        return execution_result
 
     async def _execute_phase(self, mcps: List, context: Dict, user_input: str) -> Dict:
         """Executa uma fase específica com MCPs em paralelo"""

@@ -1,0 +1,93 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Rollback Lambda Functions'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  RollbackLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-rollback-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: RollbackLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:*
+                  - cloudformation:*
+                  - s3:*
+                Resource: '*'
+
+  RollbackLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-rollback-lambda
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt RollbackLambdaRole.Arn
+      Timeout: 900
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"rollback": {"reverted": []}, "status": "success"}
+
+  ReverseSyncLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-reverse-sync-lambda
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt RollbackLambdaRole.Arn
+      Timeout: 600
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"sync": {"pr_url": "https://github.com/example/pr/123"}, "status": "success"}
+
+  DriftDetectLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-drift-detect-lambda
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt RollbackLambdaRole.Arn
+      Timeout: 300
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"drift": {"detected": False, "safe": True}, "status": "success"}
+
+  DriftReconcileLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-drift-reconcile-lambda
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt RollbackLambdaRole.Arn
+      Timeout: 600
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"reconcile": {"fixed": []}, "status": "success"}
+
+Outputs:
+  RollbackLambdaRoleArn:
+    Description: Rollback Lambda role ARN
+    Value: !GetAtt RollbackLambdaRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-RollbackLambdaRole'

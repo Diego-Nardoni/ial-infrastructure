@@ -345,8 +345,16 @@ Pergunta do usuário: {user_input}"""
             raise Exception("Intelligent MCP Router não disponível")
         
         try:
-            # Usar MCP Router para interpretar e executar
-            result = self.intelligent_router.route_request(nl_intent)
+            # Usar MCP Router para interpretar e executar (ASYNC)
+            import asyncio
+            
+            # Executar função async de forma síncrona
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(self.intelligent_router.route_request(nl_intent))
+            finally:
+                loop.close()
             
             return {
                 'status': 'success',

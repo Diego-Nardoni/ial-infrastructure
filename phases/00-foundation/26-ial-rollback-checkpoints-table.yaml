@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Rollback Checkpoints Table'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  RollbackCheckpointsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ial-rollback-checkpoints
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: deployment_id
+          AttributeType: S
+        - AttributeName: checkpoint_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: deployment_id
+          KeyType: HASH
+        - AttributeName: checkpoint_id
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+Outputs:
+  RollbackCheckpointsTableName:
+    Description: Rollback checkpoints table name
+    Value: !Ref RollbackCheckpointsTable
+    Export:
+      Name: !Sub '${ProjectName}-RollbackCheckpointsTable'

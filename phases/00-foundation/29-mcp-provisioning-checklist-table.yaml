@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - MCP Provisioning Checklist Table'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  MCPProvisioningChecklistTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: mcp-provisioning-checklist
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: mcp_server
+          AttributeType: S
+        - AttributeName: check_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: mcp_server
+          KeyType: HASH
+        - AttributeName: check_id
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Foundation
+
+Outputs:
+  MCPProvisioningChecklistTableName:
+    Description: MCP provisioning checklist table name
+    Value: !Ref MCPProvisioningChecklistTable
+    Export:
+      Name: !Sub '${ProjectName}-MCPProvisioningChecklistTable'

@@ -3,27 +3,134 @@
     "aws-real-executor": {
       "command": "python",
       "args": ["-m", "mcp_aws_real_executor"],
-      "env": {}
+      "env": {},
+      "description": "AWS Real Executor - Direct AWS operations"
     },
     "aws-cloudformation": {
       "command": "python", 
       "args": ["-m", "mcp_aws_cloudformation"],
-      "env": {}
+      "env": {},
+      "description": "AWS CloudFormation MCP Server"
     },
     "aws-cloud-control-api": {
       "command": "python",
       "args": ["-m", "mcp_aws_cloud_control_api"],
-      "env": {}
+      "env": {},
+      "description": "AWS Cloud Control API MCP Server"
     },
     "aws-cli": {
       "command": "python",
       "args": ["-m", "mcp_aws_cli"],
-      "env": {}
+      "env": {},
+      "description": "AWS CLI MCP Server"
     },
     "aws-core": {
       "command": "python",
       "args": ["-m", "mcp_aws_core"],
-      "env": {}
+      "env": {},
+      "description": "AWS Core MCP Server"
+    },
+    "aws-knowledge": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_knowledge"],
+      "env": {},
+      "description": "AWS Knowledge MCP Server - Official AWS knowledge base maintained by AWS"
+    },
+    "aws-documentation": {
+      "command": "python", 
+      "args": ["-m", "mcp_aws_documentation"],
+      "env": {},
+      "description": "AWS Documentation MCP Server - Official AWS documentation maintained by AWS"
+    },
+    "aws-iam": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_iam"],
+      "env": {},
+      "description": "AWS IAM MCP Server - Identity and Access Management"
+    },
+    "aws-cloudwatch": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_cloudwatch"],
+      "env": {},
+      "description": "AWS CloudWatch MCP Server - Monitoring and observability"
+    },
+    "aws-cloudtrail": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_cloudtrail"],
+      "env": {},
+      "description": "AWS CloudTrail MCP Server - Audit and compliance"
+    },
+    "aws-cost-explorer": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_cost_explorer"],
+      "env": {},
+      "description": "AWS Cost Explorer MCP Server - FinOps and cost optimization"
+    },
+    "aws-ec2": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_ec2"],
+      "env": {},
+      "description": "AWS EC2 MCP Server - Compute services"
+    },
+    "aws-s3": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_s3"],
+      "env": {},
+      "description": "AWS S3 MCP Server - Storage services"
+    },
+    "aws-rds": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_rds"],
+      "env": {},
+      "description": "AWS RDS MCP Server - Managed databases"
+    },
+    "aws-lambda": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_lambda"],
+      "env": {},
+      "description": "AWS Lambda MCP Server - Serverless compute"
+    },
+    "aws-vpc": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_vpc"],
+      "env": {},
+      "description": "AWS VPC MCP Server - Networking services"
+    },
+    "aws-security-hub": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_security_hub"],
+      "env": {},
+      "description": "AWS Security Hub MCP Server - Centralized security posture"
+    },
+    "aws-config": {
+      "command": "python",
+      "args": ["-m", "mcp_aws_config"],
+      "env": {},
+      "description": "AWS Config MCP Server - Compliance and governance"
     }
-  }
+  },
+  "defaultServers": [
+    "aws-real-executor",
+    "aws-cloudformation",
+    "aws-cloud-control-api", 
+    "aws-cli",
+    "aws-core",
+    "aws-knowledge",
+    "aws-documentation",
+    "aws-iam",
+    "aws-cloudwatch",
+    "aws-cloudtrail",
+    "aws-cost-explorer"
+  ],
+  "domainServers": {
+    "compute": ["aws-ec2", "aws-lambda"],
+    "storage": ["aws-s3"],
+    "database": ["aws-rds"],
+    "networking": ["aws-vpc"],
+    "security": ["aws-security-hub", "aws-config"]
+  },
+  "knowledgeBase": [
+    "aws-knowledge",
+    "aws-documentation"
+  ]
 }

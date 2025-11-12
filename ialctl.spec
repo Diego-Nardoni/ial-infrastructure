@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['natural_language_processor.py'],
+    ['ialctl'],
     pathex=[],
     binaries=[],
-    datas=[('mcp-server-config.json', '.')],
-    hiddenimports=['boto3'],
+    datas=[],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
