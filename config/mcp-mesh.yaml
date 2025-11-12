@@ -19,6 +19,13 @@ core_mcps:
       health_check_interval: 30
       description: "IAM roles, policies, and permissions"
       
+    - name: aws-resource-inspector-mcp
+      priority: 2
+      load_timeout: 3.0
+      health_check_interval: 60
+      description: "AWS resource inspection and querying"
+      capabilities: ['list_tables', 'list_buckets', 'list_instances', 'describe_resources']
+      
     - name: aws-cloudwatch-mcp
       priority: 2
       load_timeout: 4.0

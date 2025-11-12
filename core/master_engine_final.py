@@ -6,7 +6,7 @@ Entrada única que decide entre Bootstrap CORE ou Pipeline USER
 
 import sys
 import os
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime
 
 class MasterEngineFinal:
@@ -39,7 +39,7 @@ class MasterEngineFinal:
     
     def process_request(self, nl_intent: str, config: Dict = None) -> Dict[str, Any]:
         """
-        TRIPLE LOGIC: Conversational vs CORE resources vs USER resources
+        QUADRUPLE LOGIC: Conversational vs CORE resources vs RESOURCE QUERY vs USER resources
         """
         
         
@@ -52,7 +52,12 @@ class MasterEngineFinal:
             print("🏗️ CORE FOUNDATION REQUEST - Execução direta via MCP Infrastructure Manager")
             return self.process_core_foundation_path(nl_intent, config or {})
         
-        # LÓGICA 2: USER RESOURCES (linguagem natural) - ROTEAMENTO HÍBRIDO
+        # NOVA LÓGICA 2: RESOURCE QUERY (consulta recursos existentes) - BOTO3 DIRETO
+        if self._is_resource_query_request(nl_intent):
+            print("🔍 RESOURCE QUERY REQUEST - Consulta via boto3")
+            return self.process_resource_query_path(nl_intent)
+        
+        # LÓGICA 3: USER RESOURCES (linguagem natural) - ROTEAMENTO HÍBRIDO
         print("👤 USER RESOURCE REQUEST - Roteamento híbrido")
         
         # Detectar se precisa de governança complexa
@@ -248,6 +253,14 @@ Pergunta do usuário: {user_input}"""
         
         # Usar process_request para roteamento inteligente
         result = self.process_request(user_input)
+        
+        # ADICIONADO: Formatação para resource queries
+        if result.get('path') == 'RESOURCE_QUERY_PATH':
+            return {
+                'response': self._format_resource_query_response(result),
+                'resource_query': True,
+                'path': 'RESOURCE_QUERY_PATH'
+            }
         
         # Se é conversacional, já tem a resposta direta
         if result.get('path') == 'CONVERSATIONAL_PATH':
@@ -646,3 +659,229 @@ Pergunta do usuário: {user_input}"""
             'mcp_infrastructure_manager': self.mcp_infrastructure_manager is not None,
             'timestamp': datetime.now().isoformat()
         }
+    
+    def _is_resource_query_request(self, nl_intent: str) -> bool:
+        """Detecta solicitações de consulta de recursos"""
+        query_patterns = [
+            'quais tabelas', 'what tables', 'list tables', 'show tables',
+            'quais buckets', 'list buckets', 'show buckets', 'list s3',
+            'quais instancias', 'list instances', 'show instances', 'show ec2',
+            'recursos existentes', 'existing resources', 'list lambda', 'show lambda'
+        ]
+        
+        nl_lower = nl_intent.lower()
+        return any(pattern in nl_lower for pattern in query_patterns)
+
+    def process_resource_query_path(self, nl_intent: str) -> Dict[str, Any]:
+        """RESOURCE QUERY PATH: Consulta recursos existentes via boto3"""
+        
+        try:
+            # Detectar tipo de recurso
+            resource_type = self._detect_resource_type(nl_intent)
+            
+            # Executar consulta
+            if resource_type == 'dynamodb':
+                resources = self._list_dynamodb_tables()
+            elif resource_type == 's3':
+                resources = self._list_s3_buckets()
+            elif resource_type == 'ec2':
+                resources = self._list_ec2_instances()
+            elif resource_type == 'lambda':
+                resources = self._list_lambda_functions()
+            else:
+                resources = self._list_all_resources()
+            
+            return {
+                'status': 'success',
+                'path': 'RESOURCE_QUERY_PATH',
+                'resource_type': resource_type,
+                'resources': resources,
+                'count': len(resources),
+                'message': f'Encontrados {len(resources)} recursos do tipo {resource_type}'
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'path': 'RESOURCE_QUERY_PATH',
+                'error': str(e),
+                'message': 'Erro ao consultar recursos AWS'
+            }
+
+    def _detect_resource_type(self, nl_intent: str) -> str:
+        """Detecta tipo de recurso na consulta"""
+        nl_lower = nl_intent.lower()
+        
+        if any(word in nl_lower for word in ['dynamodb', 'tabelas', 'tables']):
+            return 'dynamodb'
+        elif any(word in nl_lower for word in ['s3', 'buckets', 'bucket']):
+            return 's3'
+        elif any(word in nl_lower for word in ['ec2', 'instancias', 'instances']):
+            return 'ec2'
+        elif any(word in nl_lower for word in ['lambda', 'functions', 'funcoes']):
+            return 'lambda'
+        else:
+            return 'all'
+
+    def _list_dynamodb_tables(self) -> List[Dict]:
+        """Lista tabelas DynamoDB"""
+        import boto3
+        dynamodb = boto3.client('dynamodb')
+        
+        response = dynamodb.list_tables()
+        tables = []
+        
+        for table_name in response['TableNames']:
+            try:
+                table_info = dynamodb.describe_table(TableName=table_name)
+                tables.append({
+                    'name': table_name,
+                    'status': table_info['Table']['TableStatus'],
+                    'items': table_info['Table'].get('ItemCount', 0),
+                    'size_bytes': table_info['Table'].get('TableSizeBytes', 0),
+                    'created': table_info['Table']['CreationDateTime'].isoformat()
+                })
+            except:
+                tables.append({'name': table_name, 'status': 'unknown'})
+        
+        return tables
+
+    def _list_s3_buckets(self) -> List[Dict]:
+        """Lista buckets S3"""
+        import boto3
+        s3 = boto3.client('s3')
+        
+        response = s3.list_buckets()
+        buckets = []
+        
+        for bucket in response['Buckets']:
+            buckets.append({
+                'name': bucket['Name'],
+                'created': bucket['CreationDate'].isoformat()
+            })
+        
+        return buckets
+
+    def _list_ec2_instances(self) -> List[Dict]:
+        """Lista instâncias EC2"""
+        import boto3
+        ec2 = boto3.client('ec2')
+        
+        response = ec2.describe_instances()
+        instances = []
+        
+        for reservation in response['Reservations']:
+            for instance in reservation['Instances']:
+                instances.append({
+                    'id': instance['InstanceId'],
+                    'type': instance['InstanceType'],
+                    'state': instance['State']['Name'],
+                    'launch_time': instance['LaunchTime'].isoformat()
+                })
+        
+        return instances
+
+    def _list_lambda_functions(self) -> List[Dict]:
+        """Lista funções Lambda"""
+        import boto3
+        lambda_client = boto3.client('lambda')
+        
+        response = lambda_client.list_functions()
+        functions = []
+        
+        for func in response['Functions']:
+            functions.append({
+                'name': func['FunctionName'],
+                'runtime': func['Runtime'],
+                'size': func['CodeSize'],
+                'modified': func['LastModified']
+            })
+        
+        return functions
+
+    def _list_all_resources(self) -> List[Dict]:
+        """Lista resumo de todos os recursos"""
+        resources = []
+        
+        try:
+            dynamodb_count = len(self._list_dynamodb_tables())
+            resources.append({'type': 'DynamoDB Tables', 'count': dynamodb_count})
+        except:
+            pass
+        
+        try:
+            s3_count = len(self._list_s3_buckets())
+            resources.append({'type': 'S3 Buckets', 'count': s3_count})
+        except:
+            pass
+        
+        try:
+            ec2_count = len(self._list_ec2_instances())
+            resources.append({'type': 'EC2 Instances', 'count': ec2_count})
+        except:
+            pass
+        
+        try:
+            lambda_count = len(self._list_lambda_functions())
+            resources.append({'type': 'Lambda Functions', 'count': lambda_count})
+        except:
+            pass
+        
+        return resources
+    
+    def _format_resource_query_response(self, result: Dict) -> str:
+        """Formata resposta de consulta de recursos"""
+        
+        if result.get('status') != 'success':
+            return f"❌ {result.get('message', 'Erro ao consultar recursos')}"
+        
+        resource_type = result.get('resource_type', 'recursos')
+        resources = result.get('resources', [])
+        count = result.get('count', 0)
+        
+        if count == 0:
+            return f"📋 Nenhum recurso do tipo {resource_type} encontrado na sua conta AWS."
+        
+        response_parts = [
+            f"📋 **{count} {resource_type.upper()} encontrados na sua conta AWS:**",
+            ""
+        ]
+        
+        # Formatação específica por tipo
+        if resource_type == 'dynamodb':
+            for table in resources[:10]:  # Limitar a 10
+                status_emoji = "✅" if table.get('status') == 'ACTIVE' else "⚠️"
+                response_parts.append(
+                    f"{status_emoji} **{table['name']}** - {table.get('status', 'unknown')} "
+                    f"({table.get('items', 0)} itens)"
+                )
+        
+        elif resource_type == 's3':
+            for bucket in resources[:10]:
+                response_parts.append(f"🪣 **{bucket['name']}** - Criado em {bucket['created'][:10]}")
+        
+        elif resource_type == 'ec2':
+            for instance in resources[:10]:
+                state_emoji = "🟢" if instance.get('state') == 'running' else "🔴"
+                response_parts.append(
+                    f"{state_emoji} **{instance['id']}** ({instance.get('type', 'unknown')}) - "
+                    f"{instance.get('state', 'unknown')}"
+                )
+        
+        elif resource_type == 'lambda':
+            for func in resources[:10]:
+                response_parts.append(
+                    f"⚡ **{func['name']}** - {func.get('runtime', 'unknown')} "
+                    f"({func.get('size', 0)} bytes)"
+                )
+        
+        elif resource_type == 'all':
+            for resource in resources:
+                response_parts.append(f"📊 **{resource['type']}**: {resource['count']}")
+        
+        if len(resources) > 10:
+            response_parts.append(f"\n... e mais {len(resources) - 10} recursos")
+        
+        response_parts.append(f"\n💡 **Total**: {count} recursos encontrados")
+        
+        return "\n".join(response_parts)

@@ -260,8 +260,35 @@ class IaLNaturalProcessor:
             'phase', 'stack'
         ]
         
+        # ADICIONADO: Keywords de consulta de recursos
+        query_keywords = [
+            'list', 'show', 'describe', 'what', 'which', 'existing', 'current',
+            'tabelas', 'buckets', 'instancias', 'recursos', 'ver', 'mostrar'
+        ]
+        
         user_lower = user_input.lower()
-        return any(keyword in user_lower for keyword in infrastructure_keywords)
+        has_infrastructure = any(keyword in user_lower for keyword in infrastructure_keywords)
+        has_query = any(keyword in user_lower for keyword in query_keywords)
+        
+        return has_infrastructure or has_query
+    
+    def _is_resource_query(self, user_input: str) -> bool:
+        """Detecta se é uma consulta de recursos existentes"""
+        query_patterns = [
+            'quais', 'what', 'list', 'show', 'describe', 'ver', 'mostrar',
+            'existem', 'existing', 'current', 'tabelas', 'buckets', 'instancias'
+        ]
+        
+        resource_types = [
+            'dynamodb', 'tabelas', 'tables', 's3', 'buckets', 'ec2', 'instancias',
+            'lambda', 'functions', 'rds', 'databases', 'vpc', 'subnets'
+        ]
+        
+        user_lower = user_input.lower()
+        has_query_pattern = any(pattern in user_lower for pattern in query_patterns)
+        has_resource_type = any(resource in user_lower for resource in resource_types)
+        
+        return has_query_pattern and has_resource_type
     
     def _process_with_bedrock_conversational(self, user_input: str, user_id: str, session_id: str) -> str:
         """Processa conversação natural com Bedrock incluindo contexto temporal"""
