@@ -5,7 +5,7 @@ a = Analysis(
     ['ialctl'],
     pathex=[],
     binaries=[],
-    datas=[('config', 'config'), ('phases', 'phases'), ('mcp-aws-official.json', '.')],
+    datas=[('config', 'config'), ('phases', 'phases')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

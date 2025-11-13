@@ -257,45 +257,9 @@ Responda usando o histórico acima. Para consultar AWS, use as tools disponívei
         return next((c['text'] for c in result['content'] if c.get('type') == 'text'), "")
     
     async def _execute_mcp_query(self, service: str, query: str) -> dict:
-        """Executar query via MCP Client (real) com fallback CLI"""
+        """Executar query via AWS CLI"""
         
-        # PRIMÁRIO: Tentar MCP Client real
-        try:
-            # Inicializar se necessário
-            if not self.mcp_client.servers:
-                await self.mcp_client.initialize()
-            
-            # Mapear serviço para resource type
-            resource_type_map = {
-                's3': 'AWS::S3::Bucket',
-                'ec2': 'AWS::EC2::Instance',
-                'lambda': 'AWS::Lambda::Function',
-                'kms': 'AWS::KMS::Key',
-                'rds': 'AWS::RDS::DBInstance',
-                'dynamodb': 'AWS::DynamoDB::Table',
-                'stepfunctions': 'AWS::StepFunctions::StateMachine',
-                'ecs': 'AWS::ECS::Cluster',
-                'eks': 'AWS::EKS::Cluster',
-                'cloudformation': 'AWS::CloudFormation::Stack'
-            }
-            
-            resource_type = resource_type_map.get(service.lower())
-            if resource_type:
-                # Chamar MCP Server AWS
-                result = await self.mcp_client.call_tool(
-                    server_name='awslabs.aws-mcp-server',
-                    tool_name='list_resources',
-                    arguments={'resource_type': resource_type}
-                )
-                
-                if result and not result.get('error'):
-                    print(f"[DEBUG] MCP real usado: {service}")
-                    return {'success': True, 'data': result, 'source': 'mcp'}
-        
-        except Exception as e:
-            print(f"[DEBUG] MCP real falhou: {e}, usando CLI")
-        
-        # FALLBACK: AWS CLI
+        # Mapear serviço para comando AWS CLI
         service_map = {
             's3': 'aws s3api list-buckets',
             'ec2': 'aws ec2 describe-instances --query "Reservations[*].Instances[*].[InstanceId,InstanceType,State.Name]" --output json',
@@ -326,7 +290,7 @@ Responda usando o histórico acima. Para consultar AWS, use as tools disponívei
             
             if result.returncode == 0:
                 data = json.loads(result.stdout)
-                return {'success': True, 'data': data, 'source': 'cli'}
+                return {'success': True, 'data': data}
             else:
                 return {'error': result.stderr}
                 

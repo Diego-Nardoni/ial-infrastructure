@@ -29,13 +29,10 @@ class MCPClient:
                 # Conectar ao servidor AWS oficial
                 for name, server_config in config.get('mcpServers', {}).items():
                     await self._connect_server_json(name, server_config)
-                    print(f"✅ MCP Server {name} conectado")
                     return
-            
-            print("⚠️ MCP Server config não encontrado, usando CLI fallback")
                 
         except Exception as e:
-            print(f"⚠️ Erro ao inicializar MCP Client: {e}")
+            pass  # Silencioso, usar CLI
     
     async def _connect_server_json(self, name: str, server_config: Dict):
         """Conectar a servidor MCP do formato JSON"""
@@ -107,19 +104,13 @@ class MCPClient:
             # Ler resposta initialize
             response_line = await asyncio.wait_for(process.stdout.readline(), timeout=5.0)
             
-            # Debug: mostrar o que foi recebido
             raw_response = response_line.decode().strip()
             if not raw_response:
-                # Tentar ler stderr
-                stderr_line = await asyncio.wait_for(process.stderr.readline(), timeout=1.0)
-                print(f"⚠️ Stderr: {stderr_line.decode().strip()}")
                 return
             
             response = json.loads(raw_response)
             
             if 'result' in response:
-                print(f"✅ MCP handshake completo: {server_name}")
-                
                 # Enviar initialized notification
                 notification = {
                     "jsonrpc": "2.0",
@@ -128,10 +119,8 @@ class MCPClient:
                 process.stdin.write((json.dumps(notification) + '\n').encode())
                 await process.stdin.drain()
             
-        except asyncio.TimeoutError:
-            print(f"⚠️ Timeout no handshake: {server_name}")
-        except Exception as e:
-            print(f"⚠️ Erro no handshake: {e}")
+        except:
+            pass  # Silencioso
     
     def _next_id(self, server_name: str) -> int:
         """Gerar próximo request ID"""
@@ -178,7 +167,6 @@ class MCPClient:
             if not server:
                 return
             
-            # Enviar request para listar tools
             request = {
                 "jsonrpc": "2.0",
                 "id": self._next_id(server_name),
@@ -189,19 +177,15 @@ class MCPClient:
             process.stdin.write((json.dumps(request) + '\n').encode())
             await process.stdin.drain()
             
-            # Ler resposta
             response_line = await asyncio.wait_for(process.stdout.readline(), timeout=5.0)
             response = json.loads(response_line.decode())
             
             if 'result' in response:
                 tools = response['result'].get('tools', [])
                 self.tools_cache[server_name] = tools
-                print(f"✅ {len(tools)} tools descobertas em {server_name}")
             
-        except asyncio.TimeoutError:
-            print(f"⚠️ Timeout ao descobrir tools: {server_name}")
-        except Exception as e:
-            print(f"⚠️ Erro ao descobrir tools: {e}")
+        except:
+            pass
     
     async def call_tool(self, server_name: str, tool_name: str, arguments: Dict) -> Dict:
         """Chamar tool em servidor MCP"""
