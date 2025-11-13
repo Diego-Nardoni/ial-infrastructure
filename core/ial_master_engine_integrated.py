@@ -149,9 +149,22 @@ IMPORTANTE: As conversas abaixo são REAIS e aconteceram com este usuário. Use-
 ---
 PERGUNTA ATUAL DO USUÁRIO: {user_input}
 
-Responda usando o histórico acima. Para consultar AWS, use as tools disponíveis."""
+INSTRUÇÕES CRÍTICAS:
+- Para saudações simples (oi, olá, hello, hi), responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
+- Use a tool aws_resource_query APENAS quando o usuário pedir explicitamente para listar/consultar recursos
+- Exemplos que PRECISAM de tool: "liste buckets", "quantas ec2", "mostre lambdas"
+- Exemplos que NÃO precisam de tool: "oi", "olá", "obrigado", "tudo bem"
+
+Responda de forma direta e concisa."""
             else:
-                prompt = user_input
+                prompt = f"""Você é IAL, assistente de infraestrutura AWS.
+
+PERGUNTA: {user_input}
+
+INSTRUÇÕES CRÍTICAS:
+- Para saudações simples (oi, olá, hello, hi), responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
+- Use a tool aws_resource_query APENAS quando o usuário pedir explicitamente para listar/consultar recursos
+- Responda de forma direta e concisa."""
             
             # 3. PRIMÁRIO: Bedrock Converse com MCP nativo
             try:
