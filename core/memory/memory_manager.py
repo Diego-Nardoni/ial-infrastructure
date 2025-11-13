@@ -19,11 +19,37 @@ class MemoryManager:
         self._init_aws_resources()
         
     def _generate_user_id(self) -> str:
-        """Gera ID único baseado em hostname + username"""
+        """Gera ID único baseado em arquivo persistente"""
+        user_id_file = os.path.expanduser('~/.ial_user_id')
+        
+        # Tentar ler user_id existente
+        if os.path.exists(user_id_file):
+            try:
+                with open(user_id_file, 'r') as f:
+                    user_id = f.read().strip()
+                    print(f"[DEBUG] User ID lido de {user_id_file}: {user_id}")
+                    return user_id
+            except Exception as e:
+                print(f"[DEBUG] Erro ao ler user_id: {e}")
+        else:
+            print(f"[DEBUG] Arquivo {user_id_file} não existe")
+        
+        # Gerar novo user_id baseado em hostname + username
         hostname = platform.node()
         username = getpass.getuser()
         unique_string = f"{hostname}-{username}"
-        return hashlib.sha256(unique_string.encode()).hexdigest()[:16]
+        user_id = hashlib.sha256(unique_string.encode()).hexdigest()[:16]
+        print(f"[DEBUG] Novo user_id gerado: {user_id}")
+        
+        # Salvar para próximas execuções
+        try:
+            with open(user_id_file, 'w') as f:
+                f.write(user_id)
+            print(f"[DEBUG] User ID salvo em {user_id_file}")
+        except Exception as e:
+            print(f"[DEBUG] Erro ao salvar user_id: {e}")
+        
+        return user_id
     
     def _generate_session_id(self) -> str:
         """Gera ID único para sessão atual"""

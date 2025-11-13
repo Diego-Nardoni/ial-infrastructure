@@ -26,8 +26,8 @@ class IALMasterEngineIntegrated:
         # Orquestradores existentes
         self.orchestrators = self._initialize_orchestrators()
         
-        # User ID único
-        self.user_id = self._generate_user_id()
+        # User ID do ContextEngine (persistente)
+        self.user_id = self.context_engine.memory.user_id if self.context_engine else self._generate_user_id()
         self.current_session_id = None
         
         # Capacidades
@@ -128,6 +128,7 @@ class IALMasterEngineIntegrated:
         try:
             # 1. Classificar intenção
             intent = await self._classify_intent(user_input)
+            print(f"[DEBUG] Intent classificado: {intent['type']}")
             
             # 2. Processar baseado na intenção
             if intent['type'] == 'conversational':
@@ -150,6 +151,12 @@ class IALMasterEngineIntegrated:
         """Classificar intenção do usuário"""
         
         user_lower = user_input.lower()
+        
+        # Padrões de memória/histórico (prioridade máxima)
+        memory_patterns = [
+            'última conversa', 'ultimo papo', 'lembra', 'falamos', 
+            'discutimos', 'anterior', 'passado', 'histórico'
+        ]
         
         # Padrões de query específicos
         query_patterns = [
@@ -174,6 +181,10 @@ class IALMasterEngineIntegrated:
             'reduzir custo', 'otimizar', 'economia', 'savings', 'expensive',
             'billing alto', 'cost optimization', 'rightsizing'
         ]
+        
+        # Verificar memória primeiro (prioridade)
+        if any(pattern in user_lower for pattern in memory_patterns):
+            return {'type': 'conversational', 'confidence': 0.9}
         
         if any(pattern in user_lower for pattern in query_patterns):
             return {'type': 'query', 'confidence': 0.8}
