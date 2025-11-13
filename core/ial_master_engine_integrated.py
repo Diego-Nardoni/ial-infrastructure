@@ -148,6 +148,103 @@ class IALMasterEngineIntegrated:
         
         return normalized
     
+    async def process_nl_intent_full_pipeline(self, nl_intent: str) -> Dict[str, Any]:
+        """
+        Pipeline completo: NL Intent → IAS → Cost → Phase Builder → GitOps
+        
+        Fluxo:
+        1. IAS (Intent Validation Sandbox)
+        2. Pre-YAML Cost Guardrails
+        3. Phase Builder (YAML + DAG)
+        4. GitHub PR
+        5. Step Functions Pipeline
+        """
+        from core.ias_sandbox import IASandbox
+        from core.cost_guardrails import CostGuardrails
+        from core.intelligent_phase_builder import IntelligentPhaseBuilder
+        from core.gitops_phase_manager import GitOpsPhaseManager
+        import os
+        
+        print("🧠 Interpretando intenção...")
+        
+        # 1. IAS - Intent Validation Sandbox
+        print("🔒 Validando segurança (IAS)...")
+        ias = IASandbox()
+        ias_result = ias.validate_intent(nl_intent)
+        
+        if not ias_result["safe"]:
+            return {
+                "status": "blocked",
+                "reason": "security_risk",
+                "message": ias_result["recommendation"],
+                "risks": ias_result["risks"]
+            }
+        
+        print(f"✅ IAS: {ias_result['recommendation']}")
+        
+        # 2. Pre-YAML Cost Guardrails
+        print("💰 Estimando custos...")
+        cost_guardrails = CostGuardrails(monthly_budget=500.0)
+        cost_result = cost_guardrails.estimate_from_intent(nl_intent)
+        
+        if not cost_result["within_budget"]:
+            return {
+                "status": "blocked",
+                "reason": "budget_exceeded",
+                "message": f"Custo estimado ${cost_result['total_monthly_cost']:.2f}/mês excede budget de ${cost_result['monthly_budget']:.2f}/mês",
+                "cost_breakdown": cost_result["estimates"],
+                "alternatives": cost_result["alternatives"]
+            }
+        
+        print(f"✅ Custo previsto: ~USD {cost_result['total_monthly_cost']:.2f}/mês (OK)")
+        
+        # 3. Phase Builder - Gera YAML
+        print("📦 Gerando phase YAML...")
+        phase_builder = IntelligentPhaseBuilder()
+        phase_result = phase_builder.build_phase_from_intent(
+            nl_intent,
+            ias_result,
+            cost_result
+        )
+        
+        # Salvar YAML
+        phase_file = f"{phase_result['phase_number']:02d}-{phase_result['phase_name']}.yaml"
+        phase_path = os.path.join("/home/ial/phases", phase_file)
+        
+        with open(phase_path, 'w') as f:
+            f.write(phase_result['yaml_content'])
+        
+        print(f"✅ Phase gerada: {phase_file}")
+        
+        # 4. Git commit + push
+        print("📬 Criando Pull Request...")
+        import subprocess
+        subprocess.run(['git', 'add', phase_path], cwd="/home/ial", check=True)
+        subprocess.run([
+            'git', 'commit', '-m',
+            f'feat: Add {phase_result["phase_name"]} phase\n\nGenerated from NL intent via IAL\nCost: ${cost_result["total_monthly_cost"]:.2f}/month'
+        ], cwd="/home/ial", check=True)
+        subprocess.run(['git', 'push', 'origin', 'main'], cwd="/home/ial", check=True)
+        
+        print("✅ Pull Request será aberto pelo GitHub Actions")
+        
+        return {
+            "status": "success",
+            "phase_file": phase_file,
+            "phase_path": phase_path,
+            "estimated_cost": cost_result["total_monthly_cost"],
+            "dependencies": phase_result["dependencies"],
+            "ias_validation": ias_result,
+            "cost_breakdown": cost_result["estimates"],
+            "next_steps": [
+                "1. GitHub Actions validará o CloudFormation",
+                "2. Pull Request será aberto automaticamente",
+                "3. Aprove o PR para iniciar deployment",
+                "4. Step Functions executará pipeline completo",
+                "5. Recursos serão criados na AWS"
+            ]
+        }
+    
     async def process_user_input(self, user_input: str) -> str:
         """Interface única: LLM com MCP nativo"""
         
