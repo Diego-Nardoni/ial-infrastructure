@@ -193,9 +193,26 @@ class IALMasterEngineIntegrated:
             return "❌ Bedrock Conversation Engine não disponível"
         
         try:
+            # Construir contexto semântico
+            context = ""
+            if self.context_engine:
+                try:
+                    context = self.context_engine.build_context_for_query(user_input)
+                except Exception:
+                    pass
+            
+            # Enriquecer input com contexto
+            enriched_input = user_input
+            if context:
+                enriched_input = f"""Histórico de conversas anteriores:
+{context}
+
+---
+Pergunta atual do usuário: {user_input}"""
+            
             # Usar Bedrock Engine com contexto
             result = self.bedrock_engine.process_conversation(
-                user_input=user_input,
+                user_input=enriched_input,
                 user_id=self.user_id,
                 session_id=self.current_session_id
             )
@@ -203,10 +220,10 @@ class IALMasterEngineIntegrated:
             # Atualizar session ID
             self.current_session_id = result['session_id']
             
-            # Salvar interação no Context Engine se disponível
+            # Salvar interação no Context Engine
             if self.context_engine:
                 self.context_engine.save_interaction(
-                    user_input, 
+                    user_input,  # Salvar input original, não enriched
                     result['response'],
                     {'model_used': result['model_used'], 'usage': result['usage']}
                 )
