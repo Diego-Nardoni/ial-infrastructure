@@ -255,131 +255,70 @@ REGRA DE OURO: NUNCA invente informações sobre phases. SEMPRE use discover_pha
             return f"❌ Erro: {str(e)}"
     
     async def _invoke_bedrock_converse_mcp(self, prompt: str, user_input: str) -> str:
-        """PRIMÁRIO: Bedrock com MCP tool calling"""
+        """PRIMÁRIO: Bedrock Converse API com tool calling"""
         import boto3
-        import json
         
         bedrock = boto3.client('bedrock-runtime')
         
-        # Definir tools AWS
+        # Tools no formato Converse API
         tools = [{
-            "name": "aws_resource_query",
-            "description": "Consulta recursos AWS de qualquer serviço (S3, EC2, Lambda, KMS, RDS, DynamoDB, etc)",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "service": {
-                        "type": "string",
-                        "description": "Serviço AWS (s3, ec2, lambda, kms, rds, dynamodb, stepfunctions, ecs, eks, cloudformation)"
-                    },
-                    "query": {
-                        "type": "string",
-                        "description": "O que listar/consultar"
-                    }
-                },
-                "required": ["service", "query"]
+            "toolSpec": {
+                "name": "discover_phases",
+                "description": "Descobre phases disponíveis via Git. SEMPRE use quando usuário pedir listar fases.",
+                "inputSchema": {"json": {"type": "object", "properties": {}}}
             }
         }, {
-            "name": "aws_cost_query",
-            "description": "Consulta custos AWS via Cost Explorer. Use para obter custos mensais por serviço.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "period": {
-                        "type": "string",
-                        "description": "Período: 'last_month' ou 'current_month'"
-                    }
-                },
-                "required": ["period"]
+            "toolSpec": {
+                "name": "trigger_phase_deployment",
+                "description": "Trigger deployment de phase via GitOps.",
+                "inputSchema": {"json": {"type": "object", "properties": {"phase_name": {"type": "string"}}, "required": ["phase_name"]}}
             }
         }, {
-            "name": "discover_phases",
-            "description": "Descobre phases disponíveis dinamicamente via Git. Use para listar phases existentes.",
-            "input_schema": {
-                "type": "object",
-                "properties": {}
-            }
-        }, {
-            "name": "trigger_phase_deployment",
-            "description": "Cria trigger para deployment de phase existente via GitOps. Use quando usuário pedir 'criar fase X', 'deploy fase X', 'provisionar fase X'.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "phase_name": {
-                        "type": "string",
-                        "description": "Nome da phase (ex: network, compute, database)"
-                    }
-                },
-                "required": ["phase_name"]
+            "toolSpec": {
+                "name": "aws_resource_query",
+                "description": "Consulta recursos AWS",
+                "inputSchema": {"json": {"type": "object", "properties": {"service": {"type": "string"}, "query": {"type": "string"}}, "required": ["service", "query"]}}
             }
         }]
         
-        # Primeira chamada
-        response = bedrock.invoke_model(
+        # Converse API
+        response = bedrock.converse(
             modelId='anthropic.claude-3-sonnet-20240229-v1:0',
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 2000,
-                "temperature": 0.7,
-                "messages": [{"role": "user", "content": prompt}],
-                "tools": tools
-            })
+            messages=[{"role": "user", "content": [{"text": prompt}]}],
+            toolConfig={"tools": tools}
         )
         
-        result = json.loads(response['body'].read())
-        
-        # Verificar se Claude quer usar tool
-        if result.get('stop_reason') == 'tool_use':
-            tool_use = next((c for c in result['content'] if c.get('type') == 'tool_use'), None)
+        if response.get('stopReason') == 'tool_use':
+            tool_use = response['output']['message']['content'][0]
+            tool_name = tool_use['toolUse']['name']
+            tool_input = tool_use['toolUse']['input']
+            tool_use_id = tool_use['toolUse']['toolUseId']
             
-            if tool_use:
-                tool_name = tool_use['name']
-                tool_input = tool_use['input']
-                
-                # Executar tool apropriada
-                if tool_name == 'aws_resource_query':
-                    mcp_result = await self._execute_mcp_query(
-                        tool_input.get('service'),
-                        tool_input.get('query')
-                    )
-                elif tool_name == 'aws_cost_query':
-                    mcp_result = await self._execute_cost_query(
-                        tool_input.get('period', 'current_month')
-                    )
-                elif tool_name == 'discover_phases':
-                    mcp_result = await self._execute_discover_phases()
-                elif tool_name == 'trigger_phase_deployment':
-                    mcp_result = await self._execute_trigger_deployment(
-                        tool_input.get('phase_name')
-                    )
-                else:
-                    mcp_result = {'error': f'Tool {tool_name} não suportada'}
-                
-                # Segunda chamada com resultado
-                response2 = bedrock.invoke_model(
-                    modelId='anthropic.claude-3-sonnet-20240229-v1:0',
-                    body=json.dumps({
-                        "anthropic_version": "bedrock-2023-05-31",
-                        "max_tokens": 2000,
-                        "messages": [
-                            {"role": "user", "content": prompt},
-                            {"role": "assistant", "content": result['content']},
-                            {"role": "user", "content": [{
-                                "type": "tool_result",
-                                "tool_use_id": tool_use['id'],
-                                "content": json.dumps(mcp_result)
-                            }]}
-                        ],
-                        "tools": tools
-                    })
-                )
-                
-                result2 = json.loads(response2['body'].read())
-                return next((c['text'] for c in result2['content'] if c.get('type') == 'text'), "")
+            # Executar tool
+            if tool_name == 'discover_phases':
+                tool_result = await self._execute_discover_phases()
+            elif tool_name == 'trigger_phase_deployment':
+                tool_result = await self._execute_trigger_deployment(tool_input.get('phase_name'))
+            elif tool_name == 'aws_resource_query':
+                tool_result = await self._execute_mcp_query(tool_input.get('service'), tool_input.get('query'))
+            else:
+                tool_result = {'error': f'Tool {tool_name} não suportada'}
+            
+            # Segunda chamada
+            import json
+            response2 = bedrock.converse(
+                modelId='anthropic.claude-3-sonnet-20240229-v1:0',
+                messages=[
+                    {"role": "user", "content": [{"text": prompt}]},
+                    response['output']['message'],
+                    {"role": "user", "content": [{"toolResult": {"toolUseId": tool_use_id, "content": [{"json": tool_result}]}}]}
+                ],
+                toolConfig={"tools": tools}
+            )
+            return response2['output']['message']['content'][0]['text']
         
-        # Resposta direta
-        return next((c['text'] for c in result['content'] if c.get('type') == 'text'), "")
-    
+        return response['output']['message']['content'][0]['text']
+
     async def _execute_discover_phases(self) -> dict:
         """Descobre phases disponíveis via Git"""
         from core.gitops_phase_manager import GitOpsPhaseManager
