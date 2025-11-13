@@ -68,51 +68,38 @@ class IALOrchestratorMCPFirst:
         return {'status': 'error', 'message': 'Nenhum processador disponível'}
     
     async def execute_with_mcp(self, query: str) -> Dict[str, Any]:
-        """Executar query via MCP AWS server (dados reais)"""
+        """Executar query via AWS CLI (dados reais)"""
         
         try:
             import subprocess
             import json
             
-            # Detectar tipo de query
             query_lower = query.lower()
             
+            # S3 Buckets
             if "bucket" in query_lower or "s3" in query_lower:
-                # Listar buckets S3 via AWS CLI
                 result = subprocess.run(
                     ['aws', 's3api', 'list-buckets'],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
+                    capture_output=True, text=True, timeout=10
                 )
-                
                 if result.returncode == 0:
                     data = json.loads(result.stdout)
-                    buckets = data.get('Buckets', [])
-                    
                     return {
                         'success': True,
                         'type': 's3_buckets',
-                        'total': len(buckets),
-                        'buckets': [
-                            {
-                                'name': b['Name'],
-                                'created': b['CreationDate']
-                            } for b in buckets
-                        ]
+                        'total': len(data.get('Buckets', [])),
+                        'buckets': [{'name': b['Name'], 'created': b['CreationDate']} 
+                                   for b in data.get('Buckets', [])]
                     }
             
+            # EC2 Instances
             elif "ec2" in query_lower or "instanc" in query_lower:
-                # Listar instâncias EC2 via AWS CLI
                 result = subprocess.run(
                     ['aws', 'ec2', 'describe-instances', '--query', 
                      'Reservations[*].Instances[*].[InstanceId,InstanceType,State.Name]',
                      '--output', 'json'],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
+                    capture_output=True, text=True, timeout=10
                 )
-                
                 if result.returncode == 0:
                     data = json.loads(result.stdout)
                     instances = []
@@ -123,12 +110,60 @@ class IALOrchestratorMCPFirst:
                                 'type': instance[1],
                                 'state': instance[2]
                             })
-                    
                     return {
                         'success': True,
                         'type': 'ec2_instances',
                         'total': len(instances),
                         'instances': instances
+                    }
+            
+            # Step Functions
+            elif "step" in query_lower or "state machine" in query_lower:
+                result = subprocess.run(
+                    ['aws', 'stepfunctions', 'list-state-machines'],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    data = json.loads(result.stdout)
+                    machines = data.get('stateMachines', [])
+                    return {
+                        'success': True,
+                        'type': 'step_functions',
+                        'total': len(machines),
+                        'state_machines': [{'name': m['name'], 'arn': m['stateMachineArn']} 
+                                          for m in machines]
+                    }
+            
+            # Lambda Functions
+            elif "lambda" in query_lower or "function" in query_lower:
+                result = subprocess.run(
+                    ['aws', 'lambda', 'list-functions'],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    data = json.loads(result.stdout)
+                    functions = data.get('Functions', [])
+                    return {
+                        'success': True,
+                        'type': 'lambda_functions',
+                        'total': len(functions),
+                        'functions': [{'name': f['FunctionName'], 'runtime': f['Runtime']} 
+                                     for f in functions]
+                    }
+            
+            # DynamoDB Tables
+            elif "dynamodb" in query_lower or "table" in query_lower:
+                result = subprocess.run(
+                    ['aws', 'dynamodb', 'list-tables'],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    data = json.loads(result.stdout)
+                    return {
+                        'success': True,
+                        'type': 'dynamodb_tables',
+                        'total': len(data.get('TableNames', [])),
+                        'tables': data.get('TableNames', [])
                     }
             
             return {'success': False, 'error': 'Query não reconhecida'}

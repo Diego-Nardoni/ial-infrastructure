@@ -170,6 +170,33 @@ Responda usando o histórico acima. Se precisar consultar AWS, use as tools disp
                         "properties": {},
                         "required": []
                     }
+                },
+                {
+                    "name": "list_step_functions",
+                    "description": "Lista todas as state machines do AWS Step Functions",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                },
+                {
+                    "name": "list_lambda_functions",
+                    "description": "Lista todas as funções Lambda",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                },
+                {
+                    "name": "list_dynamodb_tables",
+                    "description": "Lista todas as tabelas DynamoDB",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
                 }
             ]
             
@@ -246,38 +273,26 @@ Responda usando o histórico acima. Se precisar consultar AWS, use as tools disp
         # Usar MCP First Orchestrator
         mcp_orch = self.orchestrators.get('mcp_first')
         if not mcp_orch:
-            # Fallback para Query Engine se MCP não disponível
-            if tool_name == "list_s3_buckets" and self.query_engine:
-                result = self.query_engine.process_query_sync("liste buckets s3")
-                return {"success": True, "data": result}
-            elif tool_name == "list_ec2_instances" and self.query_engine:
-                result = self.query_engine.process_query_sync("liste instâncias ec2")
-                return {"success": True, "data": result}
             return {"success": False, "error": "MCP não disponível"}
         
         try:
-            # Mapear tool para comando MCP
-            if tool_name == "list_s3_buckets":
-                result = await mcp_orch.execute_with_mcp(
-                    "Liste todos os buckets S3 da conta AWS"
-                )
-            elif tool_name == "list_ec2_instances":
-                result = await mcp_orch.execute_with_mcp(
-                    "Liste todas as instâncias EC2"
-                )
-            else:
+            # Mapear tool para query
+            query_map = {
+                "list_s3_buckets": "Liste todos os buckets S3",
+                "list_ec2_instances": "Liste todas as instâncias EC2",
+                "list_step_functions": "Liste todas as state machines",
+                "list_lambda_functions": "Liste todas as funções Lambda",
+                "list_dynamodb_tables": "Liste todas as tabelas DynamoDB"
+            }
+            
+            query = query_map.get(tool_name)
+            if not query:
                 return {"success": False, "error": f"Tool {tool_name} não implementada"}
             
+            result = await mcp_orch.execute_with_mcp(query)
             return {"success": True, "data": result}
             
         except Exception as e:
-            # Fallback para Query Engine em caso de erro
-            if tool_name == "list_s3_buckets" and self.query_engine:
-                result = self.query_engine.process_query_sync("liste buckets s3")
-                return {"success": True, "data": result}
-            elif tool_name == "list_ec2_instances" and self.query_engine:
-                result = self.query_engine.process_query_sync("liste instâncias ec2")
-                return {"success": True, "data": result}
             return {"success": False, "error": f"Erro: {str(e)}"}
     
     async def _classify_intent(self, user_input: str) -> Dict:
