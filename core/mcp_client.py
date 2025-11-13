@@ -63,14 +63,83 @@ class MCPClient:
             
             self.servers[name] = {
                 'process': process,
-                'config': server_config
+                'config': server_config,
+                'request_id': 0
             }
+            
+            # Handshake: initialize
+            await self._send_initialize(name)
             
             # Descobrir tools disponíveis
             await self._discover_tools(name)
             
         except Exception as e:
             print(f"⚠️ Erro ao conectar servidor {name}: {e}")
+    
+    async def _send_initialize(self, server_name: str):
+        """Enviar initialize request (handshake MCP)"""
+        try:
+            server = self.servers.get(server_name)
+            if not server:
+                return
+            
+            request = {
+                "jsonrpc": "2.0",
+                "id": self._next_id(server_name),
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "roots": {"listChanged": True},
+                        "sampling": {}
+                    },
+                    "clientInfo": {
+                        "name": "ial-client",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+            
+            process = server['process']
+            process.stdin.write((json.dumps(request) + '\n').encode())
+            await process.stdin.drain()
+            
+            # Ler resposta initialize
+            response_line = await asyncio.wait_for(process.stdout.readline(), timeout=5.0)
+            
+            # Debug: mostrar o que foi recebido
+            raw_response = response_line.decode().strip()
+            if not raw_response:
+                # Tentar ler stderr
+                stderr_line = await asyncio.wait_for(process.stderr.readline(), timeout=1.0)
+                print(f"⚠️ Stderr: {stderr_line.decode().strip()}")
+                return
+            
+            response = json.loads(raw_response)
+            
+            if 'result' in response:
+                print(f"✅ MCP handshake completo: {server_name}")
+                
+                # Enviar initialized notification
+                notification = {
+                    "jsonrpc": "2.0",
+                    "method": "notifications/initialized"
+                }
+                process.stdin.write((json.dumps(notification) + '\n').encode())
+                await process.stdin.drain()
+            
+        except asyncio.TimeoutError:
+            print(f"⚠️ Timeout no handshake: {server_name}")
+        except Exception as e:
+            print(f"⚠️ Erro no handshake: {e}")
+    
+    def _next_id(self, server_name: str) -> int:
+        """Gerar próximo request ID"""
+        server = self.servers.get(server_name)
+        if server:
+            server['request_id'] += 1
+            return server['request_id']
+        return 1
     
     async def _connect_server(self, server_config: Dict):
         """Conectar a um servidor MCP via stdio"""
@@ -112,7 +181,7 @@ class MCPClient:
             # Enviar request para listar tools
             request = {
                 "jsonrpc": "2.0",
-                "id": 1,
+                "id": self._next_id(server_name),
                 "method": "tools/list"
             }
             
@@ -121,7 +190,7 @@ class MCPClient:
             await process.stdin.drain()
             
             # Ler resposta
-            response_line = await process.stdout.readline()
+            response_line = await asyncio.wait_for(process.stdout.readline(), timeout=5.0)
             response = json.loads(response_line.decode())
             
             if 'result' in response:
@@ -129,6 +198,8 @@ class MCPClient:
                 self.tools_cache[server_name] = tools
                 print(f"✅ {len(tools)} tools descobertas em {server_name}")
             
+        except asyncio.TimeoutError:
+            print(f"⚠️ Timeout ao descobrir tools: {server_name}")
         except Exception as e:
             print(f"⚠️ Erro ao descobrir tools: {e}")
     
@@ -142,7 +213,7 @@ class MCPClient:
             # Enviar request para chamar tool
             request = {
                 "jsonrpc": "2.0",
-                "id": 2,
+                "id": self._next_id(server_name),
                 "method": "tools/call",
                 "params": {
                     "name": tool_name,
@@ -155,7 +226,7 @@ class MCPClient:
             await process.stdin.drain()
             
             # Ler resposta
-            response_line = await process.stdout.readline()
+            response_line = await asyncio.wait_for(process.stdout.readline(), timeout=10.0)
             response = json.loads(response_line.decode())
             
             if 'result' in response:
@@ -165,6 +236,8 @@ class MCPClient:
             
             return {'error': 'Resposta inválida'}
             
+        except asyncio.TimeoutError:
+            return {'error': 'Timeout ao chamar tool'}
         except Exception as e:
             return {'error': f'Erro ao chamar tool: {str(e)}'}
     
