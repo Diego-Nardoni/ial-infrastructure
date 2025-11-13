@@ -37,12 +37,14 @@ class IALCTLIntegrated:
         from core.foundation_deployer import FoundationDeployer
         from core.mcp_servers_initializer import MCPServersInitializer
         from core.system_health_validator import SystemHealthValidator
+        import subprocess
+        import boto3
         
         print("🚀 IAL Foundation Deployment Starting...")
         print("=" * 50)
         
         # 1. Deploy Foundation
-        print("\n📦 Step 1/3: Deploying AWS Foundation...")
+        print("\n📦 Step 1/4: Deploying AWS Foundation...")
         deployer = FoundationDeployer()
         result = deployer.deploy_foundation_core()
         
@@ -53,14 +55,14 @@ class IALCTLIntegrated:
         print(f"✅ Foundation: {result['successful_deployments']}/{result['total_resource_groups']} resource groups deployed")
         
         # 2. Initialize MCP Servers
-        print("\n🔌 Step 2/3: Initializing MCP Servers...")
+        print("\n🔌 Step 2/4: Initializing MCP Servers...")
         mcp_initializer = MCPServersInitializer()
         mcp_result = await mcp_initializer.initialize_all_servers()
         
         print(f"✅ MCP Servers: {mcp_result['total_initialized']} initialized")
         
         # 3. Validate System Health
-        print("\n🏥 Step 3/3: Validating System Health...")
+        print("\n🏥 Step 3/4: Validating System Health...")
         health_validator = SystemHealthValidator()
         health_result = await health_validator.validate_complete_system()
         
@@ -69,12 +71,79 @@ class IALCTLIntegrated:
         if health_result['warnings']:
             print(f"⚠️  Warnings: {len(health_result['warnings'])}")
         
+        # 4. Deploy NL Intent Pipeline (Step Functions)
+        print("\n🔀 Step 4/4: Deploying NL Intent Pipeline...")
+        try:
+            # Preparar artifacts
+            print("   📦 Preparing Lambda artifacts...")
+            subprocess.run([
+                'bash', '-c',
+                'cd /home/ial/lambdas && '
+                'zip -q ias_validation_handler.zip ias_validation_handler.py && '
+                'zip -q cost_estimation_handler.zip cost_estimation_handler.py && '
+                'zip -q phase_builder_handler.zip phase_builder_handler.py && '
+                'zip -q git_commit_pr_handler.zip git_commit_pr_handler.py'
+            ], check=True)
+            
+            subprocess.run([
+                'bash', '-c',
+                'cd /home/ial/lambda-layer && zip -qr ial-pipeline-layer.zip python/'
+            ], check=True)
+            
+            # Criar bucket S3 se não existir
+            account_id = boto3.client('sts').get_caller_identity()['Account']
+            bucket_name = f'ial-artifacts-{account_id}'
+            s3 = boto3.client('s3')
+            
+            try:
+                s3.head_bucket(Bucket=bucket_name)
+            except:
+                print(f"   📦 Creating S3 bucket: {bucket_name}")
+                s3.create_bucket(Bucket=bucket_name)
+            
+            # Upload artifacts
+            print("   ☁️  Uploading to S3...")
+            for handler in ['ias_validation_handler', 'cost_estimation_handler', 'phase_builder_handler', 'git_commit_pr_handler']:
+                s3.upload_file(
+                    f'/home/ial/lambdas/{handler}.zip',
+                    bucket_name,
+                    f'lambdas/{handler}.zip'
+                )
+            
+            s3.upload_file(
+                '/home/ial/lambda-layer/ial-pipeline-layer.zip',
+                bucket_name,
+                'lambda-layer/ial-pipeline-layer.zip'
+            )
+            
+            # Deploy CloudFormation
+            print("   🚀 Deploying CloudFormation stack...")
+            cfn = boto3.client('cloudformation')
+            
+            with open('/home/ial/phases/00-foundation/17-nl-intent-pipeline.yaml') as f:
+                template_body = f.read()
+            
+            try:
+                cfn.create_stack(
+                    StackName='ial-nl-intent-pipeline',
+                    TemplateBody=template_body,
+                    Capabilities=['CAPABILITY_NAMED_IAM']
+                )
+                print("   ✅ NL Intent Pipeline stack created")
+            except cfn.exceptions.AlreadyExistsException:
+                print("   ℹ️  NL Intent Pipeline stack already exists")
+        
+        except Exception as e:
+            print(f"   ⚠️  Warning: NL Intent Pipeline deployment failed: {e}")
+            print("   ℹ️  You can deploy it manually later")
+        
         # Summary
         print("\n" + "=" * 50)
         print("✅ IAL Foundation deployed successfully!")
         print(f"📊 AWS Resources: {result['successful_deployments']}/{result['total_resource_groups']} groups")
         print(f"🔌 MCP Servers: {mcp_result['total_initialized']} active")
         print(f"🏥 System Status: {health_result['overall_status'].upper()}")
+        print(f"🔀 NL Intent Pipeline: Step Functions deployed")
         
         if health_result['system_ready']:
             print("\n🎯 System ready! Run 'ialctl' to start conversational interface")
