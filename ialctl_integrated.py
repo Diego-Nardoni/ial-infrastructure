@@ -149,6 +149,28 @@ class IALCTLIntegrated:
         memory_stats = status.get('memory_stats', {})
         if 'total_messages' in memory_stats:
             print(f"💾 **Memória:** {memory_stats['total_messages']} mensagens, {memory_stats['sessions']} sessões")
+            
+            # NOVO: Resumo da última conversa
+            if memory_stats['total_messages'] > 0 and self.master_engine.context_engine:
+                try:
+                    recent = self.master_engine.context_engine.memory.get_recent_context(limit=3)
+                    if recent:
+                        print(f"\n📝 **Última conversa:**")
+                        last_user = None
+                        last_assistant = None
+                        
+                        for msg in reversed(recent):
+                            if msg['role'] == 'user' and not last_user:
+                                last_user = msg['content'][:80] + "..." if len(msg['content']) > 80 else msg['content']
+                            elif msg['role'] == 'assistant' and not last_assistant:
+                                last_assistant = msg['content'][:80] + "..." if len(msg['content']) > 80 else msg['content']
+                        
+                        if last_user:
+                            print(f"   Você: {last_user}")
+                        if last_assistant:
+                            print(f"   IAL: {last_assistant}")
+                except Exception:
+                    pass
         
         print("🚀 **Pronto para conversa inteligente!**\n")
     
