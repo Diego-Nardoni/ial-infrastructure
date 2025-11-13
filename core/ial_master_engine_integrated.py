@@ -198,8 +198,10 @@ class IALMasterEngineIntegrated:
             if self.context_engine:
                 try:
                     context = self.context_engine.build_context_for_query(user_input)
-                except Exception:
-                    pass
+                    if context:
+                        print(f"[DEBUG] Contexto construído: {len(context)} chars")
+                except Exception as e:
+                    print(f"[DEBUG] Erro ao construir contexto: {e}")
             
             # Enriquecer input com contexto
             enriched_input = user_input
@@ -209,6 +211,9 @@ class IALMasterEngineIntegrated:
 
 ---
 Pergunta atual do usuário: {user_input}"""
+                print(f"[DEBUG] Input enriquecido: {len(enriched_input)} chars")
+            else:
+                print("[DEBUG] Nenhum contexto disponível")
             
             # Usar Bedrock Engine com contexto
             result = self.bedrock_engine.process_conversation(
@@ -240,11 +245,8 @@ Pergunta atual do usuário: {user_input}"""
             return "❌ Query Engine não disponível"
         
         try:
-            # 1. Executar query
-            if hasattr(self.query_engine, 'process_query_sync'):
-                query_result = self.query_engine.process_query_sync(user_input)
-            else:
-                query_result = await self.query_engine.process_query_async(user_input)
+            # 1. Executar query (sempre sync)
+            query_result = self.query_engine.process_query_sync(user_input)
             
             # 2. Usar Bedrock para formatação inteligente
             if self.bedrock_engine and query_result:
