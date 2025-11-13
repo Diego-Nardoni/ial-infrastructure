@@ -41,11 +41,29 @@ class MemoryManager:
     
     def _get_table_name(self) -> str:
         """Obtém nome da tabela DynamoDB"""
-        return "ial-conversation-history"  # Nome exato da tabela criada pelo MCP
+        # Tentar encontrar tabela de conversas
+        try:
+            dynamodb = boto3.client('dynamodb')
+            tables = dynamodb.list_tables()['TableNames']
+            for table in tables:
+                if 'conversation' in table.lower() and 'ial-fork' in table:
+                    return table
+        except:
+            pass
+        return "ial-fork-05-memory-dynamodb-conversations"  # Fallback
     
     def _get_embeddings_table_name(self) -> str:
         """Obtém nome da tabela de embeddings"""
-        return "ial-conversation-cache"  # Nome exato da tabela criada pelo MCP
+        # Tentar encontrar tabela de embeddings
+        try:
+            dynamodb = boto3.client('dynamodb')
+            tables = dynamodb.list_tables()['TableNames']
+            for table in tables:
+                if 'embedding' in table.lower() and 'ial-fork' in table:
+                    return table
+        except:
+            pass
+        return "ial-fork-05-memory-dynamodb-embeddings"  # Fallback
     
     def save_message(self, role: str, content: str, metadata: Dict = None):
         """Salva mensagem no DynamoDB e cache local"""

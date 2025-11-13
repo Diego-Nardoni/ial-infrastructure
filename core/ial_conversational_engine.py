@@ -19,6 +19,13 @@ class ConversationContext:
             'responses': [],
             'context_data': {}
         }
+        # Inicializar Memory Manager
+        try:
+            from .memory.memory_manager import MemoryManager
+            self.memory_manager = MemoryManager()
+        except Exception as e:
+            print(f"⚠️ Memory Manager não inicializado: {e}")
+            self.memory_manager = None
     
     def add_user_input(self, user_input: str):
         """Adiciona input do usuário ao contexto"""
@@ -210,13 +217,30 @@ class IALConversationalEngine:
     def process_conversational_input(self, user_input: str) -> str:
         """Interface conversacional principal (igual Amazon Q)"""
         
-        # 1. Manter contexto da conversa
+        # 0. Verificar se é pergunta sobre histórico
+        if any(word in user_input.lower() for word in ['lembra', 'último', 'ultima', 'anterior', 'passado', 'conversa']):
+            if self.memory_manager:
+                try:
+                    history = self.memory_manager.get_recent_messages(limit=10)
+                    if history:
+                        return self._format_history_response(history, user_input)
+                except Exception as e:
+                    print(f"⚠️ Erro ao buscar histórico: {e}")
+        
+        # 1. Salvar input do usuário no DynamoDB
+        if self.memory_manager:
+            try:
+                self.memory_manager.save_message("user", user_input)
+            except Exception as e:
+                print(f"⚠️ Erro ao salvar mensagem: {e}")
+        
+        # 2. Manter contexto da conversa
         self.conversation_context.add_user_input(user_input)
         
-        # 2. Detectar tipo de intenção
+        # 3. Detectar tipo de intenção
         intent_type = self._classify_intent(user_input)
         
-        # 3. Processar baseado no tipo
+        # 4. Processar baseado no tipo
         if intent_type == "query":
             result = self.query_engine.process_via_mcp(user_input)
             response = self._format_query_response(result)
@@ -238,7 +262,14 @@ class IALConversationalEngine:
         # 4. Adicionar sugestões contextuais
         response += self._generate_contextual_suggestions(user_input, intent_type)
         
-        # 5. Salvar no contexto
+        # 5. Salvar resposta no DynamoDB
+        if self.memory_manager:
+            try:
+                self.memory_manager.save_message("assistant", response)
+            except Exception as e:
+                print(f"⚠️ Erro ao salvar resposta: {e}")
+        
+        # 6. Salvar no contexto
         self.conversation_context.add_response(response)
         
         return response
@@ -531,3 +562,17 @@ if __name__ == "__main__":
         if user_input:
             response = engine.process_conversational_input(user_input)
             print(f"\n{response}\n")
+
+    def _format_history_response(self, history: List[Dict], user_input: str) -> str:
+        """Formatar resposta com histórico de conversas"""
+        response = "📜 **Histórico de Conversas Recentes:**\n\n"
+        
+        for msg in history[-10:]:  # Últimas 10 mensagens
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')
+            timestamp = msg.get('timestamp', '')
+            
+            emoji = "👤" if role == "user" else "🤖"
+            response += f"{emoji} **{role.title()}** ({timestamp}):\n{content[:200]}...\n\n"
+        
+        return response
