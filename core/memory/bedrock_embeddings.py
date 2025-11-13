@@ -20,6 +20,11 @@ class BedrockEmbeddings:
         """Gera embedding para texto"""
         if not self.available:
             return []
+        
+        # Validar texto não vazio
+        if not text or not text.strip():
+            print("Warning: Empty text for embedding, skipping")
+            return []
             
         try:
             # Limitar texto para evitar erro de tamanho

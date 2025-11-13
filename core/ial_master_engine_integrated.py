@@ -123,7 +123,178 @@ class IALMasterEngineIntegrated:
         return orchestrators
     
     async def process_user_input(self, user_input: str) -> str:
-        """Interface única: LLM com contexto e tools"""
+        """Interface única: LLM com MCP nativo"""
+        
+        try:
+            # 1. Construir contexto
+            context = ""
+            if self.context_engine:
+                try:
+                    context = self.context_engine.build_context_for_query(user_input)
+                    if context:
+                        print(f"[DEBUG] Contexto: {len(context)} chars")
+                except Exception as e:
+                    print(f"[DEBUG] Erro contexto: {e}")
+            
+            # 2. Preparar prompt
+            if context:
+                prompt = f"""Você é IAL, assistente de infraestrutura AWS com memória persistente.
+
+IMPORTANTE: As conversas abaixo são REAIS e aconteceram com este usuário. Use-as para responder.
+
+{context}
+
+---
+PERGUNTA ATUAL DO USUÁRIO: {user_input}
+
+Responda usando o histórico acima. Para consultar AWS, use as tools disponíveis."""
+            else:
+                prompt = user_input
+            
+            # 3. PRIMÁRIO: Bedrock Converse com MCP nativo
+            try:
+                assistant_response = await self._invoke_bedrock_converse_mcp(prompt, user_input)
+            except Exception as e:
+                print(f"[DEBUG] MCP nativo falhou: {e}, usando fallback")
+                # FALLBACK: Tools hard-coded com CLI
+                assistant_response = await self._invoke_with_cli_fallback(prompt, user_input)
+            
+            # 4. Salvar interação
+            if self.context_engine:
+                self.context_engine.save_interaction(
+                    user_input,
+                    assistant_response,
+                    {'model': 'claude-3-sonnet-mcp'}
+                )
+            
+            return assistant_response
+            
+        except Exception as e:
+            return f"❌ Erro: {str(e)}"
+    
+    async def _invoke_bedrock_converse_mcp(self, prompt: str, user_input: str) -> str:
+        """PRIMÁRIO: Bedrock com MCP tool calling"""
+        import boto3
+        import json
+        
+        bedrock = boto3.client('bedrock-runtime')
+        
+        # Definir tool genérica AWS
+        tools = [{
+            "name": "aws_resource_query",
+            "description": "Consulta recursos AWS de qualquer serviço (S3, EC2, Lambda, KMS, RDS, DynamoDB, etc)",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "service": {
+                        "type": "string",
+                        "description": "Serviço AWS (s3, ec2, lambda, kms, rds, dynamodb, stepfunctions, ecs, eks, cloudformation)"
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "O que listar/consultar"
+                    }
+                },
+                "required": ["service", "query"]
+            }
+        }]
+        
+        # Primeira chamada
+        response = bedrock.invoke_model(
+            modelId='anthropic.claude-3-sonnet-20240229-v1:0',
+            body=json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 2000,
+                "temperature": 0.7,
+                "messages": [{"role": "user", "content": prompt}],
+                "tools": tools
+            })
+        )
+        
+        result = json.loads(response['body'].read())
+        
+        # Verificar se Claude quer usar tool
+        if result.get('stop_reason') == 'tool_use':
+            tool_use = next((c for c in result['content'] if c.get('type') == 'tool_use'), None)
+            
+            if tool_use:
+                tool_input = tool_use['input']
+                print(f"[DEBUG] MCP chamada: {tool_input.get('service')} - {tool_input.get('query')}")
+                
+                # Executar via MCP
+                mcp_result = await self._execute_mcp_query(
+                    tool_input.get('service'),
+                    tool_input.get('query')
+                )
+                
+                # Segunda chamada com resultado
+                response2 = bedrock.invoke_model(
+                    modelId='anthropic.claude-3-sonnet-20240229-v1:0',
+                    body=json.dumps({
+                        "anthropic_version": "bedrock-2023-05-31",
+                        "max_tokens": 2000,
+                        "messages": [
+                            {"role": "user", "content": prompt},
+                            {"role": "assistant", "content": result['content']},
+                            {"role": "user", "content": [{
+                                "type": "tool_result",
+                                "tool_use_id": tool_use['id'],
+                                "content": json.dumps(mcp_result)
+                            }]}
+                        ],
+                        "tools": tools
+                    })
+                )
+                
+                result2 = json.loads(response2['body'].read())
+                return next((c['text'] for c in result2['content'] if c.get('type') == 'text'), "")
+        
+        # Resposta direta
+        return next((c['text'] for c in result['content'] if c.get('type') == 'text'), "")
+    
+    async def _execute_mcp_query(self, service: str, query: str) -> dict:
+        """Executar query via MCP (AWS CLI como fallback)"""
+        
+        # Mapear serviço para comando AWS CLI
+        service_map = {
+            's3': 'aws s3api list-buckets',
+            'ec2': 'aws ec2 describe-instances --query "Reservations[*].Instances[*].[InstanceId,InstanceType,State.Name]" --output json',
+            'lambda': 'aws lambda list-functions',
+            'kms': 'aws kms list-keys',
+            'rds': 'aws rds describe-db-instances',
+            'dynamodb': 'aws dynamodb list-tables',
+            'stepfunctions': 'aws stepfunctions list-state-machines',
+            'ecs': 'aws ecs list-clusters',
+            'eks': 'aws eks list-clusters',
+            'cloudformation': 'aws cloudformation list-stacks'
+        }
+        
+        command = service_map.get(service.lower())
+        if not command:
+            return {'error': f'Serviço {service} não suportado'}
+        
+        try:
+            import subprocess
+            import json
+            
+            result = subprocess.run(
+                command.split(),
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                data = json.loads(result.stdout)
+                return {'success': True, 'data': data}
+            else:
+                return {'error': result.stderr}
+                
+        except Exception as e:
+            return {'error': str(e)}
+    
+    async def _invoke_with_cli_fallback(self, prompt: str, user_input: str) -> str:
+        """FALLBACK: Tools hard-coded com AWS CLI"""
         
         try:
             # 1. Construir contexto
