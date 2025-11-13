@@ -126,7 +126,72 @@ Resources:
                   - !GetAtt PhaseBuilderFunction.Arn
                   - !GetAtt GitCommitPRFunction.Arn
 
-  # Step Functions State Machine
+  # Lambda: Wait PR Approval
+  WaitPRApprovalFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-nl-wait-pr-approval
+      Runtime: python3.11
+      Handler: wait_pr_approval_handler.handler
+      Role: !GetAtt IALPipelineLambdaRole.Arn
+      Timeout: 30
+      Code:
+        S3Bucket: !Sub 'ial-artifacts-${AWS::AccountId}'
+        S3Key: lambdas/wait_pr_approval_handler.zip
+
+  # Lambda: Deploy CloudFormation
+  DeployCloudFormationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-nl-deploy-cfn
+      Runtime: python3.11
+      Handler: deploy_cloudformation_handler.handler
+      Role: !GetAtt IALPipelineLambdaRole.Arn
+      Timeout: 300
+      Code:
+        S3Bucket: !Sub 'ial-artifacts-${AWS::AccountId}'
+        S3Key: lambdas/deploy_cloudformation_handler.zip
+
+  # Lambda: Proof of Creation
+  ProofOfCreationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-nl-proof-of-creation
+      Runtime: python3.11
+      Handler: proof_of_creation_handler.handler
+      Role: !GetAtt IALPipelineLambdaRole.Arn
+      Timeout: 60
+      Code:
+        S3Bucket: !Sub 'ial-artifacts-${AWS::AccountId}'
+        S3Key: lambdas/proof_of_creation_handler.zip
+
+  # Lambda: Post-Deploy Analysis
+  PostDeployAnalysisFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-nl-post-deploy-analysis
+      Runtime: python3.11
+      Handler: post_deploy_analysis_handler.handler
+      Role: !GetAtt IALPipelineLambdaRole.Arn
+      Timeout: 120
+      Code:
+        S3Bucket: !Sub 'ial-artifacts-${AWS::AccountId}'
+        S3Key: lambdas/post_deploy_analysis_handler.zip
+
+  # Lambda: Drift Detection
+  DriftDetectionFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-nl-drift-detection
+      Runtime: python3.11
+      Handler: drift_detection_handler.handler
+      Role: !GetAtt IALPipelineLambdaRole.Arn
+      Timeout: 120
+      Code:
+        S3Bucket: !Sub 'ial-artifacts-${AWS::AccountId}'
+        S3Key: lambdas/drift_detection_handler.zip
+
+  # Step Functions State Machine - FLUXO COMPLETO
   NLIntentPipelineStateMachine:
     Type: AWS::StepFunctions::StateMachine
     Properties:
@@ -140,74 +205,91 @@ Resources:
             "IASValidation": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${IASValidationFunction}",
-                "Payload.$": "$"
-              },
+              "Parameters": {"FunctionName": "${IASValidationFunction}", "Payload.$": "$"},
               "ResultPath": "$.ias_result",
               "Next": "CheckIASSafe"
             },
             "CheckIASSafe": {
               "Type": "Choice",
-              "Choices": [{
-                "Variable": "$.ias_result.Payload.body.safe",
-                "BooleanEquals": true,
-                "Next": "CostEstimation"
-              }],
+              "Choices": [{"Variable": "$.ias_result.Payload.body.safe", "BooleanEquals": true, "Next": "CostEstimation"}],
               "Default": "SecurityRiskDetected"
             },
-            "SecurityRiskDetected": {
-              "Type": "Fail",
-              "Error": "SecurityRisk",
-              "Cause": "IAS detected security risks"
-            },
+            "SecurityRiskDetected": {"Type": "Fail", "Error": "SecurityRisk"},
             "CostEstimation": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${CostEstimationFunction}",
-                "Payload.$": "$"
-              },
+              "Parameters": {"FunctionName": "${CostEstimationFunction}", "Payload.$": "$"},
               "ResultPath": "$.cost_result",
               "Next": "CheckBudget"
             },
             "CheckBudget": {
               "Type": "Choice",
-              "Choices": [{
-                "Variable": "$.cost_result.Payload.body.within_budget",
-                "BooleanEquals": true,
-                "Next": "PhaseBuilder"
-              }],
+              "Choices": [{"Variable": "$.cost_result.Payload.body.within_budget", "BooleanEquals": true, "Next": "PhaseBuilder"}],
               "Default": "BudgetExceeded"
             },
-            "BudgetExceeded": {
-              "Type": "Fail",
-              "Error": "BudgetExceeded",
-              "Cause": "Estimated cost exceeds budget"
-            },
+            "BudgetExceeded": {"Type": "Fail", "Error": "BudgetExceeded"},
             "PhaseBuilder": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${PhaseBuilderFunction}",
-                "Payload.$": "$"
-              },
+              "Parameters": {"FunctionName": "${PhaseBuilderFunction}", "Payload.$": "$"},
               "ResultPath": "$.phase_result",
               "Next": "GitCommitPR"
             },
             "GitCommitPR": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "${GitCommitPRFunction}",
-                "Payload.$": "$"
-              },
+              "Parameters": {"FunctionName": "${GitCommitPRFunction}", "Payload.$": "$"},
               "ResultPath": "$.git_result",
+              "Next": "WaitForPRApproval"
+            },
+            "WaitForPRApproval": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+              "Parameters": {"FunctionName": "${WaitPRApprovalFunction}", "Payload": {"TaskToken.$": "$$.Task.Token", "git_result.$": "$.git_result"}},
+              "Next": "DeployCloudFormation"
+            },
+            "DeployCloudFormation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {"FunctionName": "${DeployCloudFormationFunction}", "Payload.$": "$"},
+              "ResultPath": "$.deployment_result",
+              "Next": "ProofOfCreation"
+            },
+            "ProofOfCreation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {"FunctionName": "${ProofOfCreationFunction}", "Payload.$": "$"},
+              "ResultPath": "$.proof_result",
+              "Next": "PostDeployAnalysis"
+            },
+            "PostDeployAnalysis": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {"FunctionName": "${PostDeployAnalysisFunction}", "Payload.$": "$"},
+              "ResultPath": "$.analysis_result",
+              "Next": "DriftDetection"
+            },
+            "DriftDetection": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {"FunctionName": "${DriftDetectionFunction}", "Payload.$": "$"},
+              "ResultPath": "$.drift_result",
+              "Next": "CheckDrift"
+            },
+            "CheckDrift": {
+              "Type": "Choice",
+              "Choices": [
+                {"Variable": "$.drift_result.Payload.body.drift_detected", "BooleanEquals": false, "Next": "Success"},
+                {"Variable": "$.drift_result.Payload.body.drift_type", "StringEquals": "safe", "Next": "Success"}
+              ],
+              "Default": "DriftAlert"
+            },
+            "DriftAlert": {
+              "Type": "Pass",
+              "Result": "Risky drift detected - manual review required",
               "Next": "Success"
             },
-            "Success": {
-              "Type": "Succeed"
-            }
+            "Success": {"Type": "Succeed"}
           }
         }
 
