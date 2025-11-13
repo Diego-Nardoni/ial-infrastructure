@@ -135,10 +135,8 @@ class IALMasterEngineIntegrated:
             if self.context_engine:
                 try:
                     context = self.context_engine.build_context_for_query(user_input)
-                    if context:
-                        print(f"[DEBUG] Contexto: {len(context)} chars")
                 except Exception as e:
-                    print(f"[DEBUG] Erro contexto: {e}")
+                    pass
             
             # 2. Preparar prompt
             if context:
@@ -159,7 +157,6 @@ Responda usando o histórico acima. Para consultar AWS, use as tools disponívei
             try:
                 assistant_response = await self._invoke_bedrock_converse_mcp(prompt, user_input)
             except Exception as e:
-                print(f"[DEBUG] MCP nativo falhou: {e}, usando fallback")
                 # FALLBACK: Tools hard-coded com CLI
                 assistant_response = await self._invoke_with_cli_fallback(prompt, user_input)
             
@@ -223,7 +220,6 @@ Responda usando o histórico acima. Para consultar AWS, use as tools disponívei
             
             if tool_use:
                 tool_input = tool_use['input']
-                print(f"[DEBUG] MCP chamada: {tool_input.get('service')} - {tool_input.get('query')}")
                 
                 # Executar via MCP
                 mcp_result = await self._execute_mcp_query(
@@ -306,10 +302,8 @@ Responda usando o histórico acima. Para consultar AWS, use as tools disponívei
             if self.context_engine:
                 try:
                     context = self.context_engine.build_context_for_query(user_input)
-                    if context:
-                        print(f"[DEBUG] Contexto: {len(context)} chars")
                 except Exception as e:
-                    print(f"[DEBUG] Erro contexto: {e}")
+                    pass
             
             # 2. Preparar prompt
             if context:
@@ -399,7 +393,6 @@ Responda usando o histórico acima. Se precisar consultar AWS, use as tools disp
                 tool_use = next((c for c in result['content'] if c.get('type') == 'tool_use'), None)
                 if tool_use:
                     tool_name = tool_use['name']
-                    print(f"[DEBUG] Tool chamada: {tool_name}")
                     
                     # Executar tool
                     tool_result = await self._execute_tool(tool_name, tool_use.get('input', {}))
@@ -529,10 +522,8 @@ Responda usando o histórico acima. Se precisar consultar AWS, use as tools disp
             if self.context_engine:
                 try:
                     context = self.context_engine.build_context_for_query(user_input)
-                    if context:
-                        print(f"[DEBUG] Contexto construído: {len(context)} chars")
                 except Exception as e:
-                    print(f"[DEBUG] Erro ao construir contexto: {e}")
+                    pass
             
             # Preparar prompt com contexto
             prompt = user_input
@@ -542,7 +533,6 @@ Responda usando o histórico acima. Se precisar consultar AWS, use as tools disp
 
 ---
 Pergunta atual: {user_input}"""
-                print(f"[DEBUG] Contexto adicionado ao prompt")
             
             # Invocar Bedrock
             import boto3

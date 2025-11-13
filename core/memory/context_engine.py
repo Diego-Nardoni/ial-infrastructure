@@ -12,7 +12,6 @@ class ContextEngine:
         
         # 1. Contexto recente (últimas mensagens da sessão)
         recent_context = self.memory.get_recent_context(limit=10)
-        print(f"[DEBUG] recent_context: {len(recent_context)} mensagens")
         
         # 2. Contexto semântico (busca por similaridade)
         semantic_context = []
@@ -28,17 +27,14 @@ class ContextEngine:
         context_parts = []
         
         # Contexto completo do usuário (todas as sessões)
-        if recent_context and len(recent_context) > 1:  # Mais de 1 mensagem total
+        if recent_context and len(recent_context) > 1:
             context_parts.append("## Histórico de Conversas:")
-            for msg in recent_context[-8:]:  # Últimas 8 mensagens de todas as sessões
+            for msg in recent_context[-8:]:
                 role = "Você" if msg['role'] == 'user' else "IAL"
                 content = msg['content'][:150] + "..." if len(msg['content']) > 150 else msg['content']
                 context_parts.append(f"{role}: {content}")
-            print(f"[DEBUG] Adicionadas {len(recent_context[-8:])} mensagens ao contexto")
-        else:
-            print(f"[DEBUG] Contexto vazio ou insuficiente")
         
-        # Contexto semântico relevante (removido código duplicado)
+        # Contexto semântico relevante
         if semantic_context:
             context_parts.append("\n## Tópicos Relacionados:")
             for msg in semantic_context:
@@ -47,7 +43,6 @@ class ContextEngine:
                     context_parts.append(f"- {content}")
         
         result = "\n".join(context_parts) if context_parts else ""
-        print(f"[DEBUG] Contexto final: {len(result)} chars")
         return result
     
     def save_interaction(self, user_input: str, assistant_response: str, metadata: Dict = None):
