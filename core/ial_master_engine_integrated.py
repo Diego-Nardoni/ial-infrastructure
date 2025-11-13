@@ -295,14 +295,68 @@ class IALMasterEngineIntegrated:
             ]
         }
     
+    async def _enrich_prompt_with_rag(self, nl_intent: str) -> str:
+        """
+        Enriquece prompt com contexto RAG antes de chamar LLM
+        
+        Args:
+            nl_intent: Intenção em linguagem natural
+        
+        Returns:
+            Prompt enriquecido com contexto relevante
+        """
+        try:
+            from services.rag.retriever import retrieve
+            
+            # Buscar contexto relevante (top 6 snippets)
+            rag_results = retrieve(query=nl_intent, k=6, threshold=0.65)
+            
+            if not rag_results:
+                return nl_intent
+            
+            # Construir contexto
+            context_snippets = []
+            for i, result in enumerate(rag_results, 1):
+                snippet = result.get('text', result.get('content', ''))
+                source = result.get('source', 'unknown')
+                score = result.get('score', 0)
+                
+                context_snippets.append(f"[{i}] (score: {score:.2f}, source: {source})\n{snippet}")
+            
+            # Prompt enriquecido
+            enriched_prompt = f"""CONTEXTO RELEVANTE (RAG):
+{chr(10).join(context_snippets)}
+
+---
+
+INTENÇÃO DO USUÁRIO:
+{nl_intent}
+
+Use o contexto acima para gerar uma resposta precisa e baseada em documentação real."""
+            
+            return enriched_prompt
+        
+        except Exception as e:
+            print(f"⚠️ RAG não disponível: {e}")
+            return nl_intent
+    
     async def process_user_input(self, user_input: str) -> str:
-        """Interface única: LLM com MCP nativo"""
+        """Interface única: LLM com MCP nativo + RAG enrichment"""
         
         # Normalizar typos comuns
         normalized_input = self._normalize_service_name(user_input)
         
         try:
-            # 1. Construir contexto
+            # 1. Enriquecer com RAG
+            rag_context = ""
+            try:
+                enriched = await self._enrich_prompt_with_rag(normalized_input)
+                if enriched != normalized_input:
+                    rag_context = f"\n\n{enriched}\n"
+            except:
+                pass
+            
+            # 2. Construir contexto de conversação
             context = ""
             if self.context_engine:
                 try:
@@ -310,13 +364,14 @@ class IALMasterEngineIntegrated:
                 except Exception as e:
                     pass
             
-            # 2. Preparar prompt
-            if context:
+            # 3. Preparar prompt
+            if context or rag_context:
                 prompt = f"""Você é IAL, assistente de infraestrutura AWS com memória persistente e capacidade de criar recursos via GitOps.
 
 IMPORTANTE: As conversas abaixo são REAIS e aconteceram com este usuário. Use-as para responder.
 
 {context}
+{rag_context}
 
 ---
 PERGUNTA ATUAL DO USUÁRIO: {normalized_input}
