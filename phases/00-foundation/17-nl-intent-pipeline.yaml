@@ -1,0 +1,227 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL NL Intent Pipeline - Complete Step Functions Orchestration'
+
+Resources:
+  # Lambda Layer com dependências
+  IALPipelineLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: ial-pipeline-dependencies
+      Description: IAS, Cost Guardrails, Phase Builder
+      Content:
+        S3Bucket: !Sub 'ial-artifacts-${AWS::AccountId}'
+        S3Key: lambda-layer/ial-pipeline-layer.zip
+      CompatibleRuntimes:
+        - python3.11
+
+  # IAM Role para Lambdas
+  IALPipelineLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: IAL-Pipeline-Lambda-Role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: BedrockAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:Converse
+                Resource: '*'
+
+  # Lambda: IAS Validation
+  IASValidationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-nl-ias-validation
+      Runtime: python3.11
+      Handler: ias_validation_handler.handler
+      Role: !GetAtt IALPipelineLambdaRole.Arn
+      Timeout: 60
+      Layers:
+        - !Ref IALPipelineLayer
+      Code:
+        S3Bucket: !Sub 'ial-artifacts-${AWS::AccountId}'
+        S3Key: lambdas/ias_validation_handler.zip
+
+  # Lambda: Cost Estimation
+  CostEstimationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-nl-cost-estimation
+      Runtime: python3.11
+      Handler: cost_estimation_handler.handler
+      Role: !GetAtt IALPipelineLambdaRole.Arn
+      Timeout: 60
+      Layers:
+        - !Ref IALPipelineLayer
+      Code:
+        S3Bucket: !Sub 'ial-artifacts-${AWS::AccountId}'
+        S3Key: lambdas/cost_estimation_handler.zip
+
+  # Lambda: Phase Builder
+  PhaseBuilderFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-nl-phase-builder
+      Runtime: python3.11
+      Handler: phase_builder_handler.handler
+      Role: !GetAtt IALPipelineLambdaRole.Arn
+      Timeout: 300
+      Layers:
+        - !Ref IALPipelineLayer
+      Code:
+        S3Bucket: !Sub 'ial-artifacts-${AWS::AccountId}'
+        S3Key: lambdas/phase_builder_handler.zip
+
+  # Lambda: Git Commit & PR
+  GitCommitPRFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-nl-git-commit-pr
+      Runtime: python3.11
+      Handler: git_commit_pr_handler.handler
+      Role: !GetAtt IALPipelineLambdaRole.Arn
+      Timeout: 120
+      Environment:
+        Variables:
+          REPO_URL: https://github.com/Diego-Nardoni/ial-infrastructure.git
+      Code:
+        S3Bucket: !Sub 'ial-artifacts-${AWS::AccountId}'
+        S3Key: lambdas/git_commit_pr_handler.zip
+
+  # IAM Role para Step Functions
+  NLIntentPipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: IAL-NL-Intent-Pipeline-Role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeLambdas
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt IASValidationFunction.Arn
+                  - !GetAtt CostEstimationFunction.Arn
+                  - !GetAtt PhaseBuilderFunction.Arn
+                  - !GetAtt GitCommitPRFunction.Arn
+
+  # Step Functions State Machine
+  NLIntentPipelineStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: ial-nl-intent-pipeline
+      RoleArn: !GetAtt NLIntentPipelineRole.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL NL Intent Pipeline - Complete Flow",
+          "StartAt": "IASValidation",
+          "States": {
+            "IASValidation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${IASValidationFunction}",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.ias_result",
+              "Next": "CheckIASSafe"
+            },
+            "CheckIASSafe": {
+              "Type": "Choice",
+              "Choices": [{
+                "Variable": "$.ias_result.Payload.body.safe",
+                "BooleanEquals": true,
+                "Next": "CostEstimation"
+              }],
+              "Default": "SecurityRiskDetected"
+            },
+            "SecurityRiskDetected": {
+              "Type": "Fail",
+              "Error": "SecurityRisk",
+              "Cause": "IAS detected security risks"
+            },
+            "CostEstimation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${CostEstimationFunction}",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.cost_result",
+              "Next": "CheckBudget"
+            },
+            "CheckBudget": {
+              "Type": "Choice",
+              "Choices": [{
+                "Variable": "$.cost_result.Payload.body.within_budget",
+                "BooleanEquals": true,
+                "Next": "PhaseBuilder"
+              }],
+              "Default": "BudgetExceeded"
+            },
+            "BudgetExceeded": {
+              "Type": "Fail",
+              "Error": "BudgetExceeded",
+              "Cause": "Estimated cost exceeds budget"
+            },
+            "PhaseBuilder": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${PhaseBuilderFunction}",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.phase_result",
+              "Next": "GitCommitPR"
+            },
+            "GitCommitPR": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${GitCommitPRFunction}",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.git_result",
+              "Next": "Success"
+            },
+            "Success": {
+              "Type": "Succeed"
+            }
+          }
+        }
+
+Outputs:
+  StateMachineArn:
+    Value: !GetAtt NLIntentPipelineStateMachine.Arn
+    Export:
+      Name: IAL-NL-Intent-Pipeline-Arn
+  
+  IASValidationFunctionArn:
+    Value: !GetAtt IASValidationFunction.Arn
+  
+  CostEstimationFunctionArn:
+    Value: !GetAtt CostEstimationFunction.Arn
+  
+  PhaseBuilderFunctionArn:
+    Value: !GetAtt PhaseBuilderFunction.Arn

@@ -148,6 +148,56 @@ class IALMasterEngineIntegrated:
         
         return normalized
     
+    async def trigger_nl_intent_pipeline_sfn(self, nl_intent: str, monthly_budget: float = 500.0) -> Dict[str, Any]:
+        """
+        Trigger Step Functions NL Intent Pipeline
+        
+        Args:
+            nl_intent: Intenção em linguagem natural
+            monthly_budget: Budget mensal em USD
+        
+        Returns:
+            {
+                "execution_arn": str,
+                "status": str,
+                "message": str
+            }
+        """
+        import boto3
+        import json
+        import uuid
+        
+        sfn = boto3.client('stepfunctions')
+        
+        # Get State Machine ARN
+        state_machine_arn = f"arn:aws:states:{boto3.Session().region_name}:{boto3.client('sts').get_caller_identity()['Account']}:stateMachine:ial-nl-intent-pipeline"
+        
+        # Prepare input
+        execution_input = {
+            "nl_intent": nl_intent,
+            "monthly_budget": monthly_budget,
+            "correlation_id": str(uuid.uuid4())
+        }
+        
+        # Start execution
+        try:
+            response = sfn.start_execution(
+                stateMachineArn=state_machine_arn,
+                input=json.dumps(execution_input)
+            )
+            
+            return {
+                "status": "started",
+                "execution_arn": response['executionArn'],
+                "message": f"✅ Pipeline iniciado! Acompanhe em: https://console.aws.amazon.com/states/home#/executions/details/{response['executionArn']}"
+            }
+        
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Erro ao iniciar pipeline: {str(e)}"
+            }
+    
     async def process_nl_intent_full_pipeline(self, nl_intent: str) -> Dict[str, Any]:
         """
         Pipeline completo: NL Intent → IAS → Cost → Phase Builder → GitOps
