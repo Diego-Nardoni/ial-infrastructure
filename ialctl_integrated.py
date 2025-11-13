@@ -242,12 +242,12 @@ class IALCTLIntegrated:
 • "help" - Esta ajuda
 • "quit" - Sair
 
-**🎯 DIFERENCIAL:**
-Este IAL é superior ao Amazon Q em memória conversacional!
-• ✅ DynamoDB para persistência
+**🎯 RECURSOS IAL:**
+• ✅ DynamoDB para persistência de conversas
 • ✅ Bedrock embeddings para busca semântica
 • ✅ Contexto cross-sessão inteligente
 • ✅ MCP servers para integração AWS
+• ✅ Memória conversacional avançada
 
 💡 **Dica:** Seja natural! O IAL entende contexto e lembra das conversas.
 """
