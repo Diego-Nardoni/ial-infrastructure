@@ -221,18 +221,26 @@ VOCÊ TEM PODER DE CRIAR RECURSOS! Use a tool create_infrastructure_phase quando
             try:
                 assistant_response = await self._invoke_bedrock_converse_mcp(prompt, normalized_input)
             except Exception as e:
+                print(f"⚠️ Erro no Bedrock: {e}")
                 # FALLBACK: Tools hard-coded com CLI
-                assistant_response = await self._invoke_with_cli_fallback(prompt, normalized_input)
+                try:
+                    assistant_response = await self._invoke_with_cli_fallback(prompt, normalized_input)
+                except Exception as e2:
+                    print(f"❌ Erro no fallback: {e2}")
+                    assistant_response = f"Desculpe, ocorreu um erro ao processar sua solicitação: {str(e)}"
             
             # 4. Salvar interação (usar input original para histórico)
-            if self.context_engine:
-                self.context_engine.save_interaction(
-                    user_input,
-                    assistant_response,
-                    {'model': 'claude-3-sonnet-mcp'}
-                )
+            if self.context_engine and assistant_response:
+                try:
+                    self.context_engine.save_interaction(
+                        user_input,
+                        assistant_response,
+                        {'model': 'claude-3-sonnet-mcp'}
+                    )
+                except Exception as e:
+                    print(f"⚠️ Erro ao salvar contexto: {e}")
             
-            return assistant_response
+            return assistant_response if assistant_response else "Desculpe, não consegui processar sua solicitação."
             
         except Exception as e:
             return f"❌ Erro: {str(e)}"
