@@ -28,6 +28,11 @@ def create_infrastructure_phase(
         Dict com path do arquivo e conteúdo YAML
     """
     
+    # Inferir resource_type se não especificado ou genérico
+    if not resource_type or resource_type.lower() in ['network', 'networking', 'rede']:
+        resource_type = "VPC"
+        resource_name = resource_name or "network"
+    
     # Templates básicos por tipo de recurso
     templates = {
         "VPC": _generate_vpc_yaml,
@@ -37,21 +42,35 @@ def create_infrastructure_phase(
         "Lambda": _generate_lambda_yaml,
     }
     
-    generator = templates.get(resource_type, _generate_generic_yaml)
+    generator = templates.get(resource_type.upper(), _generate_generic_yaml)
     yaml_content = generator(resource_name, properties)
     
     # Salvar arquivo
     filename = f"{phase_number:02d}-{resource_type.lower()}-{resource_name}.yaml"
     filepath = os.path.join("/home/ial/phases", filename)
     
+    # Criar diretório se não existir
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    
     with open(filepath, 'w') as f:
         f.write(yaml_content)
     
+    # Mostrar preview do YAML
+    preview = "\n".join(yaml_content.split("\n")[:20]) + "\n..."
+    
     return {
         "status": "success",
+        "message": f"✅ Phase {filename} criada com sucesso!",
         "filepath": filepath,
         "filename": filename,
-        "content": yaml_content
+        "yaml_preview": preview,
+        "next_steps": [
+            "1. Revise o YAML gerado em: " + filepath,
+            "2. Faça commit: git add phases/ && git commit -m 'Add network phase'",
+            "3. Push: git push origin main",
+            "4. GitHub Actions criará Pull Request automaticamente",
+            "5. Aprove o PR para provisionar na AWS"
+        ]
     }
 
 

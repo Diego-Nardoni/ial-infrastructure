@@ -388,20 +388,24 @@ VOCÊ TEM PODER DE CRIAR RECURSOS! Use a tool create_infrastructure_phase quando
                 resource_name=resource_name,
                 properties=properties
             )
-            return {
+            
+            # Formatar resposta com preview
+            response = {
                 "status": "success",
-                "message": f"Phase {result['filename']} criada com sucesso!",
+                "message": result['message'],
                 "filepath": result['filepath'],
-                "next_steps": [
-                    "1. Revise o YAML gerado",
-                    "2. Faça commit: git add phases/ && git commit -m 'Add network phase'",
-                    "3. Push: git push origin main",
-                    "4. GitHub Actions criará Pull Request automaticamente",
-                    "5. Aprove o PR para provisionar na AWS"
-                ]
+                "yaml_preview": result.get('yaml_preview', ''),
+                "next_steps": result['next_steps']
             }
+            
+            return response
         except Exception as e:
-            return {"status": "error", "message": str(e)}
+            import traceback
+            return {
+                "status": "error",
+                "message": f"Erro ao criar phase: {str(e)}",
+                "traceback": traceback.format_exc()
+            }
     
     async def _execute_cost_query(self, period: str) -> dict:
         """Executar query de custos via AWS Cost Explorer CLI"""
