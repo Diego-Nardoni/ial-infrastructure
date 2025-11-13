@@ -200,43 +200,40 @@ class IALMasterEngineIntegrated:
                 except Exception as e:
                     print(f"[DEBUG] Erro ao construir contexto: {e}")
             
-            # Preparar mensagens para Bedrock
-            messages = []
-            
-            # Se tem contexto, adicionar como mensagem do sistema
+            # Preparar prompt com contexto
+            prompt = user_input
             if context:
-                messages.append({
-                    "role": "user",
-                    "content": f"Contexto das conversas anteriores:\n{context}"
-                })
-                messages.append({
-                    "role": "assistant", 
-                    "content": "Entendi o contexto. Estou pronto para responder considerando nossas conversas anteriores."
-                })
-                print(f"[DEBUG] Contexto adicionado às mensagens")
+                prompt = f"""Contexto das conversas anteriores:
+{context}
+
+---
+Pergunta atual: {user_input}"""
+                print(f"[DEBUG] Contexto adicionado ao prompt")
             
-            # Adicionar pergunta atual
-            messages.append({"role": "user", "content": user_input})
-            
-            # Invocar Bedrock direto
+            # Invocar Bedrock
             import boto3
             import json
             bedrock = boto3.client('bedrock-runtime')
             
-            response = bedrock.converse(
+            response = bedrock.invoke_model(
                 modelId='anthropic.claude-3-sonnet-20240229-v1:0',
-                messages=messages,
-                inferenceConfig={'maxTokens': 2000, 'temperature': 0.7}
+                body=json.dumps({
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 2000,
+                    "temperature": 0.7,
+                    "messages": [{"role": "user", "content": prompt}]
+                })
             )
             
-            assistant_response = response['output']['message']['content'][0]['text']
+            result = json.loads(response['body'].read())
+            assistant_response = result['content'][0]['text']
             
             # Salvar interação no ContextEngine
             if self.context_engine:
                 self.context_engine.save_interaction(
                     user_input,
                     assistant_response,
-                    {'model_used': 'claude-3-sonnet', 'usage': response.get('usage', {})}
+                    {'model_used': 'claude-3-sonnet', 'usage': result.get('usage', {})}
                 )
             
             return assistant_response

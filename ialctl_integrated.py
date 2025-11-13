@@ -8,65 +8,12 @@ import asyncio
 import argparse
 import sys
 import os
+import readline  # Habilita setas e histórico
 from typing import Dict, Optional
 
 def custom_input(prompt: str) -> str:
-    """Input customizado que suporta Ctrl+L para limpar tela"""
-    import termios
-    import tty
-    
-    # Mostrar prompt
-    print(prompt, end='', flush=True)
-    
-    buffer = []
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    
-    try:
-        tty.setraw(fd)
-        while True:
-            char = sys.stdin.read(1)
-            
-            # Ctrl+L (ASCII 12)
-            if ord(char) == 12:
-                os.system('clear')
-                print(prompt, end='', flush=True)
-                print(''.join(buffer), end='', flush=True)
-                continue
-            
-            # Enter
-            if char in ['\r', '\n']:
-                print()
-                break
-            
-            # Backspace
-            if char in ['\x7f', '\x08']:
-                if buffer:
-                    buffer.pop()
-                    print('\b \b', end='', flush=True)
-                continue
-            
-            # Ctrl+C
-            if ord(char) == 3:
-                print()
-                raise KeyboardInterrupt
-            
-            # Ctrl+D
-            if ord(char) == 4:
-                if not buffer:
-                    print()
-                    raise EOFError
-                continue
-            
-            # Caracteres imprimíveis
-            if 32 <= ord(char) <= 126:
-                buffer.append(char)
-                print(char, end='', flush=True)
-    
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    
-    return ''.join(buffer)
+    """Input com readline (setas funcionam)"""
+    return input(prompt)
 
 class IALCTLIntegrated:
     """CLI integrado usando componentes robustos existentes"""
