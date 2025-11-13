@@ -7,7 +7,66 @@ Integra BedrockConversationEngine + Memory + Context + MCP Servers
 import asyncio
 import argparse
 import sys
+import os
 from typing import Dict, Optional
+
+def custom_input(prompt: str) -> str:
+    """Input customizado que suporta Ctrl+L para limpar tela"""
+    import termios
+    import tty
+    
+    # Mostrar prompt
+    print(prompt, end='', flush=True)
+    
+    buffer = []
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    
+    try:
+        tty.setraw(fd)
+        while True:
+            char = sys.stdin.read(1)
+            
+            # Ctrl+L (ASCII 12)
+            if ord(char) == 12:
+                os.system('clear')
+                print(prompt, end='', flush=True)
+                print(''.join(buffer), end='', flush=True)
+                continue
+            
+            # Enter
+            if char in ['\r', '\n']:
+                print()
+                break
+            
+            # Backspace
+            if char in ['\x7f', '\x08']:
+                if buffer:
+                    buffer.pop()
+                    print('\b \b', end='', flush=True)
+                continue
+            
+            # Ctrl+C
+            if ord(char) == 3:
+                print()
+                raise KeyboardInterrupt
+            
+            # Ctrl+D
+            if ord(char) == 4:
+                if not buffer:
+                    print()
+                    raise EOFError
+                continue
+            
+            # Caracteres imprimíveis
+            if 32 <= ord(char) <= 126:
+                buffer.append(char)
+                print(char, end='', flush=True)
+    
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    
+    return ''.join(buffer)
 
 class IALCTLIntegrated:
     """CLI integrado usando componentes robustos existentes"""
@@ -89,7 +148,7 @@ class IALCTLIntegrated:
         
         while True:
             try:
-                user_input = input("IAL> ").strip()
+                user_input = custom_input("IAL> ").strip()
                 
                 if user_input.lower() in ['quit', 'exit', 'sair']:
                     print("👋 Até logo!")
@@ -103,7 +162,12 @@ class IALCTLIntegrated:
                     await self._show_system_status()
                     continue
                 
-                if user_input.lower() == 'clear':
+                if user_input.lower() in ['clear', 'cls']:
+                    import os
+                    os.system('clear' if os.name != 'nt' else 'cls')
+                    continue
+                
+                if user_input.lower() == 'reset':
                     self.master_engine.clear_session()
                     continue
                 
