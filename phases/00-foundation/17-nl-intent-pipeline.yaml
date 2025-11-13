@@ -125,6 +125,11 @@ Resources:
                   - !GetAtt CostEstimationFunction.Arn
                   - !GetAtt PhaseBuilderFunction.Arn
                   - !GetAtt GitCommitPRFunction.Arn
+                  - !GetAtt WaitPRApprovalFunction.Arn
+                  - !GetAtt DeployCloudFormationFunction.Arn
+                  - !GetAtt ProofOfCreationFunction.Arn
+                  - !GetAtt PostDeployAnalysisFunction.Arn
+                  - !GetAtt DriftDetectionFunction.Arn
 
   # Lambda: Wait PR Approval
   WaitPRApprovalFunction:
