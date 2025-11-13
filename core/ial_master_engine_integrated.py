@@ -176,22 +176,26 @@ PERGUNTA ATUAL DO USUÁRIO: {normalized_input}
 
 INSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
 
-1. Se usuário pedir "crie", "criar", "provisione", "deploy" + qualquer recurso AWS:
-   → VOCÊ DEVE usar a tool create_infrastructure_phase
-   → Exemplos: "crie network", "crie vpc", "crie bucket", "crie eks"
-   → NÃO explique como fazer manualmente
-   → USE A TOOL para gerar o YAML automaticamente
+1. Se usuário pedir "criar fase X", "deploy fase X", "provisionar fase X":
+   → PRIMEIRO use discover_phases para ver phases disponíveis
+   → SE phase existe: use trigger_phase_deployment
+   → SE phase NÃO existe: explique que precisa criar via NL completo
+   → Exemplo: "criar fase network" → trigger deployment da phase existente
 
-2. Se usuário pedir "liste", "mostre", "quantos":
+2. Se usuário pedir criação de NOVOS recursos via NL detalhado:
+   → Exemplo: "quero ECS privado com Redis e DNS público"
+   → Gere CloudFormation YAML profissional diretamente
+   → Salve em phases/XX-nome.yaml
+   → Faça git commit/push
+   → Abra PR via GitOps
+
+3. Se usuário pedir "liste", "mostre", "quantos":
    → Use tool aws_resource_query
 
-3. Para saudações (oi, olá, hi):
+4. Para saudações (oi, olá, hi):
    → Responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
 
-4. Para perguntas gerais sobre AWS:
-   → Responda normalmente sem usar tools
-
-VOCÊ TEM PODER DE CRIAR RECURSOS! Use a tool create_infrastructure_phase quando solicitado.
+GITHUB É A ÚNICA FONTE DA VERDADE - descoberta dinâmica, não hardcoded!
 
 Responda de forma direta e concisa."""
             else:
@@ -284,29 +288,24 @@ VOCÊ TEM PODER DE CRIAR RECURSOS! Use a tool create_infrastructure_phase quando
                 "required": ["period"]
             }
         }, {
-            "name": "create_infrastructure_phase",
-            "description": "Cria uma phase YAML para provisionar infraestrutura AWS via GitOps. Use quando usuário pedir 'crie', 'criar', 'provisione', 'deploy'.",
+            "name": "discover_phases",
+            "description": "Descobre phases disponíveis dinamicamente via Git. Use para listar phases existentes.",
+            "input_schema": {
+                "type": "object",
+                "properties": {}
+            }
+        }, {
+            "name": "trigger_phase_deployment",
+            "description": "Cria trigger para deployment de phase existente via GitOps. Use quando usuário pedir 'criar fase X', 'deploy fase X', 'provisionar fase X'.",
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "phase_number": {
-                        "type": "integer",
-                        "description": "Número da phase (ex: 20 para network, 30 para compute)"
-                    },
-                    "resource_type": {
+                    "phase_name": {
                         "type": "string",
-                        "description": "Tipo do recurso: VPC, S3, EKS, RDS, Lambda, EC2, ECS"
-                    },
-                    "resource_name": {
-                        "type": "string",
-                        "description": "Nome do recurso (ex: ial-production-vpc)"
-                    },
-                    "properties": {
-                        "type": "object",
-                        "description": "Propriedades específicas do recurso (CIDR, tamanho, etc)"
+                        "description": "Nome da phase (ex: network, compute, database)"
                     }
                 },
-                "required": ["phase_number", "resource_type", "resource_name"]
+                "required": ["phase_name"]
             }
         }]
         
@@ -342,12 +341,11 @@ VOCÊ TEM PODER DE CRIAR RECURSOS! Use a tool create_infrastructure_phase quando
                     mcp_result = await self._execute_cost_query(
                         tool_input.get('period', 'current_month')
                     )
-                elif tool_name == 'create_infrastructure_phase':
-                    mcp_result = await self._execute_phase_creation(
-                        tool_input.get('phase_number'),
-                        tool_input.get('resource_type'),
-                        tool_input.get('resource_name'),
-                        tool_input.get('properties', {})
+                elif tool_name == 'discover_phases':
+                    mcp_result = await self._execute_discover_phases()
+                elif tool_name == 'trigger_phase_deployment':
+                    mcp_result = await self._execute_trigger_deployment(
+                        tool_input.get('phase_name')
                     )
                 else:
                     mcp_result = {'error': f'Tool {tool_name} não suportada'}
@@ -377,33 +375,35 @@ VOCÊ TEM PODER DE CRIAR RECURSOS! Use a tool create_infrastructure_phase quando
         # Resposta direta
         return next((c['text'] for c in result['content'] if c.get('type') == 'text'), "")
     
-    async def _execute_phase_creation(self, phase_number: int, resource_type: str, resource_name: str, properties: dict) -> dict:
-        """Cria phase YAML para infraestrutura"""
-        from core.phase_creator_tool import create_infrastructure_phase
+    async def _execute_discover_phases(self) -> dict:
+        """Descobre phases disponíveis via Git"""
+        from core.gitops_phase_manager import GitOpsPhaseManager
         
         try:
-            result = create_infrastructure_phase(
-                phase_number=phase_number,
-                resource_type=resource_type,
-                resource_name=resource_name,
-                properties=properties
-            )
+            manager = GitOpsPhaseManager()
+            phases = manager.discover_phases()
             
-            # Formatar resposta com preview
-            response = {
+            return {
                 "status": "success",
-                "message": result['message'],
-                "filepath": result['filepath'],
-                "yaml_preview": result.get('yaml_preview', ''),
-                "next_steps": result['next_steps']
+                "phases": phases,
+                "total": len(phases)
             }
-            
-            return response
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+    
+    async def _execute_trigger_deployment(self, phase_name: str) -> dict:
+        """Trigger deployment de phase via GitOps"""
+        from core.gitops_phase_manager import GitOpsPhaseManager
+        
+        try:
+            manager = GitOpsPhaseManager()
+            result = manager.trigger_deployment(phase_name)
+            return result
         except Exception as e:
             import traceback
             return {
                 "status": "error",
-                "message": f"Erro ao criar phase: {str(e)}",
+                "message": str(e),
                 "traceback": traceback.format_exc()
             }
     
