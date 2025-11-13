@@ -96,42 +96,42 @@ class IALCTLIntegrated:
         while True:
             try:
                 user_input = custom_input("IAL> ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\n👋 Até logo!")
+                break
                 
-                if user_input.lower() in ['quit', 'exit', 'sair']:
-                    print("👋 Até logo!")
-                    break
-                
-                if user_input.lower() in ['help', 'ajuda']:
-                    await self._show_help()
-                    continue
-                
-                if user_input.lower() == 'status':
-                    await self._show_system_status()
-                    continue
-                
-                if user_input.lower() in ['clear', 'cls']:
-                    import os
-                    os.system('clear' if os.name != 'nt' else 'cls')
-                    continue
-                
-                if user_input.lower() == 'reset':
-                    self.master_engine.clear_session()
-                    continue
-                
-                if user_input.lower() == 'memory':
-                    await self._show_memory_stats()
-                    continue
-                
-                if user_input:
+            if user_input.lower() in ['quit', 'exit', 'sair']:
+                print("👋 Até logo!")
+                break
+            
+            if user_input.lower() in ['help', 'ajuda']:
+                await self._show_help()
+                continue
+            
+            if user_input.lower() == 'status':
+                await self._show_system_status()
+                continue
+            
+            if user_input.lower() in ['clear', 'cls']:
+                import os
+                os.system('clear' if os.name != 'nt' else 'cls')
+                continue
+            
+            if user_input.lower() == 'reset':
+                self.master_engine.clear_session()
+                continue
+            
+            if user_input.lower() == 'memory':
+                await self._show_memory_stats()
+                continue
+            
+            if user_input:
+                try:
                     # Processar via Master Engine Integrado
                     response = await self.master_engine.process_user_input(user_input)
                     print(f"\n{response}\n")
-                
-            except KeyboardInterrupt:
-                print("\n👋 Até logo!")
-                break
-            except Exception as e:
-                print(f"❌ Erro: {e}")
+                except Exception as e:
+                    print(f"❌ Erro: {e}")
     
     async def _show_initial_status(self):
         """Mostrar status inicial do sistema integrado"""
@@ -347,6 +347,9 @@ Exemplos de uso:
         else:
             asyncio.run(cli.run_conversational_mode())
             return 0
+    except KeyboardInterrupt:
+        print("\n👋 Até logo!")
+        return 0
     except Exception as e:
         print(f"❌ Erro fatal: {e}")
         return 1
