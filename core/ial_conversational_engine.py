@@ -19,12 +19,14 @@ class ConversationContext:
             'responses': [],
             'context_data': {}
         }
-        # Inicializar Memory Manager
+        # Inicializar Context Engine (já tem MemoryManager + Embeddings)
         try:
-            from .memory.memory_manager import MemoryManager
-            self.memory_manager = MemoryManager()
+            from .memory.context_engine import ContextEngine
+            self.context_engine = ContextEngine()
+            self.memory_manager = self.context_engine.memory  # Compatibilidade
         except Exception as e:
-            print(f"⚠️ Memory Manager não inicializado: {e}")
+            print(f"⚠️ Context Engine não inicializado: {e}")
+            self.context_engine = None
             self.memory_manager = None
     
     def add_user_input(self, user_input: str):
@@ -217,59 +219,65 @@ class IALConversationalEngine:
     def process_conversational_input(self, user_input: str) -> str:
         """Interface conversacional principal (igual Amazon Q)"""
         
-        # 0. Verificar se é pergunta sobre histórico
+        # 0. Construir contexto semântico relevante
+        context = ""
+        if self.context_engine:
+            try:
+                context = self.context_engine.build_context_for_query(user_input)
+            except Exception as e:
+                print(f"⚠️ Erro ao construir contexto: {e}")
+        
+        # 1. Verificar se é pergunta sobre histórico
         if any(word in user_input.lower() for word in ['lembra', 'último', 'ultima', 'anterior', 'passado', 'conversa']):
             if self.memory_manager:
                 try:
-                    history = self.memory_manager.get_recent_messages(limit=10)
+                    history = self.memory_manager.get_recent_context(limit=10)
                     if history:
                         return self._format_history_response(history, user_input)
                 except Exception as e:
                     print(f"⚠️ Erro ao buscar histórico: {e}")
         
-        # 1. Salvar input do usuário no DynamoDB
-        if self.memory_manager:
-            try:
-                self.memory_manager.save_message("user", user_input)
-            except Exception as e:
-                print(f"⚠️ Erro ao salvar mensagem: {e}")
-        
-        # 2. Manter contexto da conversa
+        # 2. Manter contexto da conversa local
         self.conversation_context.add_user_input(user_input)
         
-        # 3. Detectar tipo de intenção
+        # 3. Preparar input enriquecido com contexto
+        enriched_input = user_input
+        if context:
+            enriched_input = f"{context}\n\n---\n\nPergunta atual: {user_input}"
+        
+        # 4. Detectar tipo de intenção
         intent_type = self._classify_intent(user_input)
         
-        # 4. Processar baseado no tipo
+        # 5. Processar baseado no tipo
         if intent_type == "query":
-            result = self.query_engine.process_via_mcp(user_input)
+            result = self.query_engine.process_via_mcp(enriched_input)
             response = self._format_query_response(result)
             
         elif intent_type == "provisioning":
             if self._has_provisioning_engines():
-                result = self._execute_provisioning_chain(user_input)
+                result = self._execute_provisioning_chain(enriched_input)
                 response = self._format_provisioning_response(result)
             else:
                 response = "🚧 Provisioning engines não disponíveis. Modo query-only ativo."
                 
         elif intent_type == "troubleshooting":
-            result = self.query_engine.process_via_mcp(user_input)
+            result = self.query_engine.process_via_mcp(enriched_input)
             response = self._format_troubleshooting_response(result)
         
         else:
             response = self._format_help_response()
         
-        # 4. Adicionar sugestões contextuais
+        # 6. Adicionar sugestões contextuais
         response += self._generate_contextual_suggestions(user_input, intent_type)
         
-        # 5. Salvar resposta no DynamoDB
-        if self.memory_manager:
+        # 7. Salvar interação completa (user + assistant) com embeddings
+        if self.context_engine:
             try:
-                self.memory_manager.save_message("assistant", response)
+                self.context_engine.save_interaction(user_input, response)
             except Exception as e:
-                print(f"⚠️ Erro ao salvar resposta: {e}")
+                print(f"⚠️ Erro ao salvar interação: {e}")
         
-        # 6. Salvar no contexto
+        # 8. Salvar no contexto local
         self.conversation_context.add_response(response)
         
         return response
