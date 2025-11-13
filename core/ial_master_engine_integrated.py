@@ -123,29 +123,64 @@ class IALMasterEngineIntegrated:
         return orchestrators
     
     async def process_user_input(self, user_input: str) -> str:
-        """Interface principal usando Bedrock + Context Engine"""
+        """Interface única: LLM com contexto decide tudo"""
         
         try:
-            # 1. Classificar intenção
-            intent = await self._classify_intent(user_input)
-            print(f"[DEBUG] Intent classificado: {intent['type']}")
+            # 1. Construir contexto
+            context = ""
+            if self.context_engine:
+                try:
+                    context = self.context_engine.build_context_for_query(user_input)
+                    if context:
+                        print(f"[DEBUG] Contexto: {len(context)} chars")
+                except Exception as e:
+                    print(f"[DEBUG] Erro contexto: {e}")
             
-            # 2. Processar baseado na intenção
-            if intent['type'] == 'conversational':
-                return await self._process_conversational_intent(user_input)
-            elif intent['type'] == 'query':
-                return await self._process_query_intent(user_input)
-            elif intent['type'] == 'provisioning':
-                return await self._process_provisioning_intent(user_input)
-            elif intent['type'] == 'troubleshooting':
-                return await self._process_troubleshooting_intent(user_input)
-            elif intent['type'] == 'cost_optimization':
-                return await self._process_cost_optimization_intent(user_input)
+            # 2. Preparar prompt com contexto
+            if context:
+                prompt = f"""Você é IAL, assistente de infraestrutura AWS com memória persistente.
+
+IMPORTANTE: As conversas abaixo são REAIS e aconteceram com este usuário. Use-as para responder.
+
+{context}
+
+---
+PERGUNTA ATUAL DO USUÁRIO: {user_input}
+
+Responda usando o histórico acima. Se o usuário perguntar sobre conversas anteriores, SEMPRE referencie o histórico mostrado."""
             else:
-                return await self._process_conversational_intent(user_input)
-                
+                prompt = user_input
+            
+            # 3. Invocar Bedrock
+            import boto3
+            import json
+            bedrock = boto3.client('bedrock-runtime')
+            
+            response = bedrock.invoke_model(
+                modelId='anthropic.claude-3-sonnet-20240229-v1:0',
+                body=json.dumps({
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 2000,
+                    "temperature": 0.7,
+                    "messages": [{"role": "user", "content": prompt}]
+                })
+            )
+            
+            result = json.loads(response['body'].read())
+            assistant_response = result['content'][0]['text']
+            
+            # 4. Salvar interação
+            if self.context_engine:
+                self.context_engine.save_interaction(
+                    user_input,
+                    assistant_response,
+                    {'model': 'claude-3-sonnet', 'usage': result.get('usage', {})}
+                )
+            
+            return assistant_response
+            
         except Exception as e:
-            return f"❌ **Erro interno:** {str(e)}\n\n💡 **Tente:** Reformular a pergunta."
+            return f"❌ Erro: {str(e)}"
     
     async def _classify_intent(self, user_input: str) -> Dict:
         """Classificar intenção do usuário"""
