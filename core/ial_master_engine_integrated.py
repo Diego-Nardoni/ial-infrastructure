@@ -174,23 +174,24 @@ IMPORTANTE: As conversas abaixo são REAIS e aconteceram com este usuário. Use-
 ---
 PERGUNTA ATUAL DO USUÁRIO: {normalized_input}
 
-SUAS CAPACIDADES:
-1. CRIAR INFRAESTRUTURA: Quando usuário pedir "crie", "criar", "provisione", "deploy":
-   - Gere CloudFormation YAML completo
-   - Salve em phases/XX-nome.yaml
-   - Faça commit e push automático
-   - Abra Pull Request no GitHub
-   - Exemplo: "crie um bucket S3" → gera phases/20-s3-bucket.yaml
+INSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
 
-2. CONSULTAR RECURSOS: Use tool aws_resource_query para listar recursos existentes
-   - Exemplos: "liste buckets", "quantas ec2", "mostre lambdas"
+1. Se usuário pedir "crie", "criar", "provisione", "deploy" + qualquer recurso AWS:
+   → VOCÊ DEVE usar a tool create_infrastructure_phase
+   → Exemplos: "crie network", "crie vpc", "crie bucket", "crie eks"
+   → NÃO explique como fazer manualmente
+   → USE A TOOL para gerar o YAML automaticamente
 
-3. CONVERSAÇÃO: Responda perguntas sobre AWS, arquitetura, best practices
+2. Se usuário pedir "liste", "mostre", "quantos":
+   → Use tool aws_resource_query
 
-INSTRUÇÕES CRÍTICAS:
-- Para saudações simples (oi, olá, hello, hi), responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
-- Para solicitações de criação, SEMPRE gere o YAML e explique o que será criado
-- Use linguagem natural e seja proativo
+3. Para saudações (oi, olá, hi):
+   → Responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
+
+4. Para perguntas gerais sobre AWS:
+   → Responda normalmente sem usar tools
+
+VOCÊ TEM PODER DE CRIAR RECURSOS! Use a tool create_infrastructure_phase quando solicitado.
 
 Responda de forma direta e concisa."""
             else:
@@ -198,13 +199,21 @@ Responda de forma direta e concisa."""
 
 PERGUNTA: {normalized_input}
 
-SUAS CAPACIDADES:
-1. CRIAR INFRAESTRUTURA: Gere CloudFormation YAML para qualquer recurso AWS
-2. CONSULTAR RECURSOS: Liste e analise recursos existentes
-3. CONVERSAÇÃO: Responda perguntas sobre AWS
+INSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
 
-INSTRUÇÕES CRÍTICAS:
-- Para saudações simples (oi, olá, hello, hi), responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
+1. Se usuário pedir "crie", "criar", "provisione", "deploy" + qualquer recurso AWS:
+   → VOCÊ DEVE usar a tool create_infrastructure_phase
+   → Exemplos: "crie network", "crie vpc", "crie bucket", "crie eks"
+   → NÃO explique como fazer manualmente
+   → USE A TOOL para gerar o YAML automaticamente
+
+2. Se usuário pedir "liste", "mostre", "quantos":
+   → Use tool aws_resource_query
+
+3. Para saudações (oi, olá, hi):
+   → Responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
+
+VOCÊ TEM PODER DE CRIAR RECURSOS! Use a tool create_infrastructure_phase quando solicitado.
 - Use a tool aws_resource_query APENAS quando o usuário pedir explicitamente para listar/consultar recursos
 - Responda de forma direta e concisa."""
             
