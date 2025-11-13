@@ -610,6 +610,12 @@ class QueryEngineIntegration:
         """Processar query de forma síncrona (wrapper)"""
         try:
             loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Já estamos em um event loop, executar em thread
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, self.process_query_async(query))
+                    return future.result()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)

@@ -187,13 +187,10 @@ class IALMasterEngineIntegrated:
             return {'type': 'conversational', 'confidence': 0.6}
     
     async def _process_conversational_intent(self, user_input: str) -> str:
-        """Processar via Bedrock Conversation Engine"""
-        
-        if not self.bedrock_engine:
-            return "❌ Bedrock Conversation Engine não disponível"
+        """Processar via Bedrock com contexto do ContextEngine"""
         
         try:
-            # Construir contexto semântico
+            # Construir contexto semântico do ContextEngine
             context = ""
             if self.context_engine:
                 try:
@@ -203,37 +200,46 @@ class IALMasterEngineIntegrated:
                 except Exception as e:
                     print(f"[DEBUG] Erro ao construir contexto: {e}")
             
-            # Enriquecer input com contexto
-            enriched_input = user_input
-            if context:
-                enriched_input = f"""Histórico de conversas anteriores:
-{context}
-
----
-Pergunta atual do usuário: {user_input}"""
-                print(f"[DEBUG] Input enriquecido: {len(enriched_input)} chars")
-            else:
-                print("[DEBUG] Nenhum contexto disponível")
+            # Preparar mensagens para Bedrock
+            messages = []
             
-            # Usar Bedrock Engine com contexto
-            result = self.bedrock_engine.process_conversation(
-                user_input=enriched_input,
-                user_id=self.user_id,
-                session_id=self.current_session_id
+            # Se tem contexto, adicionar como mensagem do sistema
+            if context:
+                messages.append({
+                    "role": "user",
+                    "content": f"Contexto das conversas anteriores:\n{context}"
+                })
+                messages.append({
+                    "role": "assistant", 
+                    "content": "Entendi o contexto. Estou pronto para responder considerando nossas conversas anteriores."
+                })
+                print(f"[DEBUG] Contexto adicionado às mensagens")
+            
+            # Adicionar pergunta atual
+            messages.append({"role": "user", "content": user_input})
+            
+            # Invocar Bedrock direto
+            import boto3
+            import json
+            bedrock = boto3.client('bedrock-runtime')
+            
+            response = bedrock.converse(
+                modelId='anthropic.claude-3-sonnet-20240229-v1:0',
+                messages=messages,
+                inferenceConfig={'maxTokens': 2000, 'temperature': 0.7}
             )
             
-            # Atualizar session ID
-            self.current_session_id = result['session_id']
+            assistant_response = response['output']['message']['content'][0]['text']
             
-            # Salvar interação no Context Engine
+            # Salvar interação no ContextEngine
             if self.context_engine:
                 self.context_engine.save_interaction(
-                    user_input,  # Salvar input original, não enriched
-                    result['response'],
-                    {'model_used': result['model_used'], 'usage': result['usage']}
+                    user_input,
+                    assistant_response,
+                    {'model_used': 'claude-3-sonnet', 'usage': response.get('usage', {})}
                 )
             
-            return result['response']
+            return assistant_response
             
         except Exception as e:
             return f"❌ Erro no Bedrock: {str(e)}"
