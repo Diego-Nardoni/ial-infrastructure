@@ -82,7 +82,12 @@ class IALCTLIntegrated:
                 'zip -q ias_validation_handler.zip ias_validation_handler.py && '
                 'zip -q cost_estimation_handler.zip cost_estimation_handler.py && '
                 'zip -q phase_builder_handler.zip phase_builder_handler.py && '
-                'zip -q git_commit_pr_handler.zip git_commit_pr_handler.py'
+                'zip -q git_commit_pr_handler.zip git_commit_pr_handler.py && '
+                'zip -q wait_pr_approval_handler.zip wait_pr_approval_handler.py && '
+                'zip -q deploy_cloudformation_handler.zip deploy_cloudformation_handler.py && '
+                'zip -q proof_of_creation_handler.zip proof_of_creation_handler.py && '
+                'zip -q post_deploy_analysis_handler.zip post_deploy_analysis_handler.py && '
+                'zip -q drift_detection_handler.zip drift_detection_handler.py'
             ], check=True)
             
             subprocess.run([
@@ -103,7 +108,19 @@ class IALCTLIntegrated:
             
             # Upload artifacts
             print("   ☁️  Uploading to S3...")
-            for handler in ['ias_validation_handler', 'cost_estimation_handler', 'phase_builder_handler', 'git_commit_pr_handler']:
+            handlers = [
+                'ias_validation_handler',
+                'cost_estimation_handler',
+                'phase_builder_handler',
+                'git_commit_pr_handler',
+                'wait_pr_approval_handler',
+                'deploy_cloudformation_handler',
+                'proof_of_creation_handler',
+                'post_deploy_analysis_handler',
+                'drift_detection_handler'
+            ]
+            
+            for handler in handlers:
                 s3.upload_file(
                     f'/home/ial/lambdas/{handler}.zip',
                     bucket_name,
