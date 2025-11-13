@@ -176,26 +176,31 @@ PERGUNTA ATUAL DO USUÁRIO: {normalized_input}
 
 INSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
 
-1. Se usuário pedir "criar fase X", "deploy fase X", "provisionar fase X":
+1. Se usuário pedir "listar fases", "quais fases", "mostrar phases":
+   → VOCÊ DEVE OBRIGATORIAMENTE usar tool discover_phases
+   → NUNCA invente ou assuma quais phases existem
+   → SEMPRE consulte via tool
+
+2. Se usuário pedir "criar fase X", "deploy fase X", "provisionar fase X":
    → PRIMEIRO use discover_phases para ver phases disponíveis
    → SE phase existe: use trigger_phase_deployment
    → SE phase NÃO existe: explique que precisa criar via NL completo
    → Exemplo: "criar fase network" → trigger deployment da phase existente
 
-2. Se usuário pedir criação de NOVOS recursos via NL detalhado:
+3. Se usuário pedir criação de NOVOS recursos via NL detalhado:
    → Exemplo: "quero ECS privado com Redis e DNS público"
    → Gere CloudFormation YAML profissional diretamente
    → Salve em phases/XX-nome.yaml
    → Faça git commit/push
    → Abra PR via GitOps
 
-3. Se usuário pedir "liste", "mostre", "quantos":
+4. Se usuário pedir "liste", "mostre", "quantos" recursos AWS:
    → Use tool aws_resource_query
 
-4. Para saudações (oi, olá, hi):
+5. Para saudações (oi, olá, hi):
    → Responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
 
-GITHUB É A ÚNICA FONTE DA VERDADE - descoberta dinâmica, não hardcoded!
+REGRA DE OURO: NUNCA invente informações sobre phases. SEMPRE use discover_phases!
 
 Responda de forma direta e concisa."""
             else:
@@ -205,19 +210,19 @@ PERGUNTA: {normalized_input}
 
 INSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
 
-1. Se usuário pedir "crie", "criar", "provisione", "deploy" + qualquer recurso AWS:
-   → VOCÊ DEVE usar a tool create_infrastructure_phase
-   → Exemplos: "crie network", "crie vpc", "crie bucket", "crie eks"
-   → NÃO explique como fazer manualmente
-   → USE A TOOL para gerar o YAML automaticamente
+1. Se usuário pedir "listar fases", "quais fases", "mostrar phases":
+   → VOCÊ DEVE OBRIGATORIAMENTE usar tool discover_phases
+   → NUNCA invente ou assuma quais phases existem
+   → SEMPRE consulte via tool
 
-2. Se usuário pedir "liste", "mostre", "quantos":
+2. Se usuário pedir "criar fase X", "deploy fase X":
+   → PRIMEIRO use discover_phases
+   → Depois use trigger_phase_deployment
+
+3. Para listar recursos AWS:
    → Use tool aws_resource_query
 
-3. Para saudações (oi, olá, hi):
-   → Responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
-
-VOCÊ TEM PODER DE CRIAR RECURSOS! Use a tool create_infrastructure_phase quando solicitado.
+REGRA DE OURO: NUNCA invente informações sobre phases. SEMPRE use discover_phases!
 - Use a tool aws_resource_query APENAS quando o usuário pedir explicitamente para listar/consultar recursos
 - Responda de forma direta e concisa."""
             
