@@ -1,0 +1,123 @@
+# IAL MCP Mesh - Configuração Completa
+# Baseado em awslabs/mcp repository
+
+core_mcps:
+  always_active:
+    # Infrastructure as Code
+    - name: cfn-mcp-server
+      description: "CloudFormation - IaC principal do IAL"
+      command: python3
+      args: ["-m", "awslabs.cfn_mcp_server.server"]
+      priority: critical
+      
+    # FinOps & Cost Management
+    - name: cost-explorer-mcp-server
+      description: "Custos históricos e análise"
+      command: python3
+      args: ["-m", "awslabs.cost_explorer_mcp_server.server"]
+      priority: high
+      
+    - name: aws-pricing-mcp-server
+      description: "Estimativas de custo futuro (Pre-YAML Guardrails)"
+      command: python3
+      args: ["-m", "awslabs.aws_pricing_mcp_server.server"]
+      priority: high
+      
+    - name: billing-cost-management-mcp-server
+      description: "Budgets, alertas e billing"
+      command: python3
+      args: ["-m", "awslabs.billing_cost_management_mcp_server.server"]
+      priority: medium
+      
+    # Security & Compliance
+    - name: iam-mcp-server
+      description: "Políticas IAM e permissões"
+      command: python3
+      args: ["-m", "awslabs.iam_mcp_server.server"]
+      priority: critical
+      
+    - name: well-architected-security-mcp-server
+      description: "Security Pillar checks (IAS Sandbox)"
+      command: python3
+      args: ["-m", "awslabs.well_architected_security_mcp_server.server"]
+      priority: high
+      
+    # Observability & Audit
+    - name: cloudwatch-mcp-server
+      description: "Logs, métricas e alarmes"
+      command: python3
+      args: ["-m", "awslabs.cloudwatch_mcp_server.server"]
+      priority: high
+      
+    - name: cloudtrail-mcp-server
+      description: "Auditoria e Proof-of-Creation"
+      command: python3
+      args: ["-m", "awslabs.cloudtrail_mcp_server.server"]
+      priority: high
+      
+    # Knowledge & Documentation
+    - name: aws-documentation-mcp-server
+      description: "RAG oficial AWS docs"
+      command: python3
+      args: ["-m", "awslabs.aws_documentation_mcp_server.server"]
+      priority: medium
+
+domain_mcps:
+  lazy_load:
+    # Compute
+    compute:
+      - name: ecs-mcp-server
+        description: "Amazon ECS containers"
+        command: python3
+        args: ["-m", "awslabs.ecs_mcp_server.server"]
+        keywords: [ecs, container, fargate, task]
+        
+      - name: eks-mcp-server
+        description: "Amazon EKS Kubernetes"
+        command: python3
+        args: ["-m", "awslabs.eks_mcp_server.server"]
+        keywords: [eks, kubernetes, k8s, cluster]
+        
+      - name: lambda-tool-mcp-server
+        description: "AWS Lambda serverless"
+        command: python3
+        args: ["-m", "awslabs.lambda_tool_mcp_server.server"]
+        keywords: [lambda, serverless, function]
+    
+    # Data & Storage
+    data:
+      - name: dynamodb-mcp-server
+        description: "DynamoDB NoSQL"
+        command: python3
+        args: ["-m", "awslabs.dynamodb_mcp_server.server"]
+        keywords: [dynamodb, nosql, table]
+        
+      - name: s3-tables-mcp-server
+        description: "S3 object storage"
+        command: python3
+        args: ["-m", "awslabs.s3_tables_mcp_server.server"]
+        keywords: [s3, bucket, storage, object]
+        
+      - name: elasticache-mcp-server
+        description: "ElastiCache Redis/Memcached"
+        command: python3
+        args: ["-m", "awslabs.elasticache_mcp_server.server"]
+        keywords: [elasticache, redis, memcached, cache]
+    
+    # DevOps & Support
+    devops:
+      - name: cdk-mcp-server
+        description: "AWS CDK (alternativa IaC)"
+        command: python3
+        args: ["-m", "awslabs.cdk_mcp_server.server"]
+        keywords: [cdk, typescript, python]
+        
+      - name: aws-support-mcp-server
+        description: "AWS Support e Trusted Advisor"
+        command: python3
+        args: ["-m", "awslabs.aws_support_mcp_server.server"]
+        keywords: [support, trusted, advisor, recommendation]
+
+env:
+  AWS_REGION: us-east-1
+  PYTHONPATH: /home/ial/mcp-servers
