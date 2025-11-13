@@ -165,7 +165,7 @@ class IALMasterEngineIntegrated:
             
             # 2. Preparar prompt
             if context:
-                prompt = f"""Você é IAL, assistente de infraestrutura AWS com memória persistente.
+                prompt = f"""Você é IAL, assistente de infraestrutura AWS com memória persistente e capacidade de criar recursos via GitOps.
 
 IMPORTANTE: As conversas abaixo são REAIS e aconteceram com este usuário. Use-as para responder.
 
@@ -174,17 +174,34 @@ IMPORTANTE: As conversas abaixo são REAIS e aconteceram com este usuário. Use-
 ---
 PERGUNTA ATUAL DO USUÁRIO: {normalized_input}
 
+SUAS CAPACIDADES:
+1. CRIAR INFRAESTRUTURA: Quando usuário pedir "crie", "criar", "provisione", "deploy":
+   - Gere CloudFormation YAML completo
+   - Salve em phases/XX-nome.yaml
+   - Faça commit e push automático
+   - Abra Pull Request no GitHub
+   - Exemplo: "crie um bucket S3" → gera phases/20-s3-bucket.yaml
+
+2. CONSULTAR RECURSOS: Use tool aws_resource_query para listar recursos existentes
+   - Exemplos: "liste buckets", "quantas ec2", "mostre lambdas"
+
+3. CONVERSAÇÃO: Responda perguntas sobre AWS, arquitetura, best practices
+
 INSTRUÇÕES CRÍTICAS:
 - Para saudações simples (oi, olá, hello, hi), responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
-- Use a tool aws_resource_query APENAS quando o usuário pedir explicitamente para listar/consultar recursos
-- Exemplos que PRECISAM de tool: "liste buckets", "quantas ec2", "mostre lambdas"
-- Exemplos que NÃO precisam de tool: "oi", "olá", "obrigado", "tudo bem"
+- Para solicitações de criação, SEMPRE gere o YAML e explique o que será criado
+- Use linguagem natural e seja proativo
 
 Responda de forma direta e concisa."""
             else:
-                prompt = f"""Você é IAL, assistente de infraestrutura AWS.
+                prompt = f"""Você é IAL, assistente de infraestrutura AWS com capacidade de criar recursos via GitOps.
 
 PERGUNTA: {normalized_input}
+
+SUAS CAPACIDADES:
+1. CRIAR INFRAESTRUTURA: Gere CloudFormation YAML para qualquer recurso AWS
+2. CONSULTAR RECURSOS: Liste e analise recursos existentes
+3. CONVERSAÇÃO: Responda perguntas sobre AWS
 
 INSTRUÇÕES CRÍTICAS:
 - Para saudações simples (oi, olá, hello, hi), responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
@@ -249,6 +266,31 @@ INSTRUÇÕES CRÍTICAS:
                 },
                 "required": ["period"]
             }
+        }, {
+            "name": "create_infrastructure_phase",
+            "description": "Cria uma phase YAML para provisionar infraestrutura AWS via GitOps. Use quando usuário pedir 'crie', 'criar', 'provisione', 'deploy'.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "phase_number": {
+                        "type": "integer",
+                        "description": "Número da phase (ex: 20 para network, 30 para compute)"
+                    },
+                    "resource_type": {
+                        "type": "string",
+                        "description": "Tipo do recurso: VPC, S3, EKS, RDS, Lambda, EC2, ECS"
+                    },
+                    "resource_name": {
+                        "type": "string",
+                        "description": "Nome do recurso (ex: ial-production-vpc)"
+                    },
+                    "properties": {
+                        "type": "object",
+                        "description": "Propriedades específicas do recurso (CIDR, tamanho, etc)"
+                    }
+                },
+                "required": ["phase_number", "resource_type", "resource_name"]
+            }
         }]
         
         # Primeira chamada
@@ -283,6 +325,13 @@ INSTRUÇÕES CRÍTICAS:
                     mcp_result = await self._execute_cost_query(
                         tool_input.get('period', 'current_month')
                     )
+                elif tool_name == 'create_infrastructure_phase':
+                    mcp_result = await self._execute_phase_creation(
+                        tool_input.get('phase_number'),
+                        tool_input.get('resource_type'),
+                        tool_input.get('resource_name'),
+                        tool_input.get('properties', {})
+                    )
                 else:
                     mcp_result = {'error': f'Tool {tool_name} não suportada'}
                 
@@ -310,6 +359,32 @@ INSTRUÇÕES CRÍTICAS:
         
         # Resposta direta
         return next((c['text'] for c in result['content'] if c.get('type') == 'text'), "")
+    
+    async def _execute_phase_creation(self, phase_number: int, resource_type: str, resource_name: str, properties: dict) -> dict:
+        """Cria phase YAML para infraestrutura"""
+        from core.phase_creator_tool import create_infrastructure_phase
+        
+        try:
+            result = create_infrastructure_phase(
+                phase_number=phase_number,
+                resource_type=resource_type,
+                resource_name=resource_name,
+                properties=properties
+            )
+            return {
+                "status": "success",
+                "message": f"Phase {result['filename']} criada com sucesso!",
+                "filepath": result['filepath'],
+                "next_steps": [
+                    "1. Revise o YAML gerado",
+                    "2. Faça commit: git add phases/ && git commit -m 'Add network phase'",
+                    "3. Push: git push origin main",
+                    "4. GitHub Actions criará Pull Request automaticamente",
+                    "5. Aprove o PR para provisionar na AWS"
+                ]
+            }
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
     
     async def _execute_cost_query(self, period: str) -> dict:
         """Executar query de custos via AWS Cost Explorer CLI"""
