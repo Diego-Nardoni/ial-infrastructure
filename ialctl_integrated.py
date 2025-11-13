@@ -150,6 +150,14 @@ class IALCTLIntegrated:
         if 'total_messages' in memory_stats:
             print(f"💾 **Memória:** {memory_stats['total_messages']} mensagens, {memory_stats['sessions']} sessões")
             
+            # Explicação da memória persistente
+            print(f"\n🧠 **Memória Inteligente:**")
+            print(f"   Eu lembro de TODAS as nossas conversas anteriores!")
+            print(f"   • Bedrock Titan gera embeddings semânticos das mensagens")
+            print(f"   • DynamoDB armazena todo o histórico de forma persistente")
+            print(f"   • Busca vetorial encontra contexto relevante automaticamente")
+            print(f"   Pode continuar de onde paramos ou retomar qualquer assunto! 💬")
+            
             # NOVO: Resumo da última conversa
             if memory_stats['total_messages'] > 0 and self.master_engine.context_engine:
                 try:
