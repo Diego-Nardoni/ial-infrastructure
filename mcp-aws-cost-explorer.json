@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "aws-cost-explorer": {
+      "command": "python3",
+      "args": [
+        "-m",
+        "awslabs.cost_explorer_mcp_server.server"
+      ],
+      "env": {
+        "AWS_REGION": "us-east-1"
+      }
+    }
+  }
+}

@@ -193,7 +193,7 @@ INSTRUÇÕES CRÍTICAS:
         
         bedrock = boto3.client('bedrock-runtime')
         
-        # Definir tool genérica AWS
+        # Definir tools AWS
         tools = [{
             "name": "aws_resource_query",
             "description": "Consulta recursos AWS de qualquer serviço (S3, EC2, Lambda, KMS, RDS, DynamoDB, etc)",
@@ -210,6 +210,19 @@ INSTRUÇÕES CRÍTICAS:
                     }
                 },
                 "required": ["service", "query"]
+            }
+        }, {
+            "name": "aws_cost_query",
+            "description": "Consulta custos AWS via Cost Explorer. Use para obter custos mensais por serviço.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "period": {
+                        "type": "string",
+                        "description": "Período: 'last_month' ou 'current_month'"
+                    }
+                },
+                "required": ["period"]
             }
         }]
         
@@ -232,13 +245,21 @@ INSTRUÇÕES CRÍTICAS:
             tool_use = next((c for c in result['content'] if c.get('type') == 'tool_use'), None)
             
             if tool_use:
+                tool_name = tool_use['name']
                 tool_input = tool_use['input']
                 
-                # Executar via MCP
-                mcp_result = await self._execute_mcp_query(
-                    tool_input.get('service'),
-                    tool_input.get('query')
-                )
+                # Executar tool apropriada
+                if tool_name == 'aws_resource_query':
+                    mcp_result = await self._execute_mcp_query(
+                        tool_input.get('service'),
+                        tool_input.get('query')
+                    )
+                elif tool_name == 'aws_cost_query':
+                    mcp_result = await self._execute_cost_query(
+                        tool_input.get('period', 'current_month')
+                    )
+                else:
+                    mcp_result = {'error': f'Tool {tool_name} não suportada'}
                 
                 # Segunda chamada com resultado
                 response2 = bedrock.invoke_model(
@@ -264,6 +285,51 @@ INSTRUÇÕES CRÍTICAS:
         
         # Resposta direta
         return next((c['text'] for c in result['content'] if c.get('type') == 'text'), "")
+    
+    async def _execute_cost_query(self, period: str) -> dict:
+        """Executar query de custos via AWS Cost Explorer CLI"""
+        from datetime import datetime, timedelta
+        import subprocess
+        import json
+        
+        # Calcular datas
+        today = datetime.now()
+        if period == 'last_month':
+            end = today.replace(day=1)
+            start = (end - timedelta(days=1)).replace(day=1)
+        else:  # current_month
+            start = today.replace(day=1)
+            end = today
+        
+        start_str = start.strftime('%Y-%m-%d')
+        end_str = end.strftime('%Y-%m-%d')
+        
+        # Comando Cost Explorer
+        command = [
+            'aws', 'ce', 'get-cost-and-usage',
+            '--time-period', f'Start={start_str},End={end_str}',
+            '--granularity', 'MONTHLY',
+            '--metrics', 'BlendedCost',
+            '--group-by', 'Type=DIMENSION,Key=SERVICE',
+            '--output', 'json'
+        ]
+        
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=15
+            )
+            
+            if result.returncode == 0:
+                data = json.loads(result.stdout)
+                return {'success': True, 'data': data}
+            else:
+                return {'error': result.stderr}
+                
+        except Exception as e:
+            return {'error': str(e)}
     
     async def _execute_mcp_query(self, service: str, query: str) -> dict:
         """Executar query via AWS CLI"""
