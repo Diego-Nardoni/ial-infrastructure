@@ -110,6 +110,14 @@ class FoundationDeployer:
             '41-rag-storage.yaml'             # Bucket já existe em 08-rag-storage
         ]
         
+        # Templates prioritários (devem ser deployados primeiro)
+        priority_templates = [
+            '01-dynamodb-state.yaml',
+            '02-kms-keys.yaml',
+            '04-iam-roles.yaml',
+            '16-gitops-pipeline.yaml'  # GitOps Step Functions Pipeline
+        ]
+        
         # Listar TODOS os arquivos YAML (exceto domain-metadata e duplicados)
         all_files = sorted([
             f for f in os.listdir(phase_path) 

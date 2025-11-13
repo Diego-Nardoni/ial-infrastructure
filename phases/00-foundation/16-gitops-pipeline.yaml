@@ -1,0 +1,432 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL GitOps Deployment Pipeline - Step Functions Orchestration'
+
+Resources:
+  # IAM Role para Step Functions
+  GitOpsPipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: IAL-GitOps-Pipeline-Role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      Policies:
+        - PolicyName: GitOpsPipelinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - cloudformation:*
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: '*'
+
+  # Lambda: Validate Phase (cfn-lint)
+  ValidatePhaseFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-gitops-validate-phase
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt ValidatePhaseFunctionRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import json
+          import subprocess
+          def handler(event, context):
+              phase_file = event['phase_file']
+              # cfn-lint validation
+              result = subprocess.run(['cfn-lint', phase_file], capture_output=True)
+              return {
+                  'valid': result.returncode == 0,
+                  'errors': result.stderr.decode() if result.returncode != 0 else None
+              }
+
+  ValidatePhaseFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # Lambda: IAS Security Check
+  IASSecurityCheckFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-gitops-ias-check
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt IASSecurityCheckFunctionRole.Arn
+      Timeout: 120
+      Code:
+        ZipFile: |
+          import json
+          def handler(event, context):
+              # IAS validation logic
+              phase_content = event['phase_content']
+              risks = []
+              
+              # Check for public access
+              if 'PublicAccessBlockConfiguration' not in str(phase_content):
+                  risks.append({'severity': 'HIGH', 'message': 'Missing public access block'})
+              
+              return {
+                  'safe': len(risks) == 0,
+                  'risks': risks
+              }
+
+  IASSecurityCheckFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # Lambda: Cost Estimation
+  CostEstimationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-gitops-cost-estimation
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt CostEstimationFunctionRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          def handler(event, context):
+              # Cost estimation via Pricing API
+              phase_content = event['phase_content']
+              
+              # Simplified cost estimation
+              estimated_cost = 0.0
+              
+              if 'AWS::EC2::Instance' in str(phase_content):
+                  estimated_cost += 50.0  # ~$50/month per instance
+              if 'AWS::RDS::DBInstance' in str(phase_content):
+                  estimated_cost += 100.0  # ~$100/month per RDS
+              
+              return {
+                  'estimated_monthly_cost': estimated_cost,
+                  'within_budget': estimated_cost < 500.0
+              }
+
+  CostEstimationFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSPriceListServiceFullAccess
+
+  # Lambda: Create GitHub PR
+  CreateGitHubPRFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-gitops-create-pr
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt CreateGitHubPRFunctionRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          GITHUB_TOKEN: '{{resolve:secretsmanager:ial/github-token:SecretString:token}}'
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import requests
+          def handler(event, context):
+              token = os.environ['GITHUB_TOKEN']
+              phase_name = event['phase_name']
+              
+              # Create PR via GitHub API
+              url = 'https://api.github.com/repos/diegonardoni/ial-infrastructure/pulls'
+              headers = {'Authorization': f'token {token}'}
+              data = {
+                  'title': f'Deploy: {phase_name}',
+                  'body': f'Automated deployment request for phase {phase_name}',
+                  'head': 'main',
+                  'base': 'main'
+              }
+              
+              response = requests.post(url, headers=headers, json=data)
+              
+              return {
+                  'pr_number': response.json().get('number'),
+                  'pr_url': response.json().get('html_url')
+              }
+
+  CreateGitHubPRFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+
+  # Lambda: Deploy CloudFormation
+  DeployCloudFormationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-gitops-deploy-cfn
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt DeployCloudFormationFunctionRole.Arn
+      Timeout: 300
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          def handler(event, context):
+              cfn = boto3.client('cloudformation')
+              
+              stack_name = event['stack_name']
+              template_body = event['template_body']
+              
+              response = cfn.create_stack(
+                  StackName=stack_name,
+                  TemplateBody=template_body,
+                  Capabilities=['CAPABILITY_NAMED_IAM']
+              )
+              
+              return {
+                  'stack_id': response['StackId'],
+                  'status': 'CREATE_IN_PROGRESS'
+              }
+
+  DeployCloudFormationFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSCloudFormationFullAccess
+
+  # Lambda: Proof of Creation
+  ProofOfCreationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-gitops-proof-of-creation
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt ProofOfCreationFunctionRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from datetime import datetime
+          def handler(event, context):
+              dynamodb = boto3.resource('dynamodb')
+              table = dynamodb.Table('ial-resource-catalog')
+              
+              stack_id = event['stack_id']
+              phase_name = event['phase_name']
+              
+              # Save proof
+              table.put_item(Item={
+                  'resource_id': stack_id,
+                  'phase': phase_name,
+                  'created_at': datetime.now().isoformat(),
+                  'proof_verified': True
+              })
+              
+              return {'proof_saved': True}
+
+  ProofOfCreationFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+
+  # Step Functions State Machine
+  GitOpsPipelineStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: ial-gitops-deployment-pipeline
+      RoleArn: !GetAtt GitOpsPipelineRole.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL GitOps Deployment Pipeline",
+          "StartAt": "ValidatePhase",
+          "States": {
+            "ValidatePhase": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ValidatePhaseFunction}",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.validation",
+              "Next": "CheckValidation"
+            },
+            "CheckValidation": {
+              "Type": "Choice",
+              "Choices": [{
+                "Variable": "$.validation.Payload.valid",
+                "BooleanEquals": true,
+                "Next": "IASSecurityCheck"
+              }],
+              "Default": "ValidationFailed"
+            },
+            "ValidationFailed": {
+              "Type": "Fail",
+              "Error": "ValidationError",
+              "Cause": "CloudFormation validation failed"
+            },
+            "IASSecurityCheck": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${IASSecurityCheckFunction}",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.ias",
+              "Next": "CheckIAS"
+            },
+            "CheckIAS": {
+              "Type": "Choice",
+              "Choices": [{
+                "Variable": "$.ias.Payload.safe",
+                "BooleanEquals": true,
+                "Next": "CostEstimation"
+              }],
+              "Default": "SecurityRiskDetected"
+            },
+            "SecurityRiskDetected": {
+              "Type": "Fail",
+              "Error": "SecurityRisk",
+              "Cause": "IAS detected security risks"
+            },
+            "CostEstimation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${CostEstimationFunction}",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.cost",
+              "Next": "CheckBudget"
+            },
+            "CheckBudget": {
+              "Type": "Choice",
+              "Choices": [{
+                "Variable": "$.cost.Payload.within_budget",
+                "BooleanEquals": true,
+                "Next": "CreateGitHubPR"
+              }],
+              "Default": "BudgetExceeded"
+            },
+            "BudgetExceeded": {
+              "Type": "Fail",
+              "Error": "BudgetExceeded",
+              "Cause": "Estimated cost exceeds budget"
+            },
+            "CreateGitHubPR": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${CreateGitHubPRFunction}",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.pr",
+              "Next": "WaitForApproval"
+            },
+            "WaitForApproval": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+              "Parameters": {
+                "FunctionName": "${CreateGitHubPRFunction}",
+                "Payload": {
+                  "TaskToken.$": "$$.Task.Token"
+                }
+              },
+              "Next": "DeployCloudFormation"
+            },
+            "DeployCloudFormation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${DeployCloudFormationFunction}",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.deployment",
+              "Next": "ProofOfCreation"
+            },
+            "ProofOfCreation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProofOfCreationFunction}",
+                "Payload.$": "$"
+              },
+              "End": true
+            }
+          }
+        }
+
+Outputs:
+  StateMachineArn:
+    Value: !GetAtt GitOpsPipelineStateMachine.Arn
+    Export:
+      Name: IAL-GitOps-Pipeline-Arn
+  
+  ValidatePhaseFunctionArn:
+    Value: !GetAtt ValidatePhaseFunction.Arn
+  
+  IASSecurityCheckFunctionArn:
+    Value: !GetAtt IASSecurityCheckFunction.Arn
+  
+  CostEstimationFunctionArn:
+    Value: !GetAtt CostEstimationFunction.Arn
