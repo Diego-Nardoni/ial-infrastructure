@@ -611,6 +611,77 @@ python3 -m PyInstaller --onefile --name ialctl --clean ialctl
 
 ---
 
+## ⚠️ CRÍTICO: Dependências do `ialctl start`
+
+### Componentes OBRIGATÓRIOS para IAL funcionar:
+
+**`ialctl start` DEVE deployar TUDO automaticamente:**
+
+1. ✅ **Foundation** (DynamoDB, S3, IAM, KMS)
+   - Sem isso: IAL não inicia
+
+2. ✅ **MCP Servers** (17 servers)
+   - Sem isso: Nenhum tool funciona
+
+3. ✅ **System Health** (6 validações)
+   - Sem isso: Sistema não valida estado
+
+4. ✅ **NL Intent Pipeline** (9 Lambdas + Step Functions)
+   - Sem isso: Criação via NL não funciona
+
+5. ❌ **RAG Index** - **FALTA ADICIONAR!**
+   - Sem isso: LLM inventa respostas (não usa docs)
+
+6. ❌ **Drift Detection** - **FALTA ADICIONAR!**
+   - Sem isso: Não detecta mudanças console
+
+### 🔴 AÇÃO NECESSÁRIA:
+
+**Adicionar ao `ialctl start` (Step 5 e 6):**
+
+```python
+# Step 5: Build RAG Index
+print("\n📚 Step 5/6: Building RAG Index...")
+try:
+    from services.rag.index_builder import build_index
+    
+    if not os.path.exists('.rag/index.faiss'):
+        print("   📦 Building FAISS index...")
+        build_index({
+            'local_path': '.rag/index.faiss',
+            'local_meta': '.rag/index.json'
+        })
+        print("   ✅ RAG index built")
+    else:
+        print("   ℹ️  RAG index already exists")
+except Exception as e:
+    print(f"   ⚠️  Warning: RAG index build failed: {e}")
+
+# Step 6: Deploy Drift Detection
+print("\n🔍 Step 6/6: Deploying Drift Detection...")
+try:
+    # Deploy drift detection CloudFormation
+    cfn.create_stack(
+        StackName='ial-drift-detection',
+        TemplateBody=open('phases/00-foundation/13-ial-drift-detection.yaml').read(),
+        Capabilities=['CAPABILITY_NAMED_IAM']
+    )
+    print("   ✅ Drift detection deployed")
+except cfn.exceptions.AlreadyExistsException:
+    print("   ℹ️  Drift detection already exists")
+```
+
+### 🎯 Regra de Ouro:
+
+**SE QUEBRAR QUALQUER COMPONENTE → IAL NÃO FUNCIONA**
+
+Portanto:
+- ✅ TUDO deve estar no `ialctl start`
+- ✅ TUDO deve ser idempotente (não quebra se já existe)
+- ✅ TUDO deve ter fallback gracioso (warning, não erro fatal)
+
+---
+
 ## 📝 Notas Importantes
 
 1. **Idempotência:** Foundation deployer tem bug de duplicação de stacks (conhecido, não crítico)
