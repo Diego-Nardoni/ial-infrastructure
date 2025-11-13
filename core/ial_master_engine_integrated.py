@@ -126,15 +126,40 @@ class IALMasterEngineIntegrated:
         
         return orchestrators
     
+    def _normalize_service_name(self, user_input: str) -> str:
+        """Normaliza nomes de serviços com fuzzy matching para typos comuns"""
+        # Mapa de typos comuns → serviço correto
+        typo_map = {
+            'dynamon': 'dynamodb',
+            'dinamodb': 'dynamodb',
+            'dynanodb': 'dynamodb',
+            'lambada': 'lambda',
+            'labda': 'lambda',
+            'lamda': 'lambda',
+            's33': 's3',
+            'ec22': 'ec2',
+        }
+        
+        # Substituir typos conhecidos (case insensitive)
+        normalized = user_input
+        for typo, correct in typo_map.items():
+            import re
+            normalized = re.sub(rf'\b{typo}\b', correct, normalized, flags=re.IGNORECASE)
+        
+        return normalized
+    
     async def process_user_input(self, user_input: str) -> str:
         """Interface única: LLM com MCP nativo"""
+        
+        # Normalizar typos comuns
+        normalized_input = self._normalize_service_name(user_input)
         
         try:
             # 1. Construir contexto
             context = ""
             if self.context_engine:
                 try:
-                    context = self.context_engine.build_context_for_query(user_input)
+                    context = self.context_engine.build_context_for_query(normalized_input)
                 except Exception as e:
                     pass
             
@@ -147,7 +172,7 @@ IMPORTANTE: As conversas abaixo são REAIS e aconteceram com este usuário. Use-
 {context}
 
 ---
-PERGUNTA ATUAL DO USUÁRIO: {user_input}
+PERGUNTA ATUAL DO USUÁRIO: {normalized_input}
 
 INSTRUÇÕES CRÍTICAS:
 - Para saudações simples (oi, olá, hello, hi), responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
@@ -159,7 +184,7 @@ Responda de forma direta e concisa."""
             else:
                 prompt = f"""Você é IAL, assistente de infraestrutura AWS.
 
-PERGUNTA: {user_input}
+PERGUNTA: {normalized_input}
 
 INSTRUÇÕES CRÍTICAS:
 - Para saudações simples (oi, olá, hello, hi), responda apenas "Olá! Como posso ajudar com sua infraestrutura AWS hoje?"
@@ -168,12 +193,12 @@ INSTRUÇÕES CRÍTICAS:
             
             # 3. PRIMÁRIO: Bedrock Converse com MCP nativo
             try:
-                assistant_response = await self._invoke_bedrock_converse_mcp(prompt, user_input)
+                assistant_response = await self._invoke_bedrock_converse_mcp(prompt, normalized_input)
             except Exception as e:
                 # FALLBACK: Tools hard-coded com CLI
-                assistant_response = await self._invoke_with_cli_fallback(prompt, user_input)
+                assistant_response = await self._invoke_with_cli_fallback(prompt, normalized_input)
             
-            # 4. Salvar interação
+            # 4. Salvar interação (usar input original para histórico)
             if self.context_engine:
                 self.context_engine.save_interaction(
                     user_input,
