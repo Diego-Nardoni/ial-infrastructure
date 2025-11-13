@@ -383,10 +383,20 @@ VOCÊ TEM PODER DE CRIAR RECURSOS! Use a tool create_infrastructure_phase quando
             manager = GitOpsPhaseManager()
             phases = manager.discover_phases()
             
+            # Agrupar por domínio para resposta mais concisa
+            by_domain = {}
+            for p in phases:
+                domain = p['domain']
+                if domain not in by_domain:
+                    by_domain[domain] = []
+                by_domain[domain].append(p['name'])
+            
             return {
                 "status": "success",
-                "phases": phases,
-                "total": len(phases)
+                "total_phases": len(phases),
+                "domains": len(by_domain),
+                "phases_by_domain": by_domain,
+                "summary": f"{len(phases)} phases em {len(by_domain)} domínios"
             }
         except Exception as e:
             return {"status": "error", "message": str(e)}
