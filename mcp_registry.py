@@ -1,4 +1,5 @@
 import json
+import yaml
 import os
 import sys
 import time
@@ -13,7 +14,7 @@ class MCPStatus(Enum):
     INACTIVE = "inactive"
 
 class MCPRegistry:
-    def __init__(self, config_path="mcp-server-config.json"):
+    def __init__(self, config_path="config/mcp-mesh-complete.yaml"):
         # Detectar se está executando como binário PyInstaller
         if hasattr(sys, '_MEIPASS'):
             # Executando como binário - usar recursos empacotados
@@ -36,18 +37,37 @@ class MCPRegistry:
         
         try:
             with open(self.config_path) as f:
-                cfg = json.load(f)
+                cfg = yaml.safe_load(f)
             
-            # Carregar servidores configurados
-            for s in cfg.get("servers", []):
+            # Carregar core MCPs
+            for s in cfg.get("core_mcps", {}).get("always_active", []):
                 self.servers[s["name"]] = {
                     **s,
                     'status': MCPStatus.CONFIGURED,
-                    'configured_at': time.time()
+                    'configured_at': time.time(),
+                    'type': 'core'
                 }
+            
+            # Carregar domain MCPs
+            for domain, mcps_list in cfg.get("domain_mcps", {}).get("lazy_load", {}).items():
+                for s in mcps_list:
+                    self.servers[s["name"]] = {
+                        **s,
+                        'status': MCPStatus.CONFIGURED,
+                        'configured_at': time.time(),
+                        'type': 'domain',
+                        'domain': domain
+                    }
+                    
         except Exception as e:
             print(f"⚠️ Erro carregando MCP config: {e}")
             self._load_default_config()
+            return
+        
+        # Print contagem
+        core_count = sum(1 for s in self.servers.values() if s.get('type') == 'core')
+        domain_count = sum(1 for s in self.servers.values() if s.get('type') == 'domain')
+        print(f"📋 {len(self.servers)} MCPs configurados ({core_count} core + {domain_count} domain)")
     
     def _load_default_config(self):
         """Carrega configuração padrão quando arquivo não existe"""

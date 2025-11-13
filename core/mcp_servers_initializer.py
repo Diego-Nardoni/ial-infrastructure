@@ -22,7 +22,7 @@ class MCPServersInitializer:
                 base_path = sys._MEIPASS
             else:
                 base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            config_path = os.path.join(base_path, "config", "mcp-mesh.yaml")
+            config_path = os.path.join(base_path, "config", "mcp-mesh-complete.yaml")
         
         self.config_path = Path(config_path)
         self.config = self._load_config()
@@ -61,12 +61,12 @@ class MCPServersInitializer:
                 results["total_failed"] += 1
         
         # 2. Registrar domain MCPs (lazy loading)
-        domain_mcps = self.config.get('domain_mcps', {})
+        domain_mcps = self.config.get('domain_mcps', {}).get('lazy_load', {})
         
-        for domain, domain_config in domain_mcps.items():
+        for domain, mcps_list in domain_mcps.items():
             results["domain_mcps"][domain] = {
-                "description": domain_config.get('description', ''),
-                "mcps": [mcp['name'] for mcp in domain_config.get('mcps', [])],
+                "description": f"{domain.title()} domain MCPs",
+                "mcps": [mcp['name'] for mcp in mcps_list],
                 "status": "registered"
             }
         
