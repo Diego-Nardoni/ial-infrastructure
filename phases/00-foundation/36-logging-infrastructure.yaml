@@ -55,10 +55,10 @@ Outputs:
     Description: Name of the IAL log group
     Value: !Ref IALLogGroup
     Export:
-      Name: !Sub '${ProjectName}-IALLogGroupName'
+      Name: !Sub '${ProjectName}-36-IALLogGroupName'
   
   IALLogGroupArn:
     Description: ARN of the IAL log group
     Value: !GetAtt IALLogGroup.Arn
     Export:
-      Name: !Sub '${ProjectName}-IALLogGroupArn'
+      Name: !Sub '${ProjectName}-36-IALLogGroupArn'

@@ -59,10 +59,10 @@ Outputs:
     Description: Name of the RAG storage bucket
     Value: !Ref RAGStorageBucket
     Export:
-      Name: !Sub '${ProjectName}-RAGStorageBucketName'
+      Name: !Sub '${ProjectName}-41-RAGStorageBucketName'
   
   VectorIndicesBucketName:
     Description: Name of the vector indices bucket
     Value: !Ref VectorIndicesBucket
     Export:
-      Name: !Sub '${ProjectName}-VectorIndicesBucketName'
+      Name: !Sub '${ProjectName}-41-VectorIndicesBucketName'

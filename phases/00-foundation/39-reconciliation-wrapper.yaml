@@ -39,4 +39,4 @@ Outputs:
     Description: ARN of the reconciliation topic
     Value: !Ref ReconciliationTopic
     Export:
-      Name: !Sub '${ProjectName}-ReconciliationTopicArn'
+      Name: !Sub '${ProjectName}-39-ReconciliationTopicArn'

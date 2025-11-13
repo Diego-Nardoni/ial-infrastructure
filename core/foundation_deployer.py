@@ -100,13 +100,26 @@ class FoundationDeployer:
         
         phase_path = os.path.join(self.phases_dir, '00-foundation')
         
-        # Listar TODOS os arquivos YAML (exceto domain-metadata)
+        # Templates duplicados que devem ser pulados (recursos já existem em outros stacks)
+        skip_templates = [
+            '08-rag-vector-store.yaml',      # Duplica 08-rag-storage
+            '20-ial-github-oidc-provider.yaml',  # OIDC provider já existe
+            '27-ial-token-usage-table.yaml',  # Tabela já existe em 07-conversation-memory
+            '36-logging-infrastructure.yaml', # Log groups já existem em 02-logging-infrastructure
+            '39-reconciliation-wrapper.yaml', # Topic já existe em 06-reconciliation-wrapper
+            '41-rag-storage.yaml'             # Bucket já existe em 08-rag-storage
+        ]
+        
+        # Listar TODOS os arquivos YAML (exceto domain-metadata e duplicados)
         all_files = sorted([
             f for f in os.listdir(phase_path) 
-            if f.endswith('.yaml') and not f.startswith('domain-metadata')
+            if f.endswith('.yaml') 
+            and not f.startswith('domain-metadata')
+            and f not in skip_templates
         ])
         
-        print(f"📦 Found {len(all_files)} templates to deploy\n")
+        print(f"📦 Found {len(all_files)} templates to deploy")
+        print(f"⏭️  Skipping {len(skip_templates)} duplicate templates\n")
         
         results = []
         successful = 0
@@ -132,6 +145,7 @@ class FoundationDeployer:
         
         print(f"\n🎉 Foundation Core Deployment Complete!")
         print(f"   📊 {successful}/{len(all_files)} templates deployed")
+        print(f"   ⏭️  {len(skip_templates)} duplicates skipped")
         
         return {
             'core_resources': results,
