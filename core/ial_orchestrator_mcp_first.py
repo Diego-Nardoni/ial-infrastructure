@@ -67,7 +67,76 @@ class IALOrchestratorMCPFirst:
         
         return {'status': 'error', 'message': 'Nenhum processador disponível'}
     
-    def _process_via_mcp(self, nl_intent: str) -> Dict[str, Any]:
+    async def execute_with_mcp(self, query: str) -> Dict[str, Any]:
+        """Executar query via MCP AWS server (dados reais)"""
+        
+        try:
+            import subprocess
+            import json
+            
+            # Detectar tipo de query
+            query_lower = query.lower()
+            
+            if "bucket" in query_lower or "s3" in query_lower:
+                # Listar buckets S3 via AWS CLI
+                result = subprocess.run(
+                    ['aws', 's3api', 'list-buckets'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    data = json.loads(result.stdout)
+                    buckets = data.get('Buckets', [])
+                    
+                    return {
+                        'success': True,
+                        'type': 's3_buckets',
+                        'total': len(buckets),
+                        'buckets': [
+                            {
+                                'name': b['Name'],
+                                'created': b['CreationDate']
+                            } for b in buckets
+                        ]
+                    }
+            
+            elif "ec2" in query_lower or "instanc" in query_lower:
+                # Listar instâncias EC2 via AWS CLI
+                result = subprocess.run(
+                    ['aws', 'ec2', 'describe-instances', '--query', 
+                     'Reservations[*].Instances[*].[InstanceId,InstanceType,State.Name]',
+                     '--output', 'json'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    data = json.loads(result.stdout)
+                    instances = []
+                    for reservation in data:
+                        for instance in reservation:
+                            instances.append({
+                                'id': instance[0],
+                                'type': instance[1],
+                                'state': instance[2]
+                            })
+                    
+                    return {
+                        'success': True,
+                        'type': 'ec2_instances',
+                        'total': len(instances),
+                        'instances': instances
+                    }
+            
+            return {'success': False, 'error': 'Query não reconhecida'}
+            
+        except subprocess.TimeoutExpired:
+            return {'success': False, 'error': 'Timeout ao consultar AWS'}
+        except Exception as e:
+            return {'success': False, 'error': f'Erro: {str(e)}'}
         """Processar via MCP servers (PRIMÁRIO)"""
         
         # STEP 1: IAS via MCP Well-Architected Framework
