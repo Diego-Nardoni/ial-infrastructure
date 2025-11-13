@@ -23,9 +23,8 @@ class ConversationContext:
         try:
             from .memory.context_engine import ContextEngine
             self.context_engine = ContextEngine()
-            self.memory_manager = self.context_engine.memory  # Compatibilidade
+            self.memory_manager = self.context_engine.memory
         except Exception as e:
-            print(f"⚠️ Context Engine não inicializado: {e}")
             self.context_engine = None
             self.memory_manager = None
     
@@ -211,39 +210,32 @@ class IALConversationalEngine:
             self.mcp_first_orchestrator = IALOrchestratorMCPFirst()
             self.python_orchestrator = IALOrchestrator()
         except ImportError:
-            print("⚠️ Orquestradores não encontrados, usando modo query-only")
             self.stepfunctions_orchestrator = None
             self.mcp_first_orchestrator = None
             self.python_orchestrator = None
     
     def process_conversational_input(self, user_input: str) -> str:
-        """Interface conversacional principal (igual Amazon Q)"""
+        """Interface conversacional principal"""
         
-        # 0. Construir contexto semântico relevante
+        # 1. Construir contexto semântico relevante (SEMPRE)
         context = ""
         if self.context_engine:
             try:
                 context = self.context_engine.build_context_for_query(user_input)
             except Exception as e:
-                print(f"⚠️ Erro ao construir contexto: {e}")
-        
-        # 1. Verificar se é pergunta sobre histórico
-        if any(word in user_input.lower() for word in ['lembra', 'último', 'ultima', 'anterior', 'passado', 'conversa']):
-            if self.memory_manager:
-                try:
-                    history = self.memory_manager.get_recent_context(limit=10)
-                    if history:
-                        return self._format_history_response(history, user_input)
-                except Exception as e:
-                    print(f"⚠️ Erro ao buscar histórico: {e}")
+                pass  # Silenciar
         
         # 2. Manter contexto da conversa local
         self.conversation_context.add_user_input(user_input)
         
-        # 3. Preparar input enriquecido com contexto
+        # 3. Preparar input enriquecido com contexto (LLM decide se usa)
         enriched_input = user_input
         if context:
-            enriched_input = f"{context}\n\n---\n\nPergunta atual: {user_input}"
+            enriched_input = f"""Histórico de conversas anteriores:
+{context}
+
+---
+Pergunta atual do usuário: {user_input}"""
         
         # 4. Detectar tipo de intenção
         intent_type = self._classify_intent(user_input)
@@ -274,8 +266,8 @@ class IALConversationalEngine:
         if self.context_engine:
             try:
                 self.context_engine.save_interaction(user_input, response)
-            except Exception as e:
-                print(f"⚠️ Erro ao salvar interação: {e}")
+            except Exception:
+                pass  # Silenciar
         
         # 8. Salvar no contexto local
         self.conversation_context.add_response(response)

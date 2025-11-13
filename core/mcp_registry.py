@@ -30,8 +30,7 @@ class MCPRegistry:
     def _load(self):
         """Carrega configuração dos MCPs"""
         if not os.path.exists(self.config_path):
-            print(f"MCP config not found: {self.config_path}")
-            # Usar configuração padrão embarcada
+            # Usar configuração padrão embarcada (silencioso)
             self._load_default_config()
             return
         

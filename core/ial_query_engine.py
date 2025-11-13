@@ -260,8 +260,7 @@ class IALQueryEngine:
         try:
             with open('/home/ial/mcp-server-config.json', 'r') as f:
                 return json.load(f)
-        except Exception as e:
-            print(f"⚠️ Erro ao carregar config MCP: {e}")
+        except Exception:
             return {"mcpServers": {}, "defaultServers": []}
     
     def _initialize_clients(self):
