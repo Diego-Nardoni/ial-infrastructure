@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "aws-official": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-aws"],
+      "env": {},
+      "description": "Official AWS MCP Server from Model Context Protocol"
+    }
+  }
+}
