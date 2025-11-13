@@ -29,19 +29,26 @@ class GitOpsPhaseManager:
         phases = []
         
         try:
-            # Listar arquivos YAML em phases/
-            for file in Path(self.phases_dir).glob("*.yaml"):
-                if file.name.startswith('.'):
+            # Listar arquivos YAML recursivamente em phases/
+            for file in Path(self.phases_dir).rglob("*.yaml"):
+                # Ignorar arquivos ocultos e metadata
+                if file.name.startswith('.') or file.name == 'domain-metadata.yaml':
                     continue
+                
+                # Extrair domínio (subdiretório)
+                relative_path = file.relative_to(self.phases_dir)
+                domain = relative_path.parts[0] if len(relative_path.parts) > 1 else "root"
                 
                 phases.append({
                     "name": file.stem,
                     "file": file.name,
                     "path": str(file),
+                    "domain": domain,
+                    "relative_path": str(relative_path),
                     "size": file.stat().st_size
                 })
             
-            return sorted(phases, key=lambda x: x['name'])
+            return sorted(phases, key=lambda x: (x['domain'], x['name']))
         
         except Exception as e:
             return [{"error": str(e)}]
@@ -51,13 +58,23 @@ class GitOpsPhaseManager:
         
         # 1. Verificar se phase existe
         phases = self.discover_phases()
-        phase = next((p for p in phases if phase_name.lower() in p['name'].lower()), None)
+        
+        # Buscar por nome ou domínio
+        phase = None
+        for p in phases:
+            if (phase_name.lower() in p['name'].lower() or 
+                phase_name.lower() in p['domain'].lower() or
+                phase_name.lower() in p['relative_path'].lower()):
+                phase = p
+                break
         
         if not phase:
+            available = [f"{p['domain']}/{p['name']}" for p in phases[:10]]
             return {
                 "status": "error",
                 "message": f"Phase '{phase_name}' não encontrada",
-                "available_phases": [p['name'] for p in phases]
+                "available_phases": available,
+                "total_phases": len(phases)
             }
         
         # 2. Criar trigger file
