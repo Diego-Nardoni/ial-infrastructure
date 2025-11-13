@@ -323,7 +323,7 @@ def main():
 • Query Engine (MCP Servers + AWS APIs)
 • Memory Manager (Persistência + Cache)
 
-🚀 CAPACIDADES SUPERIORES AO AMAZON Q:
+🚀 CAPACIDADES IAL:
 • Memória persistente entre sessões
 • Busca semântica por contexto relevante
 • Integração nativa com MCP servers
