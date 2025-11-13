@@ -241,31 +241,44 @@ Responda usando o histórico acima. Se precisar consultar AWS, use as tools disp
             return f"❌ Erro: {str(e)}"
     
     async def _execute_tool(self, tool_name: str, tool_input: dict) -> dict:
-        """Executar tool via Query Engine"""
+        """Executar tool via MCP servers (dados reais AWS)"""
         
-        if tool_name == "list_s3_buckets":
-            if self.query_engine:
-                result = self.query_engine.process_query_sync("liste todos os buckets s3")
-                if result:
-                    return {
-                        "success": True,
-                        "data": result,
-                        "summary": f"Encontrados {result.get('total', 0)} buckets S3"
-                    }
-            return {"success": False, "error": "Query engine não disponível"}
+        # Usar MCP First Orchestrator
+        mcp_orch = self.orchestrators.get('mcp_first')
+        if not mcp_orch:
+            # Fallback para Query Engine se MCP não disponível
+            if tool_name == "list_s3_buckets" and self.query_engine:
+                result = self.query_engine.process_query_sync("liste buckets s3")
+                return {"success": True, "data": result}
+            elif tool_name == "list_ec2_instances" and self.query_engine:
+                result = self.query_engine.process_query_sync("liste instâncias ec2")
+                return {"success": True, "data": result}
+            return {"success": False, "error": "MCP não disponível"}
         
-        elif tool_name == "list_ec2_instances":
-            if self.query_engine:
-                result = self.query_engine.process_query_sync("liste todas as instâncias ec2")
-                if result:
-                    return {
-                        "success": True,
-                        "data": result,
-                        "summary": f"Encontradas {result.get('total', 0)} instâncias EC2"
-                    }
-            return {"success": False, "error": "Query engine não disponível"}
-        
-        return {"success": False, "error": f"Tool {tool_name} não implementada"}
+        try:
+            # Mapear tool para comando MCP
+            if tool_name == "list_s3_buckets":
+                result = await mcp_orch.execute_with_mcp(
+                    "Liste todos os buckets S3 da conta AWS"
+                )
+            elif tool_name == "list_ec2_instances":
+                result = await mcp_orch.execute_with_mcp(
+                    "Liste todas as instâncias EC2"
+                )
+            else:
+                return {"success": False, "error": f"Tool {tool_name} não implementada"}
+            
+            return {"success": True, "data": result}
+            
+        except Exception as e:
+            # Fallback para Query Engine em caso de erro
+            if tool_name == "list_s3_buckets" and self.query_engine:
+                result = self.query_engine.process_query_sync("liste buckets s3")
+                return {"success": True, "data": result}
+            elif tool_name == "list_ec2_instances" and self.query_engine:
+                result = self.query_engine.process_query_sync("liste instâncias ec2")
+                return {"success": True, "data": result}
+            return {"success": False, "error": f"Erro: {str(e)}"}
     
     async def _classify_intent(self, user_input: str) -> Dict:
         """Classificar intenção do usuário"""
