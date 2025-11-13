@@ -246,7 +246,7 @@ Responda usando o histórico acima. Se precisar consultar AWS, use as tools disp
         if tool_name == "list_s3_buckets":
             if self.query_engine:
                 result = self.query_engine.process_query_sync("liste todos os buckets s3")
-                if result and result.get('status') == 'success':
+                if result:
                     return {
                         "success": True,
                         "data": result,
@@ -257,7 +257,7 @@ Responda usando o histórico acima. Se precisar consultar AWS, use as tools disp
         elif tool_name == "list_ec2_instances":
             if self.query_engine:
                 result = self.query_engine.process_query_sync("liste todas as instâncias ec2")
-                if result and result.get('status') == 'success':
+                if result:
                     return {
                         "success": True,
                         "data": result,
