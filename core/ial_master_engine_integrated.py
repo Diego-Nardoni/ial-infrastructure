@@ -123,7 +123,7 @@ class IALMasterEngineIntegrated:
         return orchestrators
     
     async def process_user_input(self, user_input: str) -> str:
-        """Interface única: LLM com contexto decide tudo"""
+        """Interface única: LLM com contexto e tools"""
         
         try:
             # 1. Construir contexto
@@ -136,7 +136,7 @@ class IALMasterEngineIntegrated:
                 except Exception as e:
                     print(f"[DEBUG] Erro contexto: {e}")
             
-            # 2. Preparar prompt com contexto
+            # 2. Preparar prompt
             if context:
                 prompt = f"""Você é IAL, assistente de infraestrutura AWS com memória persistente.
 
@@ -147,11 +147,33 @@ IMPORTANTE: As conversas abaixo são REAIS e aconteceram com este usuário. Use-
 ---
 PERGUNTA ATUAL DO USUÁRIO: {user_input}
 
-Responda usando o histórico acima. Se o usuário perguntar sobre conversas anteriores, SEMPRE referencie o histórico mostrado."""
+Responda usando o histórico acima. Se precisar consultar AWS, use as tools disponíveis."""
             else:
                 prompt = user_input
             
-            # 3. Invocar Bedrock
+            # 3. Definir tools disponíveis (MCP servers)
+            tools = [
+                {
+                    "name": "list_s3_buckets",
+                    "description": "Lista todos os buckets S3 da conta AWS",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                },
+                {
+                    "name": "list_ec2_instances",
+                    "description": "Lista todas as instâncias EC2",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            ]
+            
+            # 4. Invocar Bedrock com tools
             import boto3
             import json
             bedrock = boto3.client('bedrock-runtime')
@@ -162,14 +184,50 @@ Responda usando o histórico acima. Se o usuário perguntar sobre conversas ante
                     "anthropic_version": "bedrock-2023-05-31",
                     "max_tokens": 2000,
                     "temperature": 0.7,
-                    "messages": [{"role": "user", "content": prompt}]
+                    "messages": [{"role": "user", "content": prompt}],
+                    "tools": tools
                 })
             )
             
             result = json.loads(response['body'].read())
-            assistant_response = result['content'][0]['text']
             
-            # 4. Salvar interação
+            # 5. Processar resposta (pode ter tool calls)
+            if result.get('stop_reason') == 'tool_use':
+                # Claude quer usar uma tool
+                tool_use = next((c for c in result['content'] if c.get('type') == 'tool_use'), None)
+                if tool_use:
+                    tool_name = tool_use['name']
+                    print(f"[DEBUG] Tool chamada: {tool_name}")
+                    
+                    # Executar tool
+                    tool_result = await self._execute_tool(tool_name, tool_use.get('input', {}))
+                    
+                    # Segunda chamada com resultado
+                    response2 = bedrock.invoke_model(
+                        modelId='anthropic.claude-3-sonnet-20240229-v1:0',
+                        body=json.dumps({
+                            "anthropic_version": "bedrock-2023-05-31",
+                            "max_tokens": 2000,
+                            "messages": [
+                                {"role": "user", "content": prompt},
+                                {"role": "assistant", "content": result['content']},
+                                {"role": "user", "content": [
+                                    {
+                                        "type": "tool_result",
+                                        "tool_use_id": tool_use['id'],
+                                        "content": json.dumps(tool_result)
+                                    }
+                                ]}
+                            ],
+                            "tools": tools
+                        })
+                    )
+                    
+                    result = json.loads(response2['body'].read())
+            
+            assistant_response = next((c['text'] for c in result['content'] if c.get('type') == 'text'), "")
+            
+            # 6. Salvar interação
             if self.context_engine:
                 self.context_engine.save_interaction(
                     user_input,
@@ -181,6 +239,33 @@ Responda usando o histórico acima. Se o usuário perguntar sobre conversas ante
             
         except Exception as e:
             return f"❌ Erro: {str(e)}"
+    
+    async def _execute_tool(self, tool_name: str, tool_input: dict) -> dict:
+        """Executar tool via Query Engine"""
+        
+        if tool_name == "list_s3_buckets":
+            if self.query_engine:
+                result = self.query_engine.process_query_sync("liste todos os buckets s3")
+                if result and result.get('status') == 'success':
+                    return {
+                        "success": True,
+                        "data": result,
+                        "summary": f"Encontrados {result.get('total', 0)} buckets S3"
+                    }
+            return {"success": False, "error": "Query engine não disponível"}
+        
+        elif tool_name == "list_ec2_instances":
+            if self.query_engine:
+                result = self.query_engine.process_query_sync("liste todas as instâncias ec2")
+                if result and result.get('status') == 'success':
+                    return {
+                        "success": True,
+                        "data": result,
+                        "summary": f"Encontradas {result.get('total', 0)} instâncias EC2"
+                    }
+            return {"success": False, "error": "Query engine não disponível"}
+        
+        return {"success": False, "error": f"Tool {tool_name} não implementada"}
     
     async def _classify_intent(self, user_input: str) -> Dict:
         """Classificar intenção do usuário"""
