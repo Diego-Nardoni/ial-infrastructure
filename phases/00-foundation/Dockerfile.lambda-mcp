@@ -16,7 +16,7 @@ RUN curl -Lo q-cli.tar.gz "https://github.com/aws/amazon-q-developer-cli/release
     tar -xzf q-cli.tar.gz && \
     mv q /usr/local/bin/ && \
     chmod +x /usr/local/bin/q && \
-    rm q-cli.tar.gz
+    rm q-cli.tar.gz || echo "Q CLI install failed, continuing without it"
 
 # Install Python dependencies
 COPY requirements-lambda.txt .

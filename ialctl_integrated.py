@@ -100,9 +100,6 @@ class IALCTLIntegrated:
             print(f"   ⚠️  Warning: Container Lambda build failed: {e}")
             print("   ℹ️  Enhanced MCP will use fallback mode")
         
-        if health_result['warnings']:
-            print(f"⚠️  Warnings: {len(health_result['warnings'])}")
-        
         # 5. Deploy NL Intent Pipeline (Step Functions)
         print("\n🔀 Step 5/6: Deploying NL Intent Pipeline...")
         try:
