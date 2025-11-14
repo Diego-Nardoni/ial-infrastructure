@@ -60,14 +60,25 @@ class MCPServersInitializer:
             else:
                 results["total_failed"] += 1
         
-        # 2. Registrar domain MCPs (lazy loading)
+        # 2. Inicializar domain MCPs (não apenas registrar)
         domain_mcps = self.config.get('domain_mcps', {}).get('lazy_load', {})
         
         for domain, mcps_list in domain_mcps.items():
+            domain_results = []
+            for mcp in mcps_list:
+                server_name = mcp['name']
+                result = await self._initialize_server(server_name, mcp)
+                domain_results.append(result)
+                
+                if result["status"] == "success":
+                    results["total_initialized"] += 1
+                else:
+                    results["total_failed"] += 1
+            
             results["domain_mcps"][domain] = {
                 "description": f"{domain.title()} domain MCPs",
-                "mcps": [mcp['name'] for mcp in mcps_list],
-                "status": "registered"
+                "mcps": domain_results,
+                "status": "initialized"
             }
         
         return results

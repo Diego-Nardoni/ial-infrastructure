@@ -112,19 +112,37 @@ class IALCTLIntegrated:
             
             # Preparar artifacts
             print("   📦 Preparing Lambda artifacts...")
-            subprocess.run([
-                'bash', '-c',
-                f'cd {get_resource_path("lambdas")} && '
-                'zip -q ias_validation_handler.zip ias_validation_handler.py && '
-                'zip -q cost_estimation_handler.zip cost_estimation_handler.py && '
-                'zip -q phase_builder_handler.zip phase_builder_handler.py && '
-                'zip -q git_commit_pr_handler.zip git_commit_pr_handler.py && '
-                'zip -q wait_pr_approval_handler.zip wait_pr_approval_handler.py && '
-                'zip -q deploy_cloudformation_handler.zip deploy_cloudformation_handler.py && '
-                'zip -q proof_of_creation_handler.zip proof_of_creation_handler.py && '
-                'zip -q post_deploy_analysis_handler.zip post_deploy_analysis_handler.py && '
-                'zip -q drift_detection_handler.zip drift_detection_handler.py'
-            ], check=True)
+            
+            # Create temp directory for lambda zips
+            import tempfile
+            import shutil
+            
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Copy lambda files to temp directory
+                lambdas_source = get_resource_path("lambdas")
+                
+                # Create zips in temp directory
+                lambda_files = [
+                    'ias_validation_handler.py',
+                    'cost_estimation_handler.py', 
+                    'phase_builder_handler.py',
+                    'git_commit_pr_handler.py',
+                    'wait_pr_approval_handler.py',
+                    'deploy_cloudformation_handler.py',
+                    'proof_of_creation_handler.py',
+                    'post_deploy_analysis_handler.py',
+                    'drift_detection_handler.py'
+                ]
+                
+                for lambda_file in lambda_files:
+                    py_file = os.path.join(lambdas_source, lambda_file)
+                    zip_file = lambda_file.replace('.py', '.zip')
+                    zip_path = os.path.join(temp_dir, zip_file)
+                    
+                    if os.path.exists(py_file):
+                        subprocess.run(['zip', '-j', zip_path, py_file], check=True, capture_output=True)
+                
+                print(f"   ✅ Lambda artifacts prepared in {temp_dir}")
             
             subprocess.run([
                 'bash', '-c',
