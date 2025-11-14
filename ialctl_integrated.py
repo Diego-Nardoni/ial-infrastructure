@@ -350,23 +350,33 @@ class IALCTLIntegrated:
             return False
     
     def _update_github_secret(self, github_token):
-        """Atualizar GitHub token no Secrets Manager"""
+        """Atualizar GitHub token no Secrets Manager com nome dinâmico"""
         try:
             import boto3
             import json
             
             secrets = boto3.client('secretsmanager')
+            sts = boto3.client('sts')
+            account_id = sts.get_caller_identity()['Account']
+            secret_name = f'ial-github-token-{account_id}'
             
             secret_value = {
                 "token": github_token
             }
             
-            secrets.update_secret(
-                SecretId='ial-github-token',
-                SecretString=json.dumps(secret_value)
-            )
-            
-            print("   ✅ GitHub token atualizado no Secrets Manager")
+            try:
+                secrets.update_secret(
+                    SecretId=secret_name,
+                    SecretString=json.dumps(secret_value)
+                )
+                print(f"   ✅ GitHub token atualizado no secret: {secret_name}")
+            except secrets.exceptions.ResourceNotFoundException:
+                secrets.create_secret(
+                    Name=secret_name,
+                    SecretString=json.dumps(secret_value),
+                    Description="GitHub token for IAL operations"
+                )
+                print(f"   ✅ GitHub token criado no secret: {secret_name}")
             
         except Exception as e:
             print(f"   ⚠️  Warning: Falha ao atualizar secret: {e}")

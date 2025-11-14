@@ -1,6 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'IAL GitOps Deployment Pipeline - Step Functions Orchestration'
 
+Parameters:
+  GitHubRepository:
+    Type: String
+    Default: "diegonardoni/ial-infrastructure"
+    Description: "GitHub repository in format owner/repo"
+
 Resources:
   # IAM Role para Step Functions
   GitOpsPipelineRole:
@@ -160,7 +166,8 @@ Resources:
       Timeout: 30
       Environment:
         Variables:
-          GITHUB_TOKEN: '{{resolve:secretsmanager:ial/github-token:SecretString:token}}'
+          GITHUB_TOKEN: !Sub '{{resolve:secretsmanager:ial-github-token-${AWS::AccountId}:SecretString:token}}'
+          GITHUB_REPOSITORY: !Ref GitHubRepository
       Code:
         ZipFile: |
           import json
@@ -171,7 +178,7 @@ Resources:
               phase_name = event['phase_name']
               
               # Create PR via GitHub API
-              url = 'https://api.github.com/repos/diegonardoni/ial-infrastructure/pulls'
+              url = f'https://api.github.com/repos/{os.environ["GITHUB_REPOSITORY"]}/pulls'
               headers = {'Authorization': f'token {token}'}
               data = {
                   'title': f'Deploy: {phase_name}',
