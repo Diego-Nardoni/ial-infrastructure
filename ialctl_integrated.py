@@ -143,49 +143,51 @@ class IALCTLIntegrated:
                         subprocess.run(['zip', '-j', zip_path, py_file], check=True, capture_output=True)
                 
                 print(f"   ✅ Lambda artifacts prepared in {temp_dir}")
-            
-            subprocess.run([
-                'bash', '-c',
-                f'cd {get_resource_path("lambda-layer")} && zip -qr ial-pipeline-layer.zip python/'
-            ], check=True)
-            
-            # Criar bucket S3 se não existir
-            account_id = boto3.client('sts').get_caller_identity()['Account']
-            bucket_name = f'ial-artifacts-{account_id}'
-            s3 = boto3.client('s3')
-            
-            try:
-                s3.head_bucket(Bucket=bucket_name)
-            except:
-                print(f"   📦 Creating S3 bucket: {bucket_name}")
-                s3.create_bucket(Bucket=bucket_name)
-            
-            # Upload artifacts
-            print("   ☁️  Uploading to S3...")
-            handlers = [
-                'ias_validation_handler',
-                'cost_estimation_handler',
-                'phase_builder_handler',
-                'git_commit_pr_handler',
-                'wait_pr_approval_handler',
-                'deploy_cloudformation_handler',
-                'proof_of_creation_handler',
-                'post_deploy_analysis_handler',
-                'drift_detection_handler'
-            ]
-            
-            for handler in handlers:
+                
+                subprocess.run([
+                    'bash', '-c',
+                    f'cd {get_resource_path("lambda-layer")} && zip -qr ial-pipeline-layer.zip python/'
+                ], check=True)
+                
+                # Criar bucket S3 se não existir
+                account_id = boto3.client('sts').get_caller_identity()['Account']
+                bucket_name = f'ial-artifacts-{account_id}'
+                s3 = boto3.client('s3')
+                
+                try:
+                    s3.head_bucket(Bucket=bucket_name)
+                except:
+                    print(f"   📦 Creating S3 bucket: {bucket_name}")
+                    s3.create_bucket(Bucket=bucket_name)
+                
+                # Upload artifacts from temp directory
+                print("   ☁️  Uploading to S3...")
+                handlers = [
+                    'ias_validation_handler',
+                    'cost_estimation_handler',
+                    'phase_builder_handler',
+                    'git_commit_pr_handler',
+                    'wait_pr_approval_handler',
+                    'deploy_cloudformation_handler',
+                    'proof_of_creation_handler',
+                    'post_deploy_analysis_handler',
+                    'drift_detection_handler'
+                ]
+                
+                for handler in handlers:
+                    zip_path = os.path.join(temp_dir, f'{handler}.zip')
+                    if os.path.exists(zip_path):
+                        s3.upload_file(
+                            zip_path,
+                            bucket_name,
+                            f'lambdas/{handler}.zip'
+                        )
+                
                 s3.upload_file(
-                    f'/home/ial/lambdas/{handler}.zip',
+                    f'{get_resource_path("lambda-layer")}/ial-pipeline-layer.zip',
                     bucket_name,
-                    f'lambdas/{handler}.zip'
+                    'lambda-layer/ial-pipeline-layer.zip'
                 )
-            
-            s3.upload_file(
-                '/home/ial/lambda-layer/ial-pipeline-layer.zip',
-                bucket_name,
-                'lambda-layer/ial-pipeline-layer.zip'
-            )
             
             # Deploy CloudFormation
             print("   🚀 Deploying CloudFormation stack...")
