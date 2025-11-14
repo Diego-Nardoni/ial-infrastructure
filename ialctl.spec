@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['ialctl'],
+    ['ialctl_integrated.py'],
     pathex=[],
     binaries=[],
-    datas=[('config', 'config'), ('phases', 'phases'), ('lambdas', 'lambdas'), ('lambda-layer', 'lambda-layer')],
-    hiddenimports=[],
+    datas=[('config', 'config'), ('phases', 'phases')],
+    hiddenimports=['boto3', 'yaml', 'asyncio'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

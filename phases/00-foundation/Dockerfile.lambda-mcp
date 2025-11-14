@@ -1,0 +1,29 @@
+FROM public.ecr.aws/lambda/python:3.11
+
+# Install system dependencies
+RUN yum update -y && \
+    yum install -y curl unzip git && \
+    yum clean all
+
+# Install AWS CLI v2
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip aws/
+
+# Install Q CLI
+RUN curl -Lo q-cli.tar.gz "https://github.com/aws/amazon-q-developer-cli/releases/latest/download/q-linux-x64.tar.gz" && \
+    tar -xzf q-cli.tar.gz && \
+    mv q /usr/local/bin/ && \
+    chmod +x /usr/local/bin/q && \
+    rm q-cli.tar.gz
+
+# Install Python dependencies
+COPY requirements-lambda.txt .
+RUN pip install --no-cache-dir -r requirements-lambda.txt
+
+# Copy Lambda function code
+COPY phase_builder_handler_container.py ${LAMBDA_TASK_ROOT}/
+
+# Set the CMD to your handler
+CMD ["phase_builder_handler_container.handler"]

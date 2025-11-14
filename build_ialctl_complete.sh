@@ -17,7 +17,7 @@ pyinstaller --onefile \
     --hidden-import=boto3 \
     --hidden-import=yaml \
     --hidden-import=asyncio \
-    ialctl
+    ialctl_integrated.py
 
 # 2. Create packages directory
 echo ""

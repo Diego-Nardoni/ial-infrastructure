@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - ECR Repositories for Container Lambdas (Idempotent)'
+
+Resources:
+  # Custom resource to handle ECR repository creation idempotently
+  ECRRepositoryHandler:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt ECRRepositoryFunction.Arn
+      RepositoryName: ial-phase-builder-mcp
+
+  ECRRepositoryFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ial-ecr-repository-handler
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt ECRRepositoryRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import cfnresponse
+          
+          def handler(event, context):
+              ecr = boto3.client('ecr')
+              repo_name = event['ResourceProperties']['RepositoryName']
+              
+              try:
+                  if event['RequestType'] == 'Create':
+                      try:
+                          # Try to describe repository first
+                          response = ecr.describe_repositories(repositoryNames=[repo_name])
+                          repo_uri = response['repositories'][0]['repositoryUri']
+                          print(f"Repository {repo_name} already exists")
+                      except ecr.exceptions.RepositoryNotFoundException:
+                          # Create repository if it doesn't exist
+                          response = ecr.create_repository(
+                              repositoryName=repo_name,
+                              imageTagMutability='MUTABLE',
+                              imageScanningConfiguration={'scanOnPush': True}
+                          )
+                          repo_uri = response['repository']['repositoryUri']
+                          print(f"Created repository {repo_name}")
+                      
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {
+                          'RepositoryUri': repo_uri,
+                          'RepositoryName': repo_name
+                      })
+                  
+                  elif event['RequestType'] == 'Delete':
+                      # Don't delete repository on stack deletion (retain)
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                  
+                  else:
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                      
+              except Exception as e:
+                  print(f"Error: {str(e)}")
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {})
+
+  ECRRepositoryRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ECRAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:CreateRepository
+                  - ecr:DescribeRepositories
+                  - ecr:PutLifecyclePolicy
+                Resource: '*'
+
+Outputs:
+  ECRRepositoryURI:
+    Description: 'ECR Repository URI for IAL Phase Builder MCP'
+    Value: !GetAtt ECRRepositoryHandler.RepositoryUri
+    Export:
+      Name: !Sub '${AWS::StackName}-ECR-Repository-URI'
+  
+  ECRRepositoryName:
+    Description: 'ECR Repository Name'
+    Value: !GetAtt ECRRepositoryHandler.RepositoryName
+    Export:
+      Name: !Sub '${AWS::StackName}-ECR-Repository-Name'

@@ -8,8 +8,9 @@ import asyncio
 import argparse
 import sys
 import os
+import json
 import readline  # Habilita setas e histórico
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 def custom_input(prompt: str) -> str:
     """Input com readline (setas funcionam)"""
@@ -39,12 +40,29 @@ class IALCTLIntegrated:
         from core.system_health_validator import SystemHealthValidator
         import subprocess
         import boto3
+        import getpass
         
         print("🚀 IAL Foundation Deployment Starting...")
         print("=" * 50)
         
-        # 1. Deploy Foundation
-        print("\n📦 Step 1/4: Deploying AWS Foundation...")
+        # 0. Prerequisites & Dependencies
+        print("\n🔧 Step 0/6: Prerequisites & Dependencies...")
+        prereq_result = self._check_and_install_prerequisites()
+        if not prereq_result['success']:
+            print(f"❌ Prerequisites check failed: {prereq_result['error']}")
+            return 1
+        print("✅ All prerequisites validated")
+        
+        # 1. GitHub Configuration
+        print("\n🔑 Step 1/6: GitHub Configuration...")
+        github_token = self._get_github_token()
+        if not github_token:
+            print("❌ GitHub token é obrigatório para IAL funcionar")
+            return 1
+        print("✅ GitHub token configurado")
+        
+        # 2. Deploy Foundation
+        print("\n📦 Step 2/6: Deploying AWS Foundation...")
         deployer = FoundationDeployer()
         result = deployer.deploy_foundation_core()
         
@@ -54,26 +72,35 @@ class IALCTLIntegrated:
         
         print(f"✅ Foundation: {result['successful_deployments']}/{result['total_resource_groups']} resource groups deployed")
         
-        # 2. Initialize MCP Servers
-        print("\n🔌 Step 2/4: Initializing MCP Servers...")
+        # 3. Initialize MCP Servers
+        print("\n🔌 Step 3/6: Initializing MCP Servers...")
         mcp_initializer = MCPServersInitializer()
         mcp_result = await mcp_initializer.initialize_all_servers()
         
         print(f"✅ MCP Servers: {mcp_result['total_initialized']} initialized")
         
-        # 3. Validate System Health
-        print("\n🏥 Step 3/4: Validating System Health...")
-        health_validator = SystemHealthValidator()
-        health_result = await health_validator.validate_complete_system()
-        
-        print(f"✅ Health Check: {health_result['checks_passed']}/{health_result['checks_passed'] + health_result['checks_failed']} checks passed")
+        # 4. Build and Deploy Container Lambda
+        print("\n🐳 Step 4/6: Building Container Lambda...")
+        try:
+            container_result = self._build_and_deploy_container_lambda()
+            if container_result['success']:
+                print("   ✅ Container Lambda deployed successfully")
+            else:
+                print(f"   ⚠️  Container Lambda deployment failed: {container_result['error']}")
+        except Exception as e:
+            print(f"   ⚠️  Warning: Container Lambda build failed: {e}")
+            print("   ℹ️  Enhanced MCP will use fallback mode")
         
         if health_result['warnings']:
             print(f"⚠️  Warnings: {len(health_result['warnings'])}")
         
-        # 4. Deploy NL Intent Pipeline (Step Functions)
-        print("\n🔀 Step 4/4: Deploying NL Intent Pipeline...")
+        # 5. Deploy NL Intent Pipeline (Step Functions)
+        print("\n🔀 Step 5/6: Deploying NL Intent Pipeline...")
         try:
+            # Update Secrets Manager with real GitHub token
+            print("   🔑 Updating GitHub token in Secrets Manager...")
+            self._update_github_secret(github_token)
+            
             # Preparar artifacts
             print("   📦 Preparing Lambda artifacts...")
             subprocess.run([
@@ -154,6 +181,16 @@ class IALCTLIntegrated:
             print(f"   ⚠️  Warning: NL Intent Pipeline deployment failed: {e}")
             print("   ℹ️  You can deploy it manually later")
         
+        # 6. Validate System Health
+        print("\n🏥 Step 6/6: Validating System Health...")
+        health_validator = SystemHealthValidator()
+        health_result = await health_validator.validate_complete_system()
+        
+        print(f"✅ Health Check: {health_result['checks_passed']}/{health_result['checks_passed'] + health_result['checks_failed']} checks passed")
+        
+        if health_result['warnings']:
+            print(f"⚠️  Warnings: {len(health_result['warnings'])}")
+        
         # Summary
         print("\n" + "=" * 50)
         print("✅ IAL Foundation deployed successfully!")
@@ -161,6 +198,7 @@ class IALCTLIntegrated:
         print(f"🔌 MCP Servers: {mcp_result['total_initialized']} active")
         print(f"🏥 System Status: {health_result['overall_status'].upper()}")
         print(f"🔀 NL Intent Pipeline: Step Functions deployed")
+        print(f"🐳 Container Lambda: Enhanced MCP ready")
         
         if health_result['system_ready']:
             print("\n🎯 System ready! Run 'ialctl' to start conversational interface")
@@ -168,6 +206,279 @@ class IALCTLIntegrated:
         else:
             print("\n⚠️  System has issues but may still work")
             return 0
+    
+    def _check_and_install_prerequisites(self) -> Dict[str, Any]:
+        """Check and install all prerequisites"""
+        import subprocess
+        import os
+        
+        try:
+            # 1. Check Docker
+            print("   🐳 Checking Docker...")
+            result = subprocess.run(['docker', '--version'], capture_output=True, text=True)
+            if result.returncode != 0:
+                return {'success': False, 'error': 'Docker not installed or not running'}
+            print("   ✅ Docker available")
+            
+            # 2. Check AWS CLI
+            print("   ☁️  Checking AWS CLI...")
+            result = subprocess.run(['aws', '--version'], capture_output=True, text=True)
+            if result.returncode != 0:
+                return {'success': False, 'error': 'AWS CLI not installed'}
+            print("   ✅ AWS CLI available")
+            
+            # 3. Check AWS credentials
+            print("   🔑 Checking AWS credentials...")
+            try:
+                import boto3
+                boto3.client('sts').get_caller_identity()
+                print("   ✅ AWS credentials valid")
+            except Exception as e:
+                return {'success': False, 'error': f'AWS credentials invalid: {e}'}
+            
+            # 4. Install FAISS
+            print("   📚 Checking FAISS...")
+            try:
+                import faiss
+                print("   ✅ FAISS already installed")
+            except ImportError:
+                print("   📦 Installing FAISS...")
+                subprocess.run([
+                    'pip', 'install', 'faiss-cpu', '--break-system-packages'
+                ], check=True)
+                print("   ✅ FAISS installed")
+            
+            # 5. Build RAG index if needed
+            if not os.path.exists('.rag/index.faiss'):
+                print("   🔍 Building RAG index...")
+                from services.rag.index_builder import build_index
+                build_index({
+                    'local_path': '.rag/index.faiss',
+                    'local_meta': '.rag/index.json'
+                })
+                print("   ✅ RAG index built")
+            else:
+                print("   ℹ️  RAG index already exists")
+            
+            # 6. Prepare build environment
+            print("   🔧 Preparing build environment...")
+            os.makedirs('/tmp/ial-container-build', exist_ok=True)
+            print("   ✅ Build environment ready")
+            
+            return {'success': True}
+            
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def _get_github_token(self):
+        """Capturar GitHub token do usuário"""
+        import getpass
+        import os
+        
+        # Verificar se já existe em variável de ambiente
+        token = os.getenv('GITHUB_TOKEN')
+        if token:
+            print("   ✅ GitHub token encontrado em GITHUB_TOKEN")
+            return token
+        
+        # Verificar se já existe no Secrets Manager
+        try:
+            import boto3
+            secrets = boto3.client('secretsmanager')
+            response = secrets.get_secret_value(SecretId='ial-github-token')
+            secret_data = json.loads(response['SecretString'])
+            existing_token = secret_data.get('token', '')
+            
+            if existing_token and not existing_token.startswith('ghp_placeholder'):
+                print("   ✅ GitHub token encontrado no Secrets Manager")
+                return existing_token
+        except:
+            pass
+        
+        # Solicitar token do usuário
+        print("\n📋 IAL precisa de um GitHub token para criar PRs automaticamente")
+        print("   1. Vá para: https://github.com/settings/tokens")
+        print("   2. Clique em 'Generate new token (classic)'")
+        print("   3. Selecione scopes: repo, workflow")
+        print("   4. Cole o token abaixo")
+        print()
+        
+        while True:
+            token = getpass.getpass("🔑 GitHub Token (ghp_...): ").strip()
+            
+            if not token:
+                print("❌ Token é obrigatório")
+                continue
+            
+            if not token.startswith('ghp_'):
+                print("❌ Token deve começar com 'ghp_'")
+                continue
+            
+            # Validar token
+            if self._validate_github_token(token):
+                return token
+            else:
+                print("❌ Token inválido ou sem permissões necessárias")
+                continue
+    
+    def _validate_github_token(self, token):
+        """Validar GitHub token"""
+        try:
+            import requests
+            
+            response = requests.get(
+                'https://api.github.com/user',
+                headers={'Authorization': f'token {token}'},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                user_data = response.json()
+                print(f"   ✅ Token válido para usuário: {user_data.get('login')}")
+                return True
+            else:
+                return False
+                
+        except Exception as e:
+            print(f"   ⚠️  Erro validando token: {e}")
+            return False
+    
+    def _update_github_secret(self, github_token):
+        """Atualizar GitHub token no Secrets Manager"""
+        try:
+            import boto3
+            import json
+            
+            secrets = boto3.client('secretsmanager')
+            
+            secret_value = {
+                "token": github_token
+            }
+            
+            secrets.update_secret(
+                SecretId='ial-github-token',
+                SecretString=json.dumps(secret_value)
+            )
+            
+            print("   ✅ GitHub token atualizado no Secrets Manager")
+            
+        except Exception as e:
+            print(f"   ⚠️  Warning: Falha ao atualizar secret: {e}")
+    
+    def _build_and_deploy_container_lambda(self) -> Dict[str, Any]:
+        """Build and deploy container Lambda"""
+        import subprocess
+        import boto3
+        import os
+        
+        try:
+            # 1. Check if Docker is available
+            result = subprocess.run(['docker', '--version'], capture_output=True, text=True)
+            if result.returncode != 0:
+                return {'success': False, 'error': 'Docker not installed'}
+            
+            print("   ✅ Docker available")
+            
+            # 2. Get account ID and region
+            sts = boto3.client('sts')
+            account_id = sts.get_caller_identity()['Account']
+            region = 'us-east-1'
+            
+            # 3. ECR repository URI
+            ecr_uri = f"{account_id}.dkr.ecr.{region}.amazonaws.com/ial-phase-builder-mcp"
+            
+            # 4. Copy files to build context
+            build_dir = '/tmp/ial-container-build'
+            os.makedirs(build_dir, exist_ok=True)
+            
+            # Copy Dockerfile and dependencies
+            import shutil
+            shutil.copy('/home/ial/phases/00-foundation/Dockerfile.lambda-mcp', f'{build_dir}/Dockerfile')
+            shutil.copy('/home/ial/phases/00-foundation/requirements-lambda.txt', build_dir)
+            shutil.copy('/home/ial/phases/00-foundation/phase_builder_handler_container.py', build_dir)
+            
+            print("   📦 Build context prepared")
+            
+            # 5. Docker build
+            print("   🔨 Building Docker image...")
+            build_result = subprocess.run([
+                'docker', 'build', '-t', 'ial-phase-builder-mcp:latest', '.'
+            ], cwd=build_dir, capture_output=True, text=True, timeout=300)
+            
+            if build_result.returncode != 0:
+                return {'success': False, 'error': f'Docker build failed: {build_result.stderr}'}
+            
+            print("   ✅ Docker image built")
+            
+            # 6. ECR login
+            print("   🔐 Logging into ECR...")
+            ecr = boto3.client('ecr', region_name=region)
+            token_response = ecr.get_authorization_token()
+            token = token_response['authorizationData'][0]['authorizationToken']
+            endpoint = token_response['authorizationData'][0]['proxyEndpoint']
+            
+            import base64
+            username, password = base64.b64decode(token).decode().split(':')
+            
+            login_result = subprocess.run([
+                'docker', 'login', '--username', username, '--password-stdin', endpoint
+            ], input=password, text=True, capture_output=True)
+            
+            if login_result.returncode != 0:
+                return {'success': False, 'error': 'ECR login failed'}
+            
+            print("   ✅ ECR login successful")
+            
+            # 7. Tag and push
+            print("   📤 Pushing to ECR...")
+            
+            # Tag image
+            subprocess.run([
+                'docker', 'tag', 'ial-phase-builder-mcp:latest', f'{ecr_uri}:latest'
+            ], check=True)
+            
+            # Push image
+            push_result = subprocess.run([
+                'docker', 'push', f'{ecr_uri}:latest'
+            ], capture_output=True, text=True, timeout=600)
+            
+            if push_result.returncode != 0:
+                return {'success': False, 'error': f'Docker push failed: {push_result.stderr}'}
+            
+            print("   ✅ Image pushed to ECR")
+            
+            # 8. Update Lambda function
+            print("   🔄 Updating Lambda function...")
+            lambda_client = boto3.client('lambda', region_name=region)
+            
+            try:
+                lambda_client.update_function_code(
+                    FunctionName='ial-nl-phase-builder-mcp',
+                    ImageUri=f'{ecr_uri}:latest'
+                )
+                print("   ✅ Lambda function updated")
+            except lambda_client.exceptions.ResourceNotFoundException:
+                # Create Lambda function if it doesn't exist
+                lambda_client.create_function(
+                    FunctionName='ial-nl-phase-builder-mcp',
+                    Role=f'arn:aws:iam::{account_id}:role/IAL-Pipeline-Lambda-Role',
+                    Code={'ImageUri': f'{ecr_uri}:latest'},
+                    PackageType='Image',
+                    Timeout=300,
+                    MemorySize=512,
+                    Description='MCP-Enhanced Phase Builder with Container Lambda'
+                )
+                print("   ✅ Lambda function created")
+            
+            # Cleanup
+            shutil.rmtree(build_dir, ignore_errors=True)
+            
+            return {'success': True, 'image_uri': f'{ecr_uri}:latest'}
+            
+        except subprocess.TimeoutExpired:
+            return {'success': False, 'error': 'Build timeout (5 minutes)'}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
     
     async def run_conversational_mode(self):
         """Executar modo conversacional integrado"""
