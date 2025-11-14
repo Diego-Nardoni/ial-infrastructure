@@ -12,6 +12,15 @@ import json
 import readline  # Habilita setas e histórico
 from typing import Dict, Optional, Any
 
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 def custom_input(prompt: str) -> str:
     """Input com readline (setas funcionam)"""
     return input(prompt)
@@ -164,7 +173,7 @@ class IALCTLIntegrated:
             print("   🚀 Deploying CloudFormation stack...")
             cfn = boto3.client('cloudformation')
             
-            with open('/home/ial/phases/00-foundation/17-nl-intent-pipeline.yaml') as f:
+            with open(get_resource_path('phases/00-foundation/17-nl-intent-pipeline.yaml')) as f:
                 template_body = f.read()
             
             try:
@@ -393,9 +402,9 @@ class IALCTLIntegrated:
             
             # Copy Dockerfile and dependencies
             import shutil
-            shutil.copy('/home/ial/phases/00-foundation/Dockerfile.lambda-mcp', f'{build_dir}/Dockerfile')
-            shutil.copy('/home/ial/phases/00-foundation/requirements-lambda.txt', build_dir)
-            shutil.copy('/home/ial/phases/00-foundation/phase_builder_handler_container.py', build_dir)
+            shutil.copy(get_resource_path('phases/00-foundation/Dockerfile.lambda-mcp'), f'{build_dir}/Dockerfile')
+            shutil.copy(get_resource_path('phases/00-foundation/requirements-lambda.txt'), build_dir)
+            shutil.copy(get_resource_path('phases/00-foundation/phase_builder_handler_container.py'), build_dir)
             
             print("   📦 Build context prepared")
             

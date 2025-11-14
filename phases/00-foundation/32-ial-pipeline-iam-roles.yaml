@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - IAM Roles for NL Intent Pipeline (Update Existing)'
+
+Parameters:
+  UpdateExistingRoles:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: 'Whether to update existing IAM roles'
+
+Resources:
+  # Managed Policy for Pipeline Lambda permissions
+  IALPipelineLambdaPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: IAL-Pipeline-Lambda-Enhanced-Policy
+      Description: 'Enhanced permissions for IAL Pipeline Lambda functions'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource:
+              - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:ial-github-token-*'
+              - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:ial-aws-credentials-*'
+          
+          - Effect: Allow
+            Action:
+              - cloudformation:CreateStack
+              - cloudformation:UpdateStack
+              - cloudformation:DeleteStack
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DescribeStackResources
+              - cloudformation:GetTemplate
+              - cloudformation:DetectStackDrift
+              - cloudformation:DescribeStackDriftDetectionStatus
+              - cloudformation:DescribeStackResourceDrifts
+            Resource:
+              - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/ial-*/*'
+          
+          - Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:DeleteBucket
+              - s3:GetBucketLocation
+              - s3:GetBucketVersioning
+              - s3:PutBucketVersioning
+              - s3:GetBucketEncryption
+              - s3:PutBucketEncryption
+              - s3:GetBucketPublicAccessBlock
+              - s3:PutBucketPublicAccessBlock
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+            Resource:
+              - !Sub 'arn:aws:s3:::ial-*'
+              - !Sub 'arn:aws:s3:::ial-*/*'
+          
+          - Effect: Allow
+            Action:
+              - ssm:CreateParameter
+              - ssm:DeleteParameter
+              - ssm:GetParameter
+              - ssm:PutParameter
+            Resource:
+              - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ial/*'
+          
+          - Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+              - bedrock:InvokeModelWithResponseStream
+            Resource:
+              - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0'
+              - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0'
+          
+          - Effect: Allow
+            Action:
+              - states:StartExecution
+              - states:DescribeExecution
+              - states:StopExecution
+            Resource:
+              - !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:ial-*'
+              - !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:ial-*:*'
+
+Outputs:
+  PipelineLambdaPolicyArn:
+    Description: 'ARN of IAL Pipeline Lambda Enhanced Policy'
+    Value: !Ref IALPipelineLambdaPolicy
+    Export:
+      Name: !Sub '${AWS::StackName}-Pipeline-Lambda-Policy-ARN'

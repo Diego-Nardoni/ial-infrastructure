@@ -249,8 +249,9 @@ Resources:
             },
             "WaitForPRApproval": {
               "Type": "Task",
-              "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
-              "Parameters": {"FunctionName": "${WaitPRApprovalFunction}", "Payload": {"TaskToken.$": "$$.Task.Token", "git_result.$": "$.git_result"}},
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {"FunctionName": "${WaitPRApprovalFunction}", "Payload.$": "$"},
+              "ResultPath": "$.approval_result",
               "Next": "DeployCloudFormation"
             },
             "DeployCloudFormation": {

@@ -3,11 +3,23 @@ Foundation Deployer - Deploy automatizado de todas as fases IAL Foundation
 """
 
 import os
+import sys
 from typing import Dict, List, Any
 from core.phase_parser import PhaseParser, deploy_phase_resources
 
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 class FoundationDeployer:
-    def __init__(self, phases_dir: str = "/home/ial/phases"):
+    def __init__(self, phases_dir: str = None):
+        if phases_dir is None:
+            phases_dir = get_resource_path("phases")
         self.phases_dir = phases_dir
         self.parser = PhaseParser(phases_dir)
         

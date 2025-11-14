@@ -28,7 +28,9 @@ def handler(event, context):
         }
     """
     
-    deployment = event['deployment_result']['body']
+    # Extrair body do Payload (Step Functions invoke retorna Payload)
+    deployment_payload = event['deployment_result']['Payload']
+    deployment = deployment_payload.get('body', deployment_payload)
     
     # Verificar stack existe
     cfn = boto3.client('cloudformation')

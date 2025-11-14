@@ -5,13 +5,25 @@ CORRIGIDO: Deploy real via CloudFormation
 
 import yaml
 import os
+import sys
 import json
 from typing import Dict, List, Any
 import boto3
 import time
 
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 class PhaseParser:
-    def __init__(self, phases_dir: str = "/home/ial/phases"):
+    def __init__(self, phases_dir: str = None):
+        if phases_dir is None:
+            phases_dir = get_resource_path("phases")
         self.phases_dir = phases_dir
         self.session = boto3.Session()
         self.cf_client = self.session.client('cloudformation')

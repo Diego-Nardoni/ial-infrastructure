@@ -340,11 +340,147 @@ Use o contexto acima para gerar uma resposta precisa e baseada em documentação
             print(f"⚠️ RAG não disponível: {e}")
             return nl_intent
     
+    async def _detect_and_trigger_creation_intent(self, user_input: str) -> Optional[str]:
+        """
+        Detecta intenções de criação de infraestrutura e trigger Step Functions
+        
+        Args:
+            user_input: Input do usuário
+            
+        Returns:
+            Response string se intenção detectada, None caso contrário
+        """
+        # Keywords que indicam intenção de criação
+        creation_keywords = [
+            'quero', 'criar', 'provisionar', 'deploy', 'preciso', 'gostaria',
+            'create', 'provision', 'deploy', 'need', 'want', 'setup'
+        ]
+        
+        # Keywords de infraestrutura AWS
+        infra_keywords = [
+            'bucket', 's3', 'ec2', 'instance', 'rds', 'database', 'lambda',
+            'vpc', 'subnet', 'security group', 'load balancer', 'alb', 'nlb',
+            'cloudfront', 'route53', 'iam', 'role', 'policy', 'dynamodb',
+            'elasticache', 'redis', 'memcached', 'sqs', 'sns', 'api gateway'
+        ]
+        
+        user_lower = user_input.lower()
+        
+        # Verificar se há intenção de criação + infraestrutura
+        has_creation = any(keyword in user_lower for keyword in creation_keywords)
+        has_infra = any(keyword in user_lower for keyword in infra_keywords)
+        
+        if has_creation and has_infra:
+            print(f"🚀 Intenção de criação detectada: {user_input}")
+            
+            try:
+                # Trigger Step Functions pipeline
+                result = await self._trigger_nl_intent_pipeline_sfn(
+                    nl_intent=user_input,
+                    monthly_budget=500.0
+                )
+                
+                if result.get('status') == 'started':
+                    execution_arn = result.get('execution_arn', 'unknown')
+                    execution_name = execution_arn.split(':')[-1] if execution_arn != 'unknown' else 'unknown'
+                    
+                    return f"""✅ **Pipeline de Infraestrutura Iniciado!**
+
+🎯 **Solicitação:** {user_input}
+
+🚀 **Pipeline IAL NL Intent:** INICIADO
+📋 **Execution:** {execution_name}
+💰 **Budget:** $500/mês
+🔗 **ARN:** {execution_arn}
+
+**Próximos Passos:**
+1. 🔒 Validação de segurança (IAS)
+2. 💰 Estimativa de custos
+3. 🏗️ Geração CloudFormation (Enhanced MCP)
+4. 📝 Commit Git + PR
+5. ⏳ Aguardar aprovação
+6. 🚀 Deploy automático
+7. ✅ Verificação pós-deploy
+
+**Acompanhe em:**
+AWS Console → Step Functions → {execution_name}
+
+**Status em tempo real:**
+```bash
+aws stepfunctions describe-execution --execution-arn {execution_arn}
+```
+
+O pipeline está rodando em background. Você receberá notificações sobre o progresso!"""
+                
+                else:
+                    return f"❌ Falha ao iniciar pipeline: {result.get('error', 'Erro desconhecido')}"
+                    
+            except Exception as e:
+                return f"❌ Erro ao processar intenção de criação: {str(e)}"
+        
+        return None  # Não é intenção de criação
+    
+    async def _trigger_nl_intent_pipeline_sfn(self, nl_intent: str, monthly_budget: float = 500.0) -> Dict[str, Any]:
+        """
+        Trigger Step Functions NL Intent Pipeline
+        
+        Args:
+            nl_intent: Intenção em linguagem natural
+            monthly_budget: Budget mensal em USD
+            
+        Returns:
+            Dict com status e execution_arn
+        """
+        try:
+            import boto3
+            import time
+            
+            sfn = boto3.client('stepfunctions', region_name='us-east-1')
+            
+            # Input para Step Functions
+            execution_input = {
+                "nl_intent": nl_intent,
+                "natural_language_request": nl_intent,
+                "monthly_budget": monthly_budget,
+                "user_context": {
+                    "user_id": self.user_id,
+                    "session_id": self.current_session_id or f"session-{int(time.time())}",
+                    "triggered_via": "ialctl-auto-detection"
+                }
+            }
+            
+            # Nome único para execução
+            execution_name = f"ialctl-auto-{int(time.time())}"
+            
+            # Iniciar execução
+            response = sfn.start_execution(
+                stateMachineArn="arn:aws:states:us-east-1:221082174220:stateMachine:ial-nl-intent-pipeline",
+                name=execution_name,
+                input=json.dumps(execution_input)
+            )
+            
+            return {
+                'status': 'started',
+                'execution_arn': response['executionArn'],
+                'execution_name': execution_name
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'failed',
+                'error': str(e)
+            }
+    
     async def process_user_input(self, user_input: str) -> str:
         """Interface única: LLM com MCP nativo + RAG enrichment"""
         
         # Normalizar typos comuns
         normalized_input = self._normalize_service_name(user_input)
+        
+        # 🚀 DETECÇÃO DE INTENÇÃO DE CRIAÇÃO
+        creation_result = await self._detect_and_trigger_creation_intent(normalized_input)
+        if creation_result:
+            return creation_result
         
         try:
             # 1. Enriquecer com RAG

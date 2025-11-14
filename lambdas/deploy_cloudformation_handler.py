@@ -27,7 +27,9 @@ def handler(event, context):
         }
     """
     
-    phase_result = event['phase_result']['body']
+    # Extrair body do Payload (Step Functions invoke retorna Payload)
+    phase_payload = event['phase_result']['Payload']
+    phase_result = phase_payload.get('body', phase_payload)
     stack_name = f"ial-{phase_result['phase_name']}"
     
     cfn = boto3.client('cloudformation')
