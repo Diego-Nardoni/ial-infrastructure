@@ -68,6 +68,10 @@ class IALCTLIntegrated:
         if not github_token:
             print("❌ GitHub token é obrigatório para IAL funcionar")
             return 1
+        
+        # Create secret BEFORE foundation deployment
+        print("   🔑 Creating GitHub secret...")
+        self._update_github_secret(github_token)
         print("✅ GitHub token configurado")
         
         # 2. Deploy Foundation
@@ -103,9 +107,8 @@ class IALCTLIntegrated:
         # 5. Deploy NL Intent Pipeline (Step Functions)
         print("\n🔀 Step 5/6: Deploying NL Intent Pipeline...")
         try:
-            # Update Secrets Manager with real GitHub token
-            print("   🔑 Updating GitHub token in Secrets Manager...")
-            self._update_github_secret(github_token)
+            # Secret already created in Step 1
+            print("   ✅ GitHub secret already configured")
             
             # Preparar artifacts
             print("   📦 Preparing Lambda artifacts...")

@@ -427,7 +427,7 @@ Outputs:
   StateMachineArn:
     Value: !GetAtt GitOpsPipelineStateMachine.Arn
     Export:
-      Name: IAL-GitOps-Pipeline-Arn
+      Name: !Sub "IAL-GitOps-Pipeline-Arn-${AWS::StackName}"
   
   ValidatePhaseFunctionArn:
     Value: !GetAtt ValidatePhaseFunction.Arn

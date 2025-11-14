@@ -303,7 +303,7 @@ Outputs:
   StateMachineArn:
     Value: !GetAtt NLIntentPipelineStateMachine.Arn
     Export:
-      Name: IAL-NL-Intent-Pipeline-Arn
+      Name: !Sub "IAL-NL-Intent-Pipeline-Arn-${AWS::StackName}"
   
   IASValidationFunctionArn:
     Value: !GetAtt IASValidationFunction.Arn
