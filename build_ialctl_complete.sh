@@ -14,6 +14,8 @@ pyinstaller --onefile \
     --name ialctl \
     --add-data "config:config" \
     --add-data "phases:phases" \
+    --add-data "lambdas:lambdas" \
+    --add-data "lambda-layer:lambda-layer" \
     --hidden-import=boto3 \
     --hidden-import=yaml \
     --hidden-import=asyncio \

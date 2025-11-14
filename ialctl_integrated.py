@@ -111,7 +111,7 @@ class IALCTLIntegrated:
             print("   📦 Preparing Lambda artifacts...")
             subprocess.run([
                 'bash', '-c',
-                'cd /home/ial/lambdas && '
+                f'cd {get_resource_path("lambdas")} && '
                 'zip -q ias_validation_handler.zip ias_validation_handler.py && '
                 'zip -q cost_estimation_handler.zip cost_estimation_handler.py && '
                 'zip -q phase_builder_handler.zip phase_builder_handler.py && '
@@ -125,7 +125,7 @@ class IALCTLIntegrated:
             
             subprocess.run([
                 'bash', '-c',
-                'cd /home/ial/lambda-layer && zip -qr ial-pipeline-layer.zip python/'
+                f'cd {get_resource_path("lambda-layer")} && zip -qr ial-pipeline-layer.zip python/'
             ], check=True)
             
             # Criar bucket S3 se não existir
