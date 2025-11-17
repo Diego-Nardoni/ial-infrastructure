@@ -1,0 +1,369 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Circuit Breaker Metrics Publisher - Lambda and CloudWatch Integration'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+  Environment:
+    Type: String
+    Default: prod
+    Description: Environment name
+
+Resources:
+  # IAM Role for Metrics Publisher Lambda
+  MetricsPublisherRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-metrics-publisher-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: MetricsPublisherPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameterHistory
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ial/circuit_breaker/*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ProjectName}-metrics-publisher-${Environment}:*"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Component
+          Value: Monitoring
+
+  # Lambda Function for Metrics Publishing
+  MetricsPublisherFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-metrics-publisher-${Environment}"
+      Description: "Publishes circuit breaker state changes to CloudWatch metrics"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt MetricsPublisherRole.Arn
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          PROJECT_NAME: !Ref ProjectName
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from datetime import datetime
+          
+          cloudwatch = boto3.client('cloudwatch')
+          ssm = boto3.client('ssm')
+          
+          def lambda_handler(event, context):
+              try:
+                  print(f"Received event: {json.dumps(event)}")
+                  
+                  if 'source' in event and event['source'] == 'aws.ssm':
+                      return handle_ssm_parameter_change(event, context)
+                  elif 'test' in event:
+                      return handle_test_invocation(event, context)
+                  else:
+                      return {
+                          'statusCode': 400,
+                          'body': json.dumps({'error': 'Unsupported event type'})
+                      }
+                      
+              except Exception as e:
+                  print(f"Error in lambda_handler: {e}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps({'error': str(e)})
+                  }
+          
+          def handle_ssm_parameter_change(event, context):
+              try:
+                  detail = event.get('detail', {})
+                  parameter_name = detail.get('name', '')
+                  new_value = detail.get('value', '')
+                  
+                  if '/circuit_breaker/' not in parameter_name or not parameter_name.endswith('/state'):
+                      return {
+                          'statusCode': 200,
+                          'body': json.dumps({'message': 'Parameter ignored (not circuit breaker)'})
+                      }
+                  
+                  service = parameter_name.split('/circuit_breaker/')[1].split('/state')[0]
+                  old_state = get_previous_state(parameter_name)
+                  
+                  success = publish_circuit_breaker_metrics(service, old_state, new_value, datetime.utcnow())
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': f'Circuit breaker metrics published for {service}',
+                          'success': success,
+                          'service': service,
+                          'old_state': old_state,
+                          'new_state': new_value
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error handling SSM parameter change: {e}")
+                  raise
+          
+          def handle_test_invocation(event, context):
+              test_data = event.get('test', {})
+              service = test_data.get('service', 'test-service')
+              old_state = test_data.get('old_state', 'closed')
+              new_state = test_data.get('new_state', 'open')
+              
+              success = publish_circuit_breaker_metrics(service, old_state, new_state, datetime.utcnow())
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({
+                      'message': 'Test metrics published',
+                      'success': success
+                  })
+              }
+          
+          def get_previous_state(parameter_name):
+              try:
+                  response = ssm.get_parameter_history(Name=parameter_name, MaxResults=2)
+                  parameters = response.get('Parameters', [])
+                  if len(parameters) >= 2:
+                      return parameters[1]['Value']
+                  else:
+                      return 'closed'
+              except Exception as e:
+                  print(f"Could not get parameter history: {e}")
+                  return 'closed'
+          
+          def publish_circuit_breaker_metrics(service, old_state, new_state, timestamp):
+              try:
+                  namespace = "IAL/CircuitBreaker"
+                  environment = os.environ.get('ENVIRONMENT', 'prod')
+                  
+                  state_values = {'closed': 0.0, 'half_open': 0.5, 'open': 1.0}
+                  
+                  metric_data = [
+                      {
+                          'MetricName': 'CircuitBreakerState',
+                          'Dimensions': [
+                              {'Name': 'Service', 'Value': service},
+                              {'Name': 'Environment', 'Value': environment}
+                          ],
+                          'Value': state_values.get(new_state, -1.0),
+                          'Unit': 'None',
+                          'Timestamp': timestamp
+                      },
+                      {
+                          'MetricName': 'StateTransition',
+                          'Dimensions': [
+                              {'Name': 'Service', 'Value': service},
+                              {'Name': 'Environment', 'Value': environment},
+                              {'Name': 'FromState', 'Value': old_state},
+                              {'Name': 'ToState', 'Value': new_state}
+                          ],
+                          'Value': 1,
+                          'Unit': 'Count',
+                          'Timestamp': timestamp
+                      }
+                  ]
+                  
+                  cloudwatch.put_metric_data(Namespace=namespace, MetricData=metric_data)
+                  print(f"✅ Published metrics for {service}: {old_state} → {new_state}")
+                  return True
+                  
+              except Exception as e:
+                  print(f"❌ Failed to publish metrics: {e}")
+                  return False
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Component
+          Value: Monitoring
+
+  # CloudWatch Event Rule for SSM Parameter Changes
+  SSMParameterChangeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${ProjectName}-circuit-breaker-ssm-changes-${Environment}"
+      Description: "Trigger metrics publisher when circuit breaker SSM parameters change"
+      EventPattern:
+        source:
+          - "aws.ssm"
+        detail-type:
+          - "Parameter Store Change"
+        detail:
+          name:
+            - prefix: "/ial/circuit_breaker/"
+          operation:
+            - "Create"
+            - "Update"
+            - "Delete"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt MetricsPublisherFunction.Arn
+          Id: "MetricsPublisherTarget"
+
+  # Permission for CloudWatch Events to invoke Lambda
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref MetricsPublisherFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt SSMParameterChangeRule.Arn
+
+  # CloudWatch Dashboard for Circuit Breaker Monitoring
+  CircuitBreakerDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${ProjectName}-circuit-breaker-${Environment}"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "IAL/CircuitBreaker", "CircuitBreakerState", "Environment", "${Environment}" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Circuit Breaker States",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "min": 0,
+                    "max": 1
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "IAL/CircuitBreaker", "StateTransition", "Environment", "${Environment}" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "State Transitions",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "IAL/CircuitBreaker", "CircuitBreakerOpened", "Environment", "${Environment}" ],
+                  [ ".", "CircuitBreakerClosed", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Circuit Breaker Events",
+                "period": 300
+              }
+            }
+          ]
+        }
+
+  # CloudWatch Alarms
+  CircuitBreakerOpenAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-CircuitBreaker-Open-${Environment}"
+      AlarmDescription: "Circuit breaker has been open for more than 5 minutes"
+      MetricName: CircuitBreakerState
+      Namespace: IAL/CircuitBreaker
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0.9  # Open state = 1.0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      TreatMissingData: notBreaching
+
+  HighStateTransitionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-CircuitBreaker-HighTransitions-${Environment}"
+      AlarmDescription: "High number of circuit breaker state transitions (flapping)"
+      MetricName: StateTransition
+      Namespace: IAL/CircuitBreaker
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      TreatMissingData: notBreaching
+
+Outputs:
+  MetricsPublisherFunctionArn:
+    Description: "Metrics Publisher Lambda Function ARN"
+    Value: !GetAtt MetricsPublisherFunction.Arn
+    Export:
+      Name: !Sub "${ProjectName}-metrics-publisher-arn-${Environment}"
+
+  MetricsPublisherFunctionName:
+    Description: "Metrics Publisher Lambda Function Name"
+    Value: !Ref MetricsPublisherFunction
+    Export:
+      Name: !Sub "${ProjectName}-metrics-publisher-name-${Environment}"
+
+  CircuitBreakerDashboardURL:
+    Description: "Circuit Breaker CloudWatch Dashboard URL"
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ProjectName}-circuit-breaker-${Environment}"
+    Export:
+      Name: !Sub "${ProjectName}-circuit-breaker-dashboard-url-${Environment}"
+
+  MonitoringNamespace:
+    Description: "CloudWatch namespace for circuit breaker metrics"
+    Value: "IAL/CircuitBreaker"
+    Export:
+      Name: !Sub "${ProjectName}-circuit-breaker-namespace-${Environment}"
