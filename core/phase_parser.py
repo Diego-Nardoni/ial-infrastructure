@@ -140,6 +140,7 @@ class PhaseParser:
             if has_parameters:
                 parameters = [
                     {'ParameterKey': 'ProjectName', 'ParameterValue': project_name}
+                    , {"ParameterKey": "Environment", "ParameterValue": "prod"}
                 ]
             
             # Usar deployment idempotente
