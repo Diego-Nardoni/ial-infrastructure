@@ -382,6 +382,13 @@ Use o contexto acima para gerar uma resposta precisa e baseada em documentação
     async def _detect_and_process_phase_commands(self, user_input: str) -> Optional[str]:
         """Detecta e processa comandos relacionados a fases"""
         
+        # Detecção para listar templates de fase específica
+        import re
+        phase_template_match = re.search(r'(?:liste|list|show|mostre).*templates.*(?:fase|phase)\s*(\d{2}-[\w-]+)', user_input.lower())
+        if phase_template_match:
+            phase_id = phase_template_match.group(1)
+            return await self._list_phase_templates(phase_id)
+        
         # Detecção mais ampla para comandos de listagem de fases
         phase_keywords = ["fase", "phases", "phase", "template", "deployment"]
         list_keywords = ["list", "show", "mostre", "liste", "quais", "disponível", "available"]
@@ -523,6 +530,35 @@ O pipeline está rodando em background. Você receberá notificações sobre o p
                 return f"❌ Erro ao processar intenção de criação: {str(e)}"
         
         return None  # Não é intenção de criação
+    
+    async def _list_phase_templates(self, phase_id: str) -> str:
+        """Lista templates de uma fase específica"""
+        try:
+            if not self.available_phases:
+                await self.initialize_phase_discovery()
+            
+            # Encontrar a fase
+            phase = next((p for p in self.available_phases if p['phase_id'] == phase_id), None)
+            if not phase:
+                return f"⚠️ Fase '{phase_id}' não encontrada. Use 'list phases' para ver fases disponíveis."
+            
+            # Usar Phase Discovery Tool para obter templates
+            templates = await self.phase_discovery.get_phase_templates(phase_id)
+            
+            if not templates:
+                return f"⚠️ Nenhum template encontrado na fase '{phase_id}'."
+            
+            response = f"📋 **Templates da Fase {phase_id} - {phase['phase_name']}:**\n\n"
+            
+            for i, template in enumerate(templates, 1):
+                template_name = template.replace('.yaml', '').replace('.yml', '')
+                response += f"{i:2d}. **{template_name}**\n"
+            
+            response += f"\n**Total:** {len(templates)} templates na fase {phase_id}"
+            return response
+            
+        except Exception as e:
+            return f"⚠️ Erro ao listar templates da fase '{phase_id}': {e}"
     
     async def _trigger_nl_intent_pipeline_sfn(self, nl_intent: str, monthly_budget: float = 500.0) -> Dict[str, Any]:
         """

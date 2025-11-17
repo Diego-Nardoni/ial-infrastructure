@@ -190,6 +190,31 @@ class PhaseDiscoveryTool:
             summary += f"• **{phase['phase_id']}** - {phase['phase_name']} ({phase['template_count']} templates)\n"
         
         return summary
+    
+    async def get_phase_templates(self, phase_id: str) -> List[str]:
+        """Obtém lista de templates de uma fase específica"""
+        try:
+            # Tentar via MCP GitHub Server primeiro
+            if self.mcp_client:
+                try:
+                    templates = await self._list_phase_templates_mcp(f"phases/{phase_id}")
+                    if templates:
+                        return templates
+                except Exception as e:
+                    print(f"⚠️ MCP falhou para templates da fase {phase_id}: {e}")
+            
+            # Fallback para filesystem local
+            phase_path = os.path.join(self.phases_dir, phase_id)
+            if os.path.exists(phase_path):
+                templates = [f for f in os.listdir(phase_path) 
+                           if f.endswith(('.yaml', '.yml'))]
+                return sorted(templates)
+            
+            return []
+            
+        except Exception as e:
+            print(f"⚠️ Erro ao obter templates da fase {phase_id}: {e}")
+            return []
 
 # Integração com IAL Master Engine
 async def integrate_phase_discovery(ial_engine):
