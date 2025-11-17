@@ -112,14 +112,9 @@ class FoundationDeployer:
         
         phase_path = os.path.join(self.phases_dir, '00-foundation')
         
-        # Templates duplicados que devem ser pulados (recursos já existem em outros stacks)
+        # Templates que devem ser pulados (apenas se realmente duplicados)
         skip_templates = [
-            '08-rag-vector-store.yaml',      # Duplica 08-rag-storage
-            '20-ial-github-oidc-provider.yaml',  # OIDC provider já existe
-            '27-ial-token-usage-table.yaml',  # Tabela já existe em 07-conversation-memory
-            '36-logging-infrastructure.yaml', # Log groups já existem em 02-logging-infrastructure
-            '39-reconciliation-wrapper.yaml', # Topic já existe em 06-reconciliation-wrapper
-            '41-rag-storage.yaml'             # Bucket já existe em 08-rag-storage
+            # Removidos da lista - agora funcionam com nomes únicos
         ]
         
         # Templates prioritários (devem ser deployados primeiro)
@@ -130,11 +125,10 @@ class FoundationDeployer:
             '16-gitops-pipeline.yaml'  # GitOps Step Functions Pipeline
         ]
         
-        # Listar TODOS os arquivos YAML (exceto domain-metadata e duplicados)
+        # Listar TODOS os arquivos YAML (incluindo domain-metadata)
         all_files = sorted([
             f for f in os.listdir(phase_path) 
             if f.endswith('.yaml') 
-            and not f.startswith('domain-metadata')
             and f not in skip_templates
         ])
         

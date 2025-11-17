@@ -108,7 +108,7 @@ class PhaseParser:
         
         yaml_files = []
         for file in os.listdir(phase_path):
-            if file.endswith('.yaml') and not file.startswith('domain-metadata'):
+            if file.endswith('.yaml'):
                 yaml_files.append(os.path.join(phase_path, file))
         
         return sorted(yaml_files)
