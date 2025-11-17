@@ -55,7 +55,7 @@ class IALCTLIntegrated:
         print("=" * 50)
         
         # 0. Prerequisites & Dependencies
-        print("\n🔧 Step 0/7: Prerequisites & Dependencies...")
+        print("\n🔧 Step 0/6: Prerequisites & Dependencies...")
         prereq_result = self._check_and_install_prerequisites()
         if not prereq_result['success']:
             print(f"❌ Prerequisites check failed: {prereq_result['error']}")
@@ -63,7 +63,7 @@ class IALCTLIntegrated:
         print("✅ All prerequisites validated")
         
         # 1. GitHub Configuration
-        print("\n🔑 Step 1/7: GitHub Configuration...")
+        print("\n🔑 Step 1/6: GitHub Configuration...")
         github_token = self._get_github_token()
         if not github_token:
             print("❌ GitHub token é obrigatório para IAL funcionar")
@@ -75,7 +75,7 @@ class IALCTLIntegrated:
         print("✅ GitHub token configurado")
         
         # 2. Deploy Foundation
-        print("\n📦 Step 2/7: Deploying AWS Foundation...")
+        print("\n📦 Step 2/6: Deploying AWS Foundation...")
         deployer = FoundationDeployer()
         result = deployer.deploy_foundation_core()
         
@@ -86,14 +86,14 @@ class IALCTLIntegrated:
         print(f"✅ Foundation: {result['successful_deployments']}/{result['total_resource_groups']} resource groups deployed")
         
         # 3. Initialize MCP Servers
-        print("\n🔌 Step 3/7: Initializing MCP Servers...")
+        print("\n🔌 Step 3/6: Initializing MCP Servers...")
         mcp_initializer = MCPServersInitializer()
         mcp_result = await mcp_initializer.initialize_all_servers()
         
         print(f"✅ MCP Servers: {mcp_result['total_initialized']} initialized")
         
         # 4. Build and Deploy Container Lambda
-        print("\n🐳 Step 4/7: Building Container Lambda...")
+        print("\n🐳 Step 4/6: Building Container Lambda...")
         try:
             container_result = self._build_and_deploy_container_lambda()
             if container_result['success']:
@@ -105,7 +105,7 @@ class IALCTLIntegrated:
             print("   ℹ️  Enhanced MCP will use fallback mode")
         
         # 5. Deploy NL Intent Pipeline (Step Functions)
-        print("\n🔀 Step 5/7: Deploying NL Intent Pipeline...")
+        print("\n🔀 Step 5/6: Deploying NL Intent Pipeline...")
         try:
             # Secret already created in Step 1
             print("   ✅ GitHub secret already configured")
@@ -211,7 +211,7 @@ class IALCTLIntegrated:
             print("   ℹ️  You can deploy it manually later")
         
         # 6. Validate System Health
-        print("\n🏥 Step 6/7: Validating System Health...")
+        print("\n🏥 Step 6/6: Validating System Health...")
         health_validator = SystemHealthValidator()
         health_result = await health_validator.validate_complete_system()
         
