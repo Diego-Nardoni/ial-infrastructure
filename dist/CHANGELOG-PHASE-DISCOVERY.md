@@ -24,6 +24,6 @@
 - Padrão de detecção automática XX-nome
 
 ### 📦 Build Info
-- Build Date: Mon Nov 17 12:01:04 PM UTC 2025
+- Build Date: Mon Nov 17 12:06:18 PM UTC 2025
 - Binary Size: 76M
 - Includes: DynamoDB optimizations + Phase Discovery
