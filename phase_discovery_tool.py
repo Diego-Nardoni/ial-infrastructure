@@ -19,7 +19,15 @@ class PhaseDiscoveryTool:
         self.mcp_client = mcp_client
         self.phases_cache = {}
         self.cache_ttl = 300  # 5 minutos
-        self.phases_dir = "/home/ial/phases"
+        
+        # Detectar se está rodando no PyInstaller
+        import sys
+        if getattr(sys, 'frozen', False):
+            # Rodando no PyInstaller
+            self.phases_dir = os.path.join(sys._MEIPASS, 'phases')
+        else:
+            # Rodando em desenvolvimento
+            self.phases_dir = "/home/ial/phases"
         
     async def discover_phases(self, repo_path: str = "phases") -> List[Dict]:
         """Descobre fases disponíveis no repositório ou filesystem"""
