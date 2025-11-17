@@ -379,12 +379,19 @@ Use o contexto acima para gerar uma resposta precisa e baseada em documentação
     async def _detect_and_process_phase_commands(self, user_input: str) -> Optional[str]:
         """Detecta e processa comandos relacionados a fases"""
         
-        # Comandos de listagem de fases
-        if any(keyword in user_input.lower() for keyword in [
-            "list phases", "show phases", "available phases", "fases disponíveis", 
-            "listar fases", "mostrar fases", "quais fases", "quais as fases",
-            "fases do ial", "phases ial"
-        ]):
+    async def _detect_and_process_phase_commands(self, user_input: str) -> Optional[str]:
+        """Detecta e processa comandos relacionados a fases"""
+        
+        # Detecção mais ampla para comandos de listagem de fases
+        phase_keywords = ["fase", "phases", "phase", "template", "deployment"]
+        list_keywords = ["list", "show", "mostre", "liste", "quais", "disponível", "available"]
+        
+        input_lower = user_input.lower()
+        has_phase_keyword = any(keyword in input_lower for keyword in phase_keywords)
+        has_list_keyword = any(keyword in input_lower for keyword in list_keywords)
+        
+        # Se tem palavras relacionadas a fases E listagem, é provável que seja comando de fase
+        if has_phase_keyword and has_list_keyword:
             if not self.available_phases:
                 await self.initialize_phase_discovery()
             
@@ -605,12 +612,21 @@ O pipeline está rodando em background. Você receberá notificações sobre o p
         try:
             # 1. Enriquecer com RAG
             rag_context = ""
+            rag_failed = False
             try:
                 enriched = await self._enrich_prompt_with_rag(normalized_input)
                 if enriched != normalized_input:
                     rag_context = f"\n\n{enriched}\n"
+                else:
+                    rag_failed = True
             except:
-                pass
+                rag_failed = True
+            
+            # 🚀 FALLBACK: Se RAG falhou (0 hits), tentar Phase Discovery
+            if rag_failed:
+                phase_result = await self._detect_and_process_phase_commands(normalized_input)
+                if phase_result:
+                    return phase_result
             
             # 2. Construir contexto de conversação
             context = ""
