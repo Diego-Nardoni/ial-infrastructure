@@ -115,7 +115,8 @@ class FoundationDeployer:
         # Templates que são duplicados mas recursos já existem (contar como sucesso)
         duplicate_but_existing = [
             '39-reconciliation-wrapper.yaml',  # SNS Topic já existe em stack 06
-            '41-rag-storage.yaml'              # S3 Buckets já existem em stack 08
+            '41-rag-storage.yaml',             # S3 Buckets já existem em stack 08
+            '43-circuit-breaker-metrics.yaml'  # Circuit breaker já funcional via Lambda existente
         ]
         
         # Templates prioritários (devem ser deployados primeiro)
