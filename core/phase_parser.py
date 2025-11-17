@@ -35,11 +35,17 @@ class PhaseParser:
             stack_status = response["Stacks"][0]["StackStatus"]
             if stack_status in ["CREATE_COMPLETE", "UPDATE_COMPLETE"]:
                 return {"success": True, "action": "skipped", "stack_name": stack_name}
-            elif stack_status in ["ROLLBACK_COMPLETE", "CREATE_FAILED", "UPDATE_ROLLBACK_COMPLETE", "ROLLBACK_FAILED", "DELETE_FAILED"]:
+            elif stack_status in ["ROLLBACK_COMPLETE", "CREATE_FAILED", "UPDATE_ROLLBACK_COMPLETE", "ROLLBACK_FAILED"]:
                 print(f"🔄 Stack {stack_name} in failed state ({stack_status}), deleting and recreating...")
                 self.cf_client.delete_stack(StackName=stack_name)
                 waiter = self.cf_client.get_waiter("stack_delete_complete")
                 waiter.wait(StackName=stack_name, WaiterConfig={"Delay": 15, "MaxAttempts": 20})
+            elif stack_status == "DELETE_FAILED":
+                print(f"⚠️ Stack {stack_name} in DELETE_FAILED state - using new stack name")
+                import time
+                timestamp = int(time.time())
+                stack_name = f"{stack_name}-v{timestamp}"
+                print(f"📦 Creating new stack: {stack_name}")
             else:
                 return {"success": False, "action": "failed", "error": f"Stack in {stack_status} state"}
         except self.cf_client.exceptions.ClientError as e:
