@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Conversation Memory System - Optimized DynamoDB Structure'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'ial-fork'
+
+Resources:
+  # Optimized Conversation History Table
+  ConversationHistoryOptimized:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-conversation-history-v2'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_date
+          AttributeType: S
+        - AttributeName: timestamp_type
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+        - AttributeName: session_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_date
+          KeyType: HASH
+        - AttributeName: timestamp_type
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: UserTimeIndex
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes: ['content_summary', 'tokens', 'role']
+        - IndexName: SessionIndex
+          KeySchema:
+            - AttributeName: session_id
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes: ['content_hash', 'summary']
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Optimized
+          Value: 'true'
+
+  # Separate Embeddings Table
+  ConversationEmbeddings:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-conversation-embeddings'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_chunk
+          AttributeType: S
+        - AttributeName: embedding_id
+          AttributeType: S
+        - AttributeName: similarity_hash
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_chunk
+          KeyType: HASH
+        - AttributeName: embedding_id
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: SimilarityIndex
+          KeySchema:
+            - AttributeName: user_chunk
+              KeyType: HASH
+            - AttributeName: similarity_hash
+              KeyType: RANGE
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes: ['vector_compressed', 'metadata']
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Purpose
+          Value: VectorStorage
+
+Outputs:
+  ConversationHistoryTableName:
+    Value: !Ref ConversationHistoryOptimized
+    Export:
+      Name: !Sub '${ProjectName}-ConversationHistoryOptimized'
+  
+  EmbeddingsTableName:
+    Value: !Ref ConversationEmbeddings
+    Export:
+      Name: !Sub '${ProjectName}-ConversationEmbeddings'

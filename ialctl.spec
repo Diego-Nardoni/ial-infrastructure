@@ -5,7 +5,7 @@ a = Analysis(
     ['ialctl_integrated.py'],
     pathex=[],
     binaries=[],
-    datas=[('config', 'config'), ('phases', 'phases'), ('lambdas', 'lambdas'), ('lambda-layer', 'lambda-layer')],
+    datas=[('config', 'config'), ('phases', 'phases'), ('lambdas', 'lambdas'), ('lambda-layer', 'lambda-layer'), ('scripts', 'scripts'), ('docs', 'docs')],
     hiddenimports=['boto3', 'yaml', 'asyncio'],
     hookspath=[],
     hooksconfig={},

@@ -64,13 +64,17 @@ class IALMasterEngineIntegrated:
             return None
     
     def _initialize_context_engine(self):
-        """Inicializar Context Engine existente"""
+        """Inicializar Context Engine otimizado"""
         try:
-            from core.memory.context_engine import ContextEngine
-            return ContextEngine()
+            from core.memory.context_engine_optimized import OptimizedContextEngine
+            return OptimizedContextEngine()
         except ImportError as e:
-            print(f"⚠️ ContextEngine não encontrado: {e}")
-            return None
+            print(f"⚠️ OptimizedContextEngine não encontrado, usando fallback: {e}")
+            try:
+                from core.memory.context_engine import ContextEngine
+                return ContextEngine()
+            except ImportError:
+                return None
     
     def _initialize_query_engine(self):
         """Inicializar Query Engine existente"""
