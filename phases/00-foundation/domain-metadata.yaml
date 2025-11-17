@@ -1,38 +1,32 @@
-domain:
-  name: "foundation"
-  description: "Core infrastructure foundation - state management, logging, reconciliation, orchestration"
-  dependencies: []
-  parallel_safe: false
-  estimated_duration: "45min"
-  team_owner: "platform-team"
-  risk_level: "low"
-  phases:
-    - "01-dynamodb-state.yaml"
-    - "02-kms-keys.yaml"
-    - "02-logging-infrastructure.yaml"
-    - "03-reconciliation-engine.yaml"
-    - "04-iam-roles.yaml"
-    - "04-backup-strategy.yaml"
-    - "05-chaos-engineering.yaml"
-    - "06-reconciliation-wrapper.yaml"
-    - "07-conversation-memory.yaml"
-    - "08-rag-storage.yaml"
-    - "08-rag-vector-store.yaml"
-    - "09-stepfunctions-orchestrator.yaml"
-    - "10-ial-dynamodb-tables.yaml"
-    - "11-ial-s3-storage.yaml"
-    - "12-ial-rag-infrastructure.yaml"
-    - "13-ial-drift-detection.yaml"
-    - "14-ial-lambda-functions.yaml"
-    - "15-ial-bedrock-github-iam.yaml"
-    - "16-ial-test-validation.yaml"
-    - "17-ial-finops-budget-enforcement.yaml"
-    - "18-ial-feature-flags.yaml"
-    - "19-ial-enterprise-observability.yaml"
-    - "20-ial-github-oidc-provider.yaml"
-    - "21-ial-stepfunctions-migration.yaml"
-    - "22-ial-stepfunctions-lambdas.yaml"
-    - "23-ial-core-observability.yaml"
-    - "24-ial-sns-topics.yaml"
-  execution_order: "sequential"
-  priority: 1
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Domain Metadata'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+  Environment:
+    Type: String
+    Default: prod
+
+Resources:
+  DomainMetadataParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/${ProjectName}/${Environment}/domain/metadata"
+      Type: String
+      Value: |
+        {
+          "domain": "foundation",
+          "description": "Core infrastructure foundation",
+          "team_owner": "platform-team",
+          "risk_level": "low"
+        }
+      Description: "Domain metadata for IAL Foundation"
+
+Outputs:
+  DomainMetadataArn:
+    Description: "Domain metadata parameter ARN"
+    Value: !Ref DomainMetadataParameter
+    Export:
+      Name: !Sub "${AWS::StackName}-domain-metadata-arn"
