@@ -69,12 +69,17 @@ class PhaseParser:
             else:
                 return {"success": False, "action": "failed", "error": str(e)}
         
-        # Usar nome do stack retornado pela função idempotente
-        actual_stack_name = deployment_result.get('stack_name', stack_name)
-        
-        if deployment_result.get('action') == 'create_new':
-            # Usar novo nome para DELETE_FAILED
-            stack_name = actual_stack_name
+            # Usar deployment idempotente
+            deployment_result = self._create_or_update_stack_idempotent(
+                stack_name, template_body, parameters, project_name
+            )
+            
+            # Usar nome do stack retornado pela função idempotente
+            actual_stack_name = deployment_result.get('stack_name', stack_name)
+            
+            if deployment_result.get('action') == 'create_new':
+                # Usar novo nome para DELETE_FAILED
+                stack_name = actual_stack_name
         
         create_args = {
             "StackName": stack_name,
@@ -183,10 +188,6 @@ class PhaseParser:
                     , {"ParameterKey": "Environment", "ParameterValue": "prod"}
                 ]
             
-            # Usar deployment idempotente
-            deployment_result = self._create_or_update_stack_idempotent(
-                stack_name, template_body, parameters, project_name
-            )
             
             if deployment_result['action'] == 'skipped':
                 print(f"✅ Stack {stack_name} already exists and is complete")

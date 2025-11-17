@@ -1,0 +1,9 @@
+Package: ialctl
+Version: 2.3.6
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: IAL Team <ial@example.com>
+Description: IAL Infrastructure Assistant - HOTFIX v2.3.6
+ HOTFIX: Variable scope errors corrected.
+ All 49 templates working with proper variable definitions.
