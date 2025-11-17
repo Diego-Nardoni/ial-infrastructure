@@ -382,7 +382,8 @@ Use o contexto acima para gerar uma resposta precisa e baseada em documentação
         # Comandos de listagem de fases
         if any(keyword in user_input.lower() for keyword in [
             "list phases", "show phases", "available phases", "fases disponíveis", 
-            "listar fases", "mostrar fases", "quais fases"
+            "listar fases", "mostrar fases", "quais fases", "quais as fases",
+            "fases do ial", "phases ial"
         ]):
             if not self.available_phases:
                 await self.initialize_phase_discovery()
