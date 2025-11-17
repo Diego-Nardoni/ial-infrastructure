@@ -98,26 +98,19 @@ class PhaseParser:
                     {'ParameterKey': 'ProjectName', 'ParameterValue': project_name}
                 ]
             
-            # Tentar criar stack
-            print(f"📦 Deploying CloudFormation stack: {stack_name}")
+            # Usar deployment idempotente
+            deployment_result = self._create_or_update_stack_idempotent(
+                stack_name, template_body, parameters, project_name
+            )
             
-            create_args = {
-                'StackName': stack_name,
-                'TemplateBody': template_body,
-                'Capabilities': ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
-                'Tags': [
-                    {'Key': 'Project', 'Value': project_name},
-                    {'Key': 'Component', 'Value': 'IAL-Foundation'},
-                    {'Key': 'DeployedBy', 'Value': 'IAL-MCP-System'},
-                    {'Key': 'Idempotent', 'Value': 'true'}
-                ]
-            }
+            if deployment_result['action'] == 'skipped':
+                print(f"✅ Stack {stack_name} already exists and is complete")
+                return {'success': True, 'stack_name': stack_name, 'action': 'skipped'}
+            elif deployment_result['action'] == 'failed':
+                print(f"❌ Stack {stack_name} deployment failed: {deployment_result.get('error', 'Unknown error')}")
+                return {'success': False, 'error': deployment_result.get('error', 'Deployment failed')}
             
-            # Adicionar parâmetros apenas se necessário
-            if parameters:
-                create_args['Parameters'] = parameters
-            
-            response = self.cf_client.create_stack(**create_args)
+            response = {'StackId': deployment_result.get('stack_id', stack_name)}
             
             stack_id = response['StackId']
             
