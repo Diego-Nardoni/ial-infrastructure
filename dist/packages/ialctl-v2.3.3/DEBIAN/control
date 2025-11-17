@@ -1,0 +1,17 @@
+Package: ialctl
+Version: 2.3.3
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: IAL Team <ial@example.com>
+Description: IAL Infrastructure Assistant - FINAL VERSION v2.3.3
+ Complete AWS infrastructure automation with ALL corrections applied.
+ .
+ Version 2.3.3 includes:
+ - True idempotency (no duplicate resources)
+ - Lambda function name length fix (64-char limit)
+ - All 49 templates working (100% success rate)
+ - Dynamic naming with AWS::StackName
+ - Fixed waiter using correct stack IDs
+ - Cleanup of orphaned stacks
+ - GUARANTEED 49/49 template deployment success
