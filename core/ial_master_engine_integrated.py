@@ -30,6 +30,12 @@ class IALMasterEngineIntegrated:
         # Orquestradores existentes
         self.orchestrators = self._initialize_orchestrators()
         
+        # Phase Discovery Tool - Integração com MCP GitHub Server
+        from phase_discovery_tool import PhaseDiscoveryTool
+        self.phase_discovery = PhaseDiscoveryTool(self.mcp_client)
+        self.available_phases = []
+        self.deployment_order = []
+        
         # User ID do ContextEngine (persistente)
         self.user_id = self.context_engine.memory.user_id if self.context_engine else self._generate_user_id()
         self.current_session_id = None
@@ -44,7 +50,8 @@ class IALMasterEngineIntegrated:
             'observability': True,
             'security': True,
             'troubleshooting': True,
-            'cost_optimization': True
+            'cost_optimization': True,
+            'phase_discovery': True
         }
     
     def _generate_user_id(self) -> str:
@@ -344,6 +351,66 @@ Use o contexto acima para gerar uma resposta precisa e baseada em documentação
             print(f"⚠️ RAG não disponível: {e}")
             return nl_intent
     
+    async def _detect_and_process_phase_commands(self, user_input: str) -> Optional[str]:
+        """Detecta e processa comandos relacionados a fases"""
+        
+        # Comandos de listagem de fases
+        if any(keyword in user_input.lower() for keyword in [
+            "list phases", "show phases", "available phases", "fases disponíveis", 
+            "listar fases", "mostrar fases", "quais fases"
+        ]):
+            if not self.available_phases:
+                await self.initialize_phase_discovery()
+            
+            if self.available_phases:
+                response = "📋 **Fases Disponíveis:**\n\n"
+                for phase in self.available_phases:
+                    response += f"• **{phase['phase_id']}** - {phase['phase_name']}\n"
+                    response += f"  └─ {phase['template_count']} templates disponíveis\n\n"
+                
+                response += f"**Total:** {len(self.available_phases)} fases com {sum(p['template_count'] for p in self.available_phases)} templates"
+                return response
+            else:
+                return "⚠️ Não foi possível descobrir as fases disponíveis. Verifique a configuração do MCP GitHub Server."
+        
+        # Comandos de detalhes de fase específica
+        import re
+        phase_detail_match = re.search(r'(?:show|describe|details?|info)\s+(?:phase\s+)?(\d{2}-[\w-]+)', user_input.lower())
+        if phase_detail_match:
+            phase_id = phase_detail_match.group(1)
+            
+            if not self.available_phases:
+                await self.initialize_phase_discovery()
+            
+            phase_info = next((p for p in self.available_phases if p['phase_id'] == phase_id), None)
+            if phase_info:
+                response = f"📄 **Fase {phase_info['phase_id']}** - {phase_info['phase_name']}\n\n"
+                response += f"**Templates disponíveis ({phase_info['template_count']}):**\n"
+                for template in phase_info['templates']:
+                    response += f"• {template}\n"
+                return response
+            else:
+                return f"❌ Fase '{phase_id}' não encontrada. Use 'list phases' para ver fases disponíveis."
+        
+        # Comandos de ordem de deployment
+        if any(keyword in user_input.lower() for keyword in [
+            "deployment order", "deploy order", "ordem de deploy", "sequência de deploy"
+        ]):
+            if not self.deployment_order:
+                await self.initialize_phase_discovery()
+            
+            if self.deployment_order:
+                response = "🚀 **Ordem Recomendada de Deployment:**\n\n"
+                for i, phase_id in enumerate(self.deployment_order, 1):
+                    phase_info = next((p for p in self.available_phases if p['phase_id'] == phase_id), None)
+                    phase_name = phase_info['phase_name'] if phase_info else phase_id
+                    response += f"{i}. **{phase_id}** - {phase_name}\n"
+                return response
+            else:
+                return "⚠️ Não foi possível determinar a ordem de deployment."
+        
+        return None
+    
     async def _detect_and_trigger_creation_intent(self, user_input: str) -> Optional[str]:
         """
         Detecta intenções de criação de infraestrutura e trigger Step Functions
@@ -475,11 +542,34 @@ O pipeline está rodando em background. Você receberá notificações sobre o p
                 'error': str(e)
             }
     
+    async def initialize_phase_discovery(self):
+        """Inicializa descoberta de fases via MCP GitHub Server"""
+        try:
+            print("🔍 Descobrindo fases disponíveis...")
+            self.available_phases = await self.phase_discovery.discover_phases()
+            self.deployment_order = await self.phase_discovery.get_deployment_order()
+            
+            if self.available_phases:
+                print(f"✅ Descobertas {len(self.available_phases)} fases com {sum(p['template_count'] for p in self.available_phases)} templates")
+                return True
+            else:
+                print("⚠️ Nenhuma fase descoberta - usando fallback para filesystem local")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Erro na descoberta de fases: {e}")
+            return False
+    
     async def process_user_input(self, user_input: str) -> str:
         """Interface única: LLM com MCP nativo + RAG enrichment"""
         
         # Normalizar typos comuns
         normalized_input = self._normalize_service_name(user_input)
+        
+        # 🔍 DETECÇÃO DE COMANDOS DE FASE
+        phase_result = await self._detect_and_process_phase_commands(normalized_input)
+        if phase_result:
+            return phase_result
         
         # 🚀 DETECÇÃO DE INTENÇÃO DE CRIAÇÃO
         creation_result = await self._detect_and_trigger_creation_intent(normalized_input)
