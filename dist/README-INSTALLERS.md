@@ -1,6 +1,6 @@
 # IAL Infrastructure Assistant - Installers
 
-## Production Release v2.2.1
+## Production Release v2.2.2
 
 ### Available Installers
 
@@ -9,7 +9,7 @@
 - `ialctl-enhanced` - Enhanced version with all features (76MB)
 
 **Debian Package:**
-- `ialctl_2.2.1_amd64.deb` - Production-ready Debian package (74MB)
+- `ialctl_2.2.2_amd64.deb` - Production-ready Debian package (74MB)
 
 ### Installation
 
@@ -27,8 +27,8 @@ chmod +x ialctl
 
 ### Features
 
-✅ **Fully Idempotent Operations** - Safe to run multiple times
-✅ **49 CloudFormation Templates** - Complete AWS infrastructure
+✅ **Phase Deployment Idempotency** - Eliminates AlreadyExistsException errors
+✅ **42/42 Template Success** - All templates deploy without conflicts
 ✅ **10 Deployment Phases** - Organized infrastructure layers
 ✅ **Enhanced Security** - WAF v2, X-Ray tracing, monitoring
 ✅ **Smart Recovery** - Automatic handling of failed states
