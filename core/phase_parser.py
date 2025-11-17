@@ -27,6 +27,44 @@ class PhaseParser:
         self.phases_dir = phases_dir
         self.session = boto3.Session()
         self.cf_client = self.session.client('cloudformation')
+
+    def _create_or_update_stack_idempotent(self, stack_name, template_body, parameters, project_name):
+        """Create stack if not exists, skip if exists and complete"""
+        try:
+            response = self.cf_client.describe_stacks(StackName=stack_name)
+            stack_status = response["Stacks"][0]["StackStatus"]
+            if stack_status in ["CREATE_COMPLETE", "UPDATE_COMPLETE"]:
+                return {"success": True, "action": "skipped", "stack_name": stack_name}
+            elif stack_status in ["ROLLBACK_COMPLETE", "CREATE_FAILED", "UPDATE_ROLLBACK_COMPLETE", "ROLLBACK_FAILED", "DELETE_FAILED"]:
+                print(f"🔄 Stack {stack_name} in failed state ({stack_status}), deleting and recreating...")
+                self.cf_client.delete_stack(StackName=stack_name)
+                waiter = self.cf_client.get_waiter("stack_delete_complete")
+                waiter.wait(StackName=stack_name, WaiterConfig={"Delay": 15, "MaxAttempts": 20})
+            else:
+                return {"success": False, "action": "failed", "error": f"Stack in {stack_status} state"}
+        except self.cf_client.exceptions.ClientError as e:
+            if "does not exist" in str(e):
+                print(f"📦 Creating new stack: {stack_name}")
+            else:
+                return {"success": False, "action": "failed", "error": str(e)}
+        create_args = {
+            "StackName": stack_name,
+            "TemplateBody": template_body,
+            "Capabilities": ["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"],
+            "Tags": [
+                {"Key": "Project", "Value": project_name},
+                {"Key": "Component", "Value": "IAL-Foundation"},
+                {"Key": "DeployedBy", "Value": "IAL-MCP-System"},
+                {"Key": "Idempotent", "Value": "true"}
+            ]
+        }
+        if parameters:
+            create_args["Parameters"] = parameters
+        try:
+            response = self.cf_client.create_stack(**create_args)
+            return {"success": True, "action": "created", "stack_id": response["StackId"]}
+        except Exception as e:
+            return {"success": False, "action": "failed", "error": str(e)}
     
     def list_phase_files(self, phase: str = "00-foundation") -> List[str]:
         """Lista arquivos YAML de uma fase"""
