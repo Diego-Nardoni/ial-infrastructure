@@ -11,6 +11,7 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from boto3.dynamodb.conditions import Key
+from decimal import Decimal
 import redis
 
 class OptimizedMemoryManager:
@@ -222,7 +223,7 @@ class OptimizedMemoryManager:
             
             response = self.history_table.query(
                 IndexName='UserTimeIndexV3',
-                KeyConditionExpression=Key('user_id').eq(self.user_id) & Key('timestamp').gte(week_ago),
+                KeyConditionExpression=Key('user_id').eq(self.user_id) & Key('timestamp').gte(Decimal(str(week_ago))),
                 ProjectionExpression='tokens, #role',
                 ExpressionAttributeNames={'#role': 'role'}
             )
