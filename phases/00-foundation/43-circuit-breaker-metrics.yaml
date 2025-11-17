@@ -16,7 +16,7 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "ial-circuit-breaker-lambda-role-${AWS::StackName}"
+      RoleName: !Sub "ial-circuit-breaker-lambda-role-${AWS::StackName}-${AWS::AccountId}"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -32,7 +32,7 @@ Resources:
   MetricsPublisherRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${ProjectName}-metrics-publisher-role-${Environment}"
+      RoleName: !Sub "${ProjectName}-metrics-publisher-role-${Environment}-${AWS::StackName}"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -259,7 +259,7 @@ Resources:
   CircuitBreakerDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: !Sub "${ProjectName}-circuit-breaker-${Environment}"
+      DashboardName: !Sub "${ProjectName}-circuit-breaker-${Environment}-${AWS::StackName}"
       DashboardBody: !Sub |
         {
           "widgets": [
@@ -328,7 +328,7 @@ Resources:
   CircuitBreakerOpenAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${ProjectName}-CircuitBreaker-Open-${Environment}"
+      AlarmName: !Sub "${ProjectName}-CircuitBreaker-Open-${Environment}-${AWS::StackName}"
       AlarmDescription: "Circuit breaker has been open for more than 5 minutes"
       MetricName: CircuitBreakerState
       Namespace: IAL/CircuitBreaker
@@ -345,7 +345,7 @@ Resources:
   HighStateTransitionAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${ProjectName}-CircuitBreaker-HighTransitions-${Environment}"
+      AlarmName: !Sub "${ProjectName}-CircuitBreaker-HighTransitions-${Environment}-${AWS::StackName}"
       AlarmDescription: "High number of circuit breaker state transitions (flapping)"
       MetricName: StateTransition
       Namespace: IAL/CircuitBreaker
@@ -364,22 +364,22 @@ Outputs:
     Description: "Metrics Publisher Lambda Function ARN"
     Value: !GetAtt MetricsPublisherFunction.Arn
     Export:
-      Name: !Sub "${ProjectName}-metrics-publisher-arn-${Environment}"
+      Name: !Sub "${ProjectName}-metrics-publisher-arn-${Environment}-${AWS::StackName}"
 
   MetricsPublisherFunctionName:
     Description: "Metrics Publisher Lambda Function Name"
     Value: !Ref MetricsPublisherFunction
     Export:
-      Name: !Sub "${ProjectName}-metrics-publisher-name-${Environment}"
+      Name: !Sub "${ProjectName}-metrics-publisher-name-${Environment}-${AWS::StackName}"
 
   CircuitBreakerDashboardURL:
     Description: "Circuit Breaker CloudWatch Dashboard URL"
     Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ProjectName}-circuit-breaker-${Environment}"
     Export:
-      Name: !Sub "${ProjectName}-circuit-breaker-dashboard-url-${Environment}"
+      Name: !Sub "${ProjectName}-circuit-breaker-dashboard-url-${Environment}-${AWS::StackName}"
 
   MonitoringNamespace:
     Description: "CloudWatch namespace for circuit breaker metrics"
     Value: "IAL/CircuitBreaker"
     Export:
-      Name: !Sub "${ProjectName}-circuit-breaker-namespace-${Environment}"
+      Name: !Sub "${ProjectName}-circuit-breaker-namespace-${Environment}-${AWS::StackName}"
