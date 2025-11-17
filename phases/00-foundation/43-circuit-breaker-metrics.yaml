@@ -16,7 +16,7 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "ial-circuit-breaker-lambda-role-${AWS::StackName}-${AWS::AccountId}"
+      RoleName: !Sub "ial-cb-lambda-${AWS::StackName}"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -32,7 +32,7 @@ Resources:
   MetricsPublisherRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${ProjectName}-metrics-publisher-role-${Environment}-${AWS::StackName}"
+      RoleName: !Sub "${ProjectName}-metrics-${Environment}-${AWS::StackName}"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
