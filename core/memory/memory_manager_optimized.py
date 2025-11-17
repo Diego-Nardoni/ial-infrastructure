@@ -27,9 +27,34 @@ class OptimizedMemoryManager:
         self.cache = self._init_cache()
         self.cache_ttl = 300  # 5 minutes
         
-        # User context
-        self.user_id = None
+        # User context - Generate user_id if not provided
+        self.user_id = self._generate_user_id()
         self.session_id = None
+    
+    def _generate_user_id(self) -> str:
+        """Gera ID único baseado em arquivo persistente"""
+        import os
+        user_id_file = os.path.expanduser('~/.ial_user_id')
+        
+        # Tentar ler user_id existente
+        if os.path.exists(user_id_file):
+            try:
+                with open(user_id_file, 'r') as f:
+                    return f.read().strip()
+            except Exception:
+                pass
+        
+        # Gerar novo user_id
+        import uuid
+        new_user_id = f"ial-user-{str(uuid.uuid4())[:8]}"
+        
+        try:
+            with open(user_id_file, 'w') as f:
+                f.write(new_user_id)
+        except Exception:
+            pass
+            
+        return new_user_id
     
     def _init_cache(self):
         """Initialize Redis cache with fallback to in-memory"""
@@ -216,6 +241,17 @@ class OptimizedMemoryManager:
     
     def get_user_stats(self) -> Dict:
         """Get user statistics using GSI"""
+        
+        # Safety check for user_id
+        if not self.user_id:
+            return {
+                'total_messages': 0,
+                'user_messages': 0,
+                'assistant_messages': 0,
+                'total_tokens': 0,
+                'period': '7_days',
+                'status': 'No user_id available'
+            }
         
         try:
             # Query last 7 days using UserTimeIndexV3
