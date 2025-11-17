@@ -53,6 +53,31 @@ class IALMasterEngineIntegrated:
             'cost_optimization': True,
             'phase_discovery': True
         }
+        
+        # 🚀 INICIALIZAÇÃO AUTOMÁTICA DA PHASE DISCOVERY
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Se já há um loop rodando, agenda para depois
+                asyncio.create_task(self._startup_phase_discovery())
+            else:
+                # Se não há loop, roda diretamente
+                asyncio.run(self._startup_phase_discovery())
+        except Exception as e:
+            print(f"⚠️ Phase Discovery será inicializada sob demanda: {e}")
+    
+    async def _startup_phase_discovery(self):
+        """Inicialização automática da Phase Discovery no startup"""
+        try:
+            print("🔍 Inicializando Phase Discovery...")
+            success = await self.initialize_phase_discovery()
+            if success:
+                print(f"✅ {len(self.available_phases)} fases descobertas no startup")
+            else:
+                print("⚠️ Phase Discovery será inicializada sob demanda")
+        except Exception as e:
+            print(f"⚠️ Phase Discovery startup falhou: {e}")
     
     def _generate_user_id(self) -> str:
         """Gera ID único baseado em hostname + username"""
