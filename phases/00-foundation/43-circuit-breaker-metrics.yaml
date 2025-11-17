@@ -72,7 +72,7 @@ Resources:
   MetricsPublisherFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-metrics-publisher-${Environment}"
+      FunctionName: !Sub "${AWS::StackName}-metrics-pub"
       Description: "Publishes circuit breaker state changes to CloudWatch metrics"
       Runtime: python3.11
       Handler: index.lambda_handler
