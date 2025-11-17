@@ -385,7 +385,27 @@ Use o contexto acima para gerar uma resposta precisa e baseada em documentação
         # Detecção para listar templates de fase específica
         import re
         # Padrão mais flexível para capturar variações como "listar os templates de **20-network**"
-        phase_template_match = re.search(r'(?:liste?r?|list|show|mostre).*(?:templates?|templetas?).*(?:da|de|of).*?(\d{2}-[\w-]+)', user_input.lower())
+        phase_template_match = re.search(r'(?:liste?s?|list|show|mostre).*(?:templates?|templetas?).*(?:da|de|of|fase).*?(\d{2}-[\w-]+|network|security|foundation|compute|data|application|observability|ai-ml|governance|misc)', user_input.lower())
+        
+        # Também capturar comandos diretos como "listes os templates da fase Network"
+        if not phase_template_match:
+            phase_name_match = re.search(r'(?:liste?s?|list|show|mostre).*(?:templates?).*(?:da|de|of).*?(?:fase|phase).*?(network|security|foundation|compute|data|application|observability|ai-ml|governance|misc)', user_input.lower())
+            if phase_name_match:
+                phase_name = phase_name_match.group(1).lower()
+                phase_map = {
+                    'network': '20-network',
+                    'security': '10-security', 
+                    'foundation': '00-foundation',
+                    'compute': '30-compute',
+                    'data': '40-data',
+                    'application': '50-application',
+                    'observability': '60-observability',
+                    'ai-ml': '70-ai-ml',
+                    'governance': '90-governance',
+                    'misc': '99-misc'
+                }
+                if phase_name in phase_map:
+                    return await self._list_phase_templates(phase_map[phase_name])
         if phase_template_match:
             phase_id = phase_template_match.group(1)
             return await self._list_phase_templates(phase_id)

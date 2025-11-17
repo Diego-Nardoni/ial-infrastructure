@@ -254,12 +254,23 @@ class OptimizedMemoryManager:
             }
         
         try:
+            # Skip stats if no user_id
+            if not self.user_id or self.user_id == 'None':
+                return {
+                    'total_messages': 0,
+                    'user_messages': 0,
+                    'assistant_messages': 0,
+                    'total_tokens': 0,
+                    'period': '7_days',
+                    'status': 'No user_id'
+                }
+            
             # Query last 7 days using UserTimeIndexV3
             week_ago = int((datetime.now() - timedelta(days=7)).timestamp())
             
             response = self.history_table.query(
                 IndexName='UserTimeIndexV3',
-                KeyConditionExpression=Key('user_id').eq(self.user_id) & Key('timestamp').gte(Decimal(str(week_ago))),
+                KeyConditionExpression=Key('user_id').eq(str(self.user_id)) & Key('timestamp').gte(Decimal(str(week_ago))),
                 ProjectionExpression='tokens, #role',
                 ExpressionAttributeNames={'#role': 'role'}
             )
