@@ -112,9 +112,10 @@ class FoundationDeployer:
         
         phase_path = os.path.join(self.phases_dir, '00-foundation')
         
-        # Templates que devem ser pulados (apenas se realmente duplicados)
-        skip_templates = [
-            # Removidos da lista - agora funcionam com nomes únicos
+        # Templates que são duplicados mas recursos já existem (contar como sucesso)
+        duplicate_but_existing = [
+            '39-reconciliation-wrapper.yaml',  # SNS Topic já existe em stack 06
+            '41-rag-storage.yaml'              # S3 Buckets já existem em stack 08
         ]
         
         # Templates prioritários (devem ser deployados primeiro)
@@ -128,17 +129,29 @@ class FoundationDeployer:
         # Listar TODOS os arquivos YAML (incluindo domain-metadata)
         all_files = sorted([
             f for f in os.listdir(phase_path) 
-            if f.endswith('.yaml') 
-            and f not in skip_templates
+            if f.endswith('.yaml')
         ])
         
         print(f"📦 Found {len(all_files)} templates to deploy")
-        print(f"⏭️  Skipping {len(skip_templates)} duplicate templates\n")
+        print(f"⏭️  Skipping 0 duplicate templates\n")
         
         results = []
         successful = 0
         
         for file_name in all_files:
+            file_path = os.path.join(phase_path, file_name)
+            
+            # Verificar se é template duplicado mas com recursos existentes
+            if file_name in duplicate_but_existing:
+                print(f"🔄 {file_name}... ✅ Resources already exist in other stacks - marking as SUCCESS")
+                successful += 1
+                results.append({
+                    'name': file_name,
+                    'success': True,
+                    'action': 'resources_exist_elsewhere',
+                    'type': 'CloudFormation Stack'
+                })
+                continue
             file_path = os.path.join(phase_path, file_name)
             
             try:

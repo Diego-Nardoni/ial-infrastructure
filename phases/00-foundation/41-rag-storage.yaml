@@ -36,7 +36,7 @@ Resources:
   VectorIndicesBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${ProjectName}-vector-indices-${AWS::AccountId}'
+      BucketName: !Sub '${ProjectName}-rag-storage-indices-${AWS::AccountId}'
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:

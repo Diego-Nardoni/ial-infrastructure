@@ -12,7 +12,7 @@ Resources:
   ReconciliationTopic:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: !Sub '${ProjectName}-reconciliation-notifications'
+      TopicName: !Sub '${ProjectName}-reconciliation-wrapper-notifications'
       DisplayName: 'IAL Reconciliation Notifications'
       Tags:
         - Key: Project
