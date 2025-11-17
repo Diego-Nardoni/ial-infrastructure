@@ -164,7 +164,7 @@ class PhaseParser:
             waiter = self.cf_client.get_waiter('stack_create_complete')
             try:
                 waiter.wait(
-                    StackName=stack_name,
+                    StackName=create_args["StackName"],
                     WaiterConfig={'Delay': 10, 'MaxAttempts': 30}
                 )
                 
