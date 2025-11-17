@@ -40,7 +40,15 @@ class PhaseParser:
                 return {"success": True, "action": "skipped", "stack_name": stack_name}
             
             elif stack_status in ["ROLLBACK_COMPLETE", "CREATE_FAILED", "UPDATE_ROLLBACK_COMPLETE", "ROLLBACK_FAILED", "DELETE_FAILED"]:
-                print(f"🔄 Stack {stack_name} in failed state ({stack_status}), deleting and recreating...")
+                print(f"🔄 Stack {stack_name} in failed state ({stack_status}), creating with unique name...")
+                
+                # Para DELETE_FAILED, criar com nome único
+                if stack_status == "DELETE_FAILED":
+                    import time
+                    timestamp = int(time.time())
+                    new_stack_name = f"{stack_name}-fixed-{timestamp}"
+                    print(f"📦 Creating new stack: {new_stack_name}")
+                    return {"success": True, "action": "create_new", "stack_name": new_stack_name}
                 
                 # Cleanup órfãos primeiro
                 self._cleanup_orphaned_stacks(stack_name)
@@ -61,8 +69,12 @@ class PhaseParser:
             else:
                 return {"success": False, "action": "failed", "error": str(e)}
         
-        # Cleanup órfãos antes de criar
-        self._cleanup_orphaned_stacks(stack_name)
+        # Usar nome do stack retornado pela função idempotente
+        actual_stack_name = deployment_result.get('stack_name', stack_name)
+        
+        if deployment_result.get('action') == 'create_new':
+            # Usar novo nome para DELETE_FAILED
+            stack_name = actual_stack_name
         
         create_args = {
             "StackName": stack_name,
@@ -188,7 +200,6 @@ class PhaseParser:
             stack_id = response['StackId']
             
             # Aguardar criação (timeout 5 minutos)
-            actual_stack_name = deployment_result.get('stack_name', stack_name)
             print(f"⏳ Aguardando criação do stack {actual_stack_name}...")
             
             waiter = self.cf_client.get_waiter('stack_create_complete')
