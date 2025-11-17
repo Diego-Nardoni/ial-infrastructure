@@ -19,8 +19,8 @@ class OptimizedMemoryManager:
         self.dynamodb = boto3.resource('dynamodb')
         
         # Optimized tables
-        self.history_table = self.dynamodb.Table(f'{project_name}-conversation-history-v2')
-        self.embeddings_table = self.dynamodb.Table(f'{project_name}-conversation-embeddings')
+        self.history_table = self.dynamodb.Table(f'{project_name}-conversation-history-v3')
+        self.embeddings_table = self.dynamodb.Table(f'{project_name}-conversation-embeddings-v3')
         
         # L1 Cache (Redis/ElastiCache or in-memory fallback)
         self.cache = self._init_cache()
@@ -89,7 +89,8 @@ class OptimizedMemoryManager:
                 user_date_prev = f"{self.user_id}#{yesterday}"
                 
                 response_prev = self.history_table.query(
-                    KeyConditionExpression=Key('user_date').eq(user_date_prev),
+                    IndexName='UserTimeIndexV3',
+                    KeyConditionExpression=Key('user_id').eq(self.user_id),
                     ScanIndexForward=False,
                     Limit=limit - len(results),
                     ProjectionExpression='#ts, content_summary, #role, tokens, session_id',
@@ -125,7 +126,7 @@ class OptimizedMemoryManager:
         
         try:
             response = self.history_table.query(
-                IndexName='SessionIndex',
+                IndexName='SessionIndexV3',
                 KeyConditionExpression=Key('session_id').eq(session_id),
                 ScanIndexForward=False,
                 Limit=limit,
@@ -216,11 +217,11 @@ class OptimizedMemoryManager:
         """Get user statistics using GSI"""
         
         try:
-            # Query last 7 days using UserTimeIndex
+            # Query last 7 days using UserTimeIndexV3
             week_ago = int((datetime.now() - timedelta(days=7)).timestamp())
             
             response = self.history_table.query(
-                IndexName='UserTimeIndex',
+                IndexName='UserTimeIndexV3',
                 KeyConditionExpression=Key('user_id').eq(self.user_id) & Key('timestamp').gte(week_ago),
                 ProjectionExpression='tokens, #role',
                 ExpressionAttributeNames={'#role': 'role'}

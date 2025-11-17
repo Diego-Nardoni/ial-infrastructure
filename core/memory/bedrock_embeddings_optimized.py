@@ -9,6 +9,7 @@ import json
 import numpy as np
 import hashlib
 import zlib
+import time
 from typing import List, Dict, Optional
 from boto3.dynamodb.conditions import Key
 
@@ -18,7 +19,7 @@ class OptimizedBedrockEmbeddings:
         self.dynamodb = boto3.resource('dynamodb')
         self.bedrock = boto3.client('bedrock-runtime')
         
-        self.embeddings_table = self.dynamodb.Table(f'{project_name}-conversation-embeddings')
+        self.embeddings_table = self.dynamodb.Table(f'{project_name}-conversation-embeddings-v3')
         
         # Embedding configuration
         self.embedding_model = "amazon.titan-embed-text-v2:0"
@@ -110,50 +111,26 @@ class OptimizedBedrockEmbeddings:
     
     def find_similar_conversations_optimized(self, query_text: str, user_id: str, 
                                            limit: int = 3) -> List[Dict]:
-        """Optimized similarity search using hash-based filtering"""
+        """Optimized similarity search using simplified approach"""
         
         # Generate query embedding
         query_embedding = self.generate_embedding(query_text)
         if not query_embedding:
             return []
         
-        # Generate query similarity hash
-        query_hash = self._generate_similarity_hash(query_embedding)
-        
-        # Search across user chunks
+        # Search across user chunks using simplified approach
         candidates = []
         
-        for chunk_num in range(10):  # Search all user chunks
+        for chunk_num in range(3):  # Search first 3 chunks only
             user_chunk = f"{user_id}#{chunk_num:03d}"
             
             try:
-                # Phase 1: Hash-based filtering (fast)
+                # Simple query without filter expression
                 response = self.embeddings_table.query(
-                    IndexName='SimilarityIndex',
                     KeyConditionExpression=Key('user_chunk').eq(user_chunk),
-                    FilterExpression='similarity_hash = :hash',
-                    ExpressionAttributeValues={':hash': query_hash},
-                    ProjectionExpression='embedding_id, vector_compressed, text_preview, metadata'
+                    ProjectionExpression='embedding_id, vector_compressed, text_preview, metadata',
+                    Limit=10  # Limit candidates per chunk
                 )
-                
-                # If exact hash match not found, try approximate
-                if not response.get('Items'):
-                    # Try hash variants (flip 1-2 bits for approximate matching)
-                    hash_variants = self._generate_hash_variants(query_hash, max_variants=3)
-                    
-                    for variant_hash in hash_variants:
-                        response = self.embeddings_table.query(
-                            IndexName='SimilarityIndex',
-                            KeyConditionExpression=Key('user_chunk').eq(user_chunk),
-                            FilterExpression='similarity_hash = :hash',
-                            ExpressionAttributeValues={':hash': variant_hash},
-                            ProjectionExpression='embedding_id, vector_compressed, text_preview, metadata',
-                            Limit=5  # Limit candidates per variant
-                        )
-                        
-                        candidates.extend(response.get('Items', []))
-                        if len(candidates) >= limit * 3:  # Enough candidates
-                            break
                 
                 candidates.extend(response.get('Items', []))
                 
@@ -168,7 +145,7 @@ class OptimizedBedrockEmbeddings:
         similarities = []
         query_vec = np.array(query_embedding)
         
-        for candidate in candidates[:limit * 5]:  # Limit processing
+        for candidate in candidates[:limit * 3]:  # Limit processing
             try:
                 # Decompress and calculate precise similarity
                 candidate_embedding = self._decompress_embedding(candidate['vector_compressed'])
