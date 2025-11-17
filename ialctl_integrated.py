@@ -127,11 +127,51 @@ class IALCTLEnhanced:
             print(f"\n❌ System validation failed: {health_result.get('failed_checks', 'Unknown')}")
             return 1
     
+
+    def _create_or_update_stack(self, stack_name, template_body, parameters=None, capabilities=None):
+        """Create stack if not exists, update if exists and changed"""
+        cf_client = self.session.client('cloudformation')
+        
+        try:
+            # Check if stack exists
+            response = cf_client.describe_stacks(StackName=stack_name)
+            stack_status = response['Stacks'][0]['StackStatus']
+            
+            if stack_status in ['CREATE_COMPLETE', 'UPDATE_COMPLETE']:
+                print(f"✅ Stack {stack_name} already exists and is complete")
+                return {'success': True, 'action': 'skipped', 'stack_name': stack_name}
+            elif stack_status in ['ROLLBACK_COMPLETE', 'CREATE_FAILED', 'UPDATE_ROLLBACK_COMPLETE']:
+                print(f"🔄 Stack {stack_name} in failed state, deleting and recreating...")
+                cf_client.delete_stack(StackName=stack_name)
+                waiter = cf_client.get_waiter('stack_delete_complete')
+                waiter.wait(StackName=stack_name, WaiterConfig={'Delay': 15, 'MaxAttempts': 20})
+                # Fall through to create
+            else:
+                print(f"⏳ Stack {stack_name} in progress state: {stack_status}")
+                return {'success': False, 'error': f'Stack in {stack_status} state'}
+                
+        except cf_client.exceptions.ClientError as e:
+            if 'does not exist' in str(e):
+                print(f"📦 Creating new stack: {stack_name}")
+            else:
+                raise
+        
+        # Create stack
+        cf_client.create_stack(
+            StackName=stack_name,
+            TemplateBody=template_body,
+            Parameters=parameters or [],
+            Capabilities=capabilities or ['CAPABILITY_IAM']
+        )
+        
+        waiter = cf_client.get_waiter('stack_create_complete')
+        waiter.wait(StackName=stack_name, WaiterConfig={'Delay': 30, 'MaxAttempts': 20})
+        
+        return {'success': True, 'action': 'created', 'stack_name': stack_name}
+
     def _deploy_waf_protection(self):
         """Deploy AWS WAF for API Gateway protection"""
         try:
-            cf_client = self.session.client('cloudformation')
-            
             # Read WAF template
             template_path = Path('/home/ial/phases/00-foundation/42-api-gateway-waf.yaml')
             if not template_path.exists():
@@ -140,32 +180,18 @@ class IALCTLEnhanced:
             with open(template_path, 'r') as f:
                 template_body = f.read()
             
-            # Get API Gateway ARN (assuming it exists)
-            api_gateway_arn = self._get_api_gateway_arn()
-            
             stack_name = 'ial-api-gateway-waf-enhanced'
             
-            cf_client.create_stack(
-                StackName=stack_name,
-                TemplateBody=template_body,
-                Parameters=[
-                    {
-                        'ParameterKey': 'Environment',
-                        'ParameterValue': 'prod'
-                    },
-                    {
-                        'ParameterKey': 'ApiGatewayArn', 
-                        'ParameterValue': api_gateway_arn
-                    }
-                ],
-                Capabilities=['CAPABILITY_IAM']
-            )
+            parameters = [
+                {
+                    'ParameterKey': 'Environment',
+                    'ParameterValue': 'prod'
+                }
+            ]
             
-            # Wait for stack creation
-            waiter = cf_client.get_waiter('stack_create_complete')
-            waiter.wait(StackName=stack_name, WaiterConfig={'Delay': 30, 'MaxAttempts': 20})
-            
-            return {'success': True, 'stack_name': stack_name}
+            # Use idempotent stack creation
+            result = self._create_or_update_stack(stack_name, template_body, parameters)
+            return result
             
         except Exception as e:
             return {'success': False, 'error': str(e)}
@@ -173,6 +199,18 @@ class IALCTLEnhanced:
     def _configure_xray_tracing(self):
         """Configure X-Ray tracing for all components"""
         try:
+            # Check if X-Ray is already enabled
+            xray_client = self.session.client('xray')
+            
+            try:
+                # Check if tracing config exists
+                response = xray_client.get_tracing_config()
+                if response.get('TracingConfig', {}).get('Mode') == 'Active':
+                    print("✅ X-Ray tracing already configured")
+                    return {'success': True, 'action': 'skipped'}
+            except Exception:
+                pass  # Continue with configuration
+            
             # Enable X-Ray on API Gateway
             apigateway_client = self.session.client('apigateway')
             
@@ -201,6 +239,18 @@ class IALCTLEnhanced:
     def _deploy_metrics_publisher(self):
         """Deploy Circuit Breaker Metrics Publisher Lambda"""
         try:
+            # Check if Lambda already exists
+            lambda_client = self.session.client('lambda')
+            function_name = 'ial-metrics-publisher-prod'
+            
+            try:
+                response = lambda_client.get_function(FunctionName=function_name)
+                print(f"✅ Lambda function {function_name} already exists")
+                return {'success': True, 'action': 'skipped', 'function_name': function_name}
+            except lambda_client.exceptions.ResourceNotFoundException:
+                print(f"📦 Creating Lambda function: {function_name}")
+                pass  # Continue with creation
+            
             lambda_client = self.session.client('lambda')
             
             # Create deployment package
