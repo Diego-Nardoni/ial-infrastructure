@@ -384,7 +384,8 @@ Use o contexto acima para gerar uma resposta precisa e baseada em documentação
         
         # Detecção para listar templates de fase específica
         import re
-        phase_template_match = re.search(r'(?:liste|list|show|mostre).*(?:templates?|templetas?).*(?:fase|phase)\s*(\d{2}-[\w-]+)', user_input.lower())
+        # Padrão mais flexível para capturar variações como "listar os templates de **20-network**"
+        phase_template_match = re.search(r'(?:liste?r?|list|show|mostre).*(?:templates?|templetas?).*(?:da|de|of).*?(\d{2}-[\w-]+)', user_input.lower())
         if phase_template_match:
             phase_id = phase_template_match.group(1)
             return await self._list_phase_templates(phase_id)
