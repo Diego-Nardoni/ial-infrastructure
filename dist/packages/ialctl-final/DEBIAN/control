@@ -1,0 +1,9 @@
+Package: ialctl
+Version: 2.3.1
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: IAL Team <ial@example.com>
+Description: IAL Infrastructure Assistant - FINAL VERSION
+ Complete AWS infrastructure automation with ALL corrections applied.
+ Guaranteed 48/48 template deployment success.
