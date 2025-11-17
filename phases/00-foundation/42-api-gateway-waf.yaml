@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'AWS WAF v2 for API Gateway Protection'
+Description: 'AWS WAF v2 for API Gateway Protection - Simplified'
 
 Parameters:
   Environment:
@@ -16,6 +16,10 @@ Resources:
       Scope: REGIONAL
       DefaultAction:
         Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub "ial-waf-${Environment}"
       Rules:
         # Rate Limiting Rule
         - Name: RateLimitRule
@@ -30,8 +34,8 @@ Resources:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
             MetricName: RateLimitRule
-        
-        # OWASP Core Rule Set
+
+        # AWS Managed Rules - Common Rule Set
         - Name: AWSManagedRulesCommonRuleSet
           Priority: 2
           OverrideAction:
@@ -43,9 +47,9 @@ Resources:
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
-            MetricName: CommonRuleSetMetric
-        
-        # SQL Injection Protection
+            MetricName: CommonRuleSet
+
+        # AWS Managed Rules - SQL Injection
         - Name: AWSManagedRulesSQLiRuleSet
           Priority: 3
           OverrideAction:
@@ -57,32 +61,24 @@ Resources:
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
-            MetricName: SQLiRuleSetMetric
+            MetricName: SQLiRuleSet
 
   # CloudWatch Log Group for WAF
   WAFLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/wafv2/ial-api-gateway-waf-${Environment}'
+      LogGroupName: !Sub "/aws/wafv2/ial-waf-${Environment}-${AWS::StackName}"
       RetentionInDays: 30
-
-  # WAF Logging Configuration
-  WAFLoggingConfiguration:
-    Type: AWS::WAFv2::LoggingConfiguration
-    Properties:
-      ResourceArn: !GetAtt IALWebACL.Arn
-      LogDestinationConfigs:
-        - !GetAtt WAFLogGroup.Arn
 
 Outputs:
   WebACLArn:
-    Description: ARN of the WAF Web ACL
+    Description: 'WAF Web ACL ARN'
     Value: !GetAtt IALWebACL.Arn
     Export:
       Name: !Sub '${AWS::StackName}-WebACL-Arn'
   
   WebACLId:
-    Description: ID of the WAF Web ACL
+    Description: 'WAF Web ACL ID'
     Value: !Ref IALWebACL
     Export:
       Name: !Sub '${AWS::StackName}-WebACL-Id'

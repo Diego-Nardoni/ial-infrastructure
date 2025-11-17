@@ -12,6 +12,22 @@ Parameters:
     Description: Environment name
 
 Resources:
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "ial-circuit-breaker-lambda-role-${AWS::StackName}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+      Path: /
   # IAM Role for Metrics Publisher Lambda
   MetricsPublisherRole:
     Type: AWS::IAM::Role
@@ -62,7 +78,7 @@ Resources:
       Description: "Publishes circuit breaker state changes to CloudWatch metrics"
       Runtime: python3.11
       Handler: index.lambda_handler
-      Role: !GetAtt MetricsPublisherRole.Arn
+      Role: !GetAtt LambdaExecutionRole.Arn  # !GetAtt MetricsPublisherRole.Arn
       Timeout: 60
       MemorySize: 256
       Environment:
