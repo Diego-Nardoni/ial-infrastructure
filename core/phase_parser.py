@@ -30,22 +30,29 @@ class PhaseParser:
 
     def _create_or_update_stack_idempotent(self, stack_name, template_body, parameters, project_name):
         """Create stack if not exists, skip if exists and complete"""
+        stack_id = None
         try:
             response = self.cf_client.describe_stacks(StackName=stack_name)
             stack_status = response["Stacks"][0]["StackStatus"]
+            stack_id = response["Stacks"][0]["StackId"]
+            
             if stack_status in ["CREATE_COMPLETE", "UPDATE_COMPLETE"]:
                 return {"success": True, "action": "skipped", "stack_name": stack_name}
-            elif stack_status in ["ROLLBACK_COMPLETE", "CREATE_FAILED", "UPDATE_ROLLBACK_COMPLETE", "ROLLBACK_FAILED"]:
+            
+            elif stack_status in ["ROLLBACK_COMPLETE", "CREATE_FAILED", "UPDATE_ROLLBACK_COMPLETE", "ROLLBACK_FAILED", "DELETE_FAILED"]:
                 print(f"🔄 Stack {stack_name} in failed state ({stack_status}), deleting and recreating...")
+                
+                # Cleanup órfãos primeiro
+                self._cleanup_orphaned_stacks(stack_name)
+                
+                # Deletar stack atual
                 self.cf_client.delete_stack(StackName=stack_name)
                 waiter = self.cf_client.get_waiter("stack_delete_complete")
-                waiter.wait(StackName=response["StackId"], WaiterConfig={"Delay": 15, "MaxAttempts": 20})
-            elif stack_status == "DELETE_FAILED":
-                print(f"⚠️ Stack {stack_name} in DELETE_FAILED state - using new stack name")
-                import time
-                timestamp = int(time.time())
-                stack_name = f"{stack_name}-v{timestamp}"
-                print(f"📦 Creating new stack: {stack_name}")
+                try:
+                    waiter.wait(StackName=stack_id, WaiterConfig={"Delay": 10, "MaxAttempts": 30})
+                except Exception as e:
+                    print(f"⚠️ Delete waiter failed: {e}, continuing...")
+                
             else:
                 return {"success": False, "action": "failed", "error": f"Stack in {stack_status} state"}
         except self.cf_client.exceptions.ClientError as e:
@@ -53,6 +60,10 @@ class PhaseParser:
                 print(f"📦 Creating new stack: {stack_name}")
             else:
                 return {"success": False, "action": "failed", "error": str(e)}
+        
+        # Cleanup órfãos antes de criar
+        self._cleanup_orphaned_stacks(stack_name)
+        
         create_args = {
             "StackName": stack_name,
             "TemplateBody": template_body,
@@ -68,9 +79,26 @@ class PhaseParser:
             create_args["Parameters"] = parameters
         try:
             response = self.cf_client.create_stack(**create_args)
-            return {"success": True, "action": "created", "stack_id": response["StackId"]}
+            return {"success": True, "action": "created", "stack_id": response["StackId"], "stack_name": stack_name}
         except Exception as e:
             return {"success": False, "action": "failed", "error": str(e)}
+
+    def _cleanup_orphaned_stacks(self, base_stack_name):
+        """Remove stacks órfãos com timestamps"""
+        try:
+            stacks = self.cf_client.list_stacks()
+            orphaned = [s for s in stacks['StackSummaries'] 
+                       if s['StackName'].startswith(f"{base_stack_name}-v") 
+                       and s['StackStatus'] in ['ROLLBACK_COMPLETE', 'CREATE_FAILED', 'DELETE_FAILED']]
+            
+            for stack in orphaned:
+                print(f"🧹 Removing orphaned stack: {stack['StackName']}")
+                try:
+                    self.cf_client.delete_stack(StackName=stack['StackName'])
+                except:
+                    pass  # Ignore errors during cleanup
+        except:
+            pass  # Ignore cleanup errors
     
     def list_phase_files(self, phase: str = "00-foundation") -> List[str]:
         """Lista arquivos YAML de uma fase"""
@@ -160,17 +188,18 @@ class PhaseParser:
             stack_id = response['StackId']
             
             # Aguardar criação (timeout 5 minutos)
-            print(f"⏳ Aguardando criação do stack {stack_name}...")
+            actual_stack_name = deployment_result.get('stack_name', stack_name)
+            print(f"⏳ Aguardando criação do stack {actual_stack_name}...")
             
             waiter = self.cf_client.get_waiter('stack_create_complete')
             try:
                 waiter.wait(
-                    StackName=response["StackId"],
+                    StackName=deployment_result.get("stack_id", actual_stack_name),
                     WaiterConfig={'Delay': 10, 'MaxAttempts': 30}
                 )
                 
                 # Verificar status final
-                stack_info = self.cf_client.describe_stacks(StackName=stack_name)
+                stack_info = self.cf_client.describe_stacks(StackName=actual_stack_name)
                 stack_status = stack_info['Stacks'][0]['StackStatus']
                 
                 if stack_status == 'CREATE_COMPLETE':
