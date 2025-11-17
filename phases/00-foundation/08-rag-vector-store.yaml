@@ -28,17 +28,12 @@ Resources:
             Status: Enabled
             ExpirationInDays: 90  # Keep conversations for 90 days
             Prefix: conversations/
-      NotificationConfiguration:
-        CloudWatchConfigurations:
-          - Event: s3:ObjectCreated:*
-            CloudWatchConfiguration:
-              LogGroupName: !Ref KnowledgeBaseLogGroup
 
   # DynamoDB Table for Vector Embeddings
   IaLVectorEmbeddingsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub '${ProjectName}-vector-embeddings'
+      TableName: !Sub '${AWS::StackName}-vector-embeddings'
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: vector_id
@@ -78,7 +73,7 @@ Resources:
   IaLKnowledgeBaseTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub '${ProjectName}-knowledge-base'
+      TableName: !Sub '${AWS::StackName}-knowledge-base'
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: knowledge_id

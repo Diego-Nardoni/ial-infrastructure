@@ -11,7 +11,7 @@ Resources:
   TokenUsageTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub '${ProjectName}-token-usage'
+      TableName: !Sub "${AWS::StackName}-token-usage"
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: user_id

@@ -39,7 +39,7 @@ class PhaseParser:
                 print(f"🔄 Stack {stack_name} in failed state ({stack_status}), deleting and recreating...")
                 self.cf_client.delete_stack(StackName=stack_name)
                 waiter = self.cf_client.get_waiter("stack_delete_complete")
-                waiter.wait(StackName=stack_name, WaiterConfig={"Delay": 15, "MaxAttempts": 20})
+                waiter.wait(StackName=response["StackId"], WaiterConfig={"Delay": 15, "MaxAttempts": 20})
             elif stack_status == "DELETE_FAILED":
                 print(f"⚠️ Stack {stack_name} in DELETE_FAILED state - using new stack name")
                 import time
@@ -113,7 +113,7 @@ class PhaseParser:
                     
                     # Aguardar deleção
                     waiter = self.cf_client.get_waiter('stack_delete_complete')
-                    waiter.wait(StackName=stack_name, WaiterConfig={'Delay': 10, 'MaxAttempts': 30})
+                    waiter.wait(StackName=response["StackId"], WaiterConfig={'Delay': 10, 'MaxAttempts': 30})
                     print(f"✅ Stack {stack_name} deletado, prosseguindo com criação...")
                     
             except self.cf_client.exceptions.ClientError as e:
@@ -165,7 +165,7 @@ class PhaseParser:
             waiter = self.cf_client.get_waiter('stack_create_complete')
             try:
                 waiter.wait(
-                    StackName=stack_name,
+                    StackName=response["StackId"],
                     WaiterConfig={'Delay': 10, 'MaxAttempts': 30}
                 )
                 

@@ -12,7 +12,7 @@ Resources:
   IALLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '${ProjectName}-infrastructure'
+      LogGroupName: !Sub '${AWS::StackName}-infrastructure'
       RetentionInDays: 30
       Tags:
         - Key: Project
@@ -26,7 +26,7 @@ Resources:
   LambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/lambda/${ProjectName}'
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}'
       RetentionInDays: 14
       Tags:
         - Key: Project
@@ -40,7 +40,7 @@ Resources:
   StepFunctionsLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/stepfunctions/${ProjectName}'
+      LogGroupName: !Sub '/aws/stepfunctions/${AWS::StackName}'
       RetentionInDays: 14
       Tags:
         - Key: Project
