@@ -1,6 +1,6 @@
 # IAL Infrastructure Assistant - Installers
 
-## Production Release v2.2.2
+## Production Release v2.2.3
 
 ### Available Installers
 
@@ -9,7 +9,7 @@
 - `ialctl-enhanced` - Enhanced version with all features (76MB)
 
 **Debian Package:**
-- `ialctl_2.2.2_amd64.deb` - Production-ready Debian package (74MB)
+- `ialctl_2.2.3_amd64.deb` - Production-ready Debian package (74MB)
 
 ### Installation
 
