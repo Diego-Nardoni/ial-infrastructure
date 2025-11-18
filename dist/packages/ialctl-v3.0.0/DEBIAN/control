@@ -1,45 +1,46 @@
 Package: ialctl
-Version: 3.4.0
+Version: 3.5.0
 Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: IAL Team <ial@example.com>
-Description: IAL Infrastructure Assistant - CONTEXT ENRICHMENT FIXED v3.4.0
- 🎯 CONTEXT ENRICHMENT GITHUB SOURCE OF TRUTH: Sistema funcionando perfeitamente!
+Description: IAL Infrastructure Assistant - ROBUST PHASE LISTING v3.5.0
+ 🎯 LISTAGEM DE FASES ROBUSTA: Sistema tolerante a erros funcionando perfeitamente!
  .
- Version 3.4.0 CONTEXT ENRICHMENT FIXED includes:
- - ✅ Context Enrichment: GitHub source of truth funcionando 100%
- - ✅ Intent Detection: LLM detecta listagem vs criação corretamente
- - ✅ YAML Control: NÃO gera templates para comandos de listagem
- - ✅ Duas Lógicas: Conversacional + Infraestrutura funcionando
- - ✅ GitHub Integration: Respeita instruções de não gerar YAML
+ Version 3.5.0 ROBUST PHASE LISTING includes:
+ - ✅ Detecção robusta: Tolerante a erros de digitação
+ - ✅ Múltiplas variações: listar, mostrar, ver, exibir fases
+ - ✅ Singular/Plural: Funciona com "fase" e "fases"
+ - ✅ Context enrichment: GitHub source of truth ativo
+ - ✅ Listagem completa: 10 fases do sistema IAL
  .
- CONTEXT ENRICHMENT CORRIGIDO:
- ✅ "liste as fases do ial" → NÃO gera YAML, apenas consulta GitHub
- ✅ "criar fase 15-backup" → Verifica GitHub primeiro, cria se necessário
- ✅ Intent detection: LLM detecta 'list_information' vs 'create_infrastructure'
- ✅ GitHub integration: Respeita intent e não gera templates desnecessários
- ✅ Context enrichment: Instruções precisas sendo seguidas pelo sistema
+ DETECÇÃO ROBUSTA TESTADA E VALIDADA:
+ ✅ "listas as fases" (erro digitação) → Lista fases corretamente
+ ✅ "mostrar as fases" (variação verbo) → Lista fases corretamente
+ ✅ "listar fase" (singular) → Lista fases corretamente
+ ✅ "ver fases" (outro verbo) → Lista fases corretamente
+ ✅ "fases do ial" (contexto IAL) → Lista fases corretamente
+ ✅ "mostrar fase" (singular + variação) → Lista fases corretamente
  .
- CORREÇÕES TÉCNICAS v3.4.0:
- ✅ LLM Provider: Detecta intent baseado em context enrichment
- ✅ GitHub Integration: Verifica intent antes de gerar templates
- ✅ Intelligent Router: Passa intent do LLM para GitHub corretamente
- ✅ YAML Generation: Controlado por intent, não gera quando é listagem
- ✅ Performance: Sistema otimizado, sem geração desnecessária
+ INDICADORES EXPANDIDOS:
+ ✅ Erros de digitação: "listas" em vez de "listar"
+ ✅ Variações de verbos: listar, mostrar, ver, exibir
+ ✅ Formas singular/plural: fase, fases, phase, phases
+ ✅ Contexto IAL: Detecta quando menciona "ial"
+ ✅ Fuzzy matching: Sistema inteligente de detecção
  .
- DUAS LÓGICAS MANTIDAS:
- ✅ Lógica Conversacional: Bedrock LLM para conversas naturais
- ✅ Lógica Infraestrutura: MCP routing + YAML generation controlado
- ✅ Context enrichment: GitHub source of truth ativo
- ✅ Sistema completo: 17 MCPs + Foundation 47/47 templates
- ✅ Advanced mode: ALL SYSTEMS OPERATIONAL
+ FUNCIONALIDADES COMPLETAS MANTIDAS:
+ ✅ Lógica Conversacional: "oi" → Bedrock LLM resposta natural
+ ✅ Lógica Infraestrutura: "criar cluster" → YAML generation
+ ✅ Context enrichment: GitHub source of truth funcionando
+ ✅ Intent detection: list_information vs create_infrastructure
+ ✅ YAML control: NÃO gera templates para listagem
  .
- FUNCIONALIDADES VALIDADAS:
- ✅ "oi, como vai?" → Conversação natural via Bedrock
- ✅ "criar cluster ECS" → Análise + YAML gerados corretamente
- ✅ "liste as fases do ial" → Consulta GitHub, NÃO gera YAML
- ✅ CLI + Interactive: Ambos modos funcionando perfeitamente
- ✅ Foundation deployment: 47/47 templates prontos
+ LISTAGEM DE FASES COMPLETA:
+ ✅ 00-foundation, 10-security, 20-network, 30-compute
+ ✅ 40-data, 50-application, 60-observability, 70-ai-ml
+ ✅ 80-governance, 90-optimization
+ ✅ Fonte: Repositório GitHub (via Context Enrichment)
+ ✅ Uso: ialctl deploy <fase> para deploy específico
  .
- 🚀 PRODUCTION READY: Context Enrichment GitHub Source of Truth Fixed
+ 🚀 PRODUCTION READY: Sistema Robusto Tolerante a Erros

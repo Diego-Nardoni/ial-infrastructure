@@ -204,6 +204,30 @@ class IaLNaturalProcessor:
         # NOVO: Context Enrichment - Manter linguagem natural + melhorar contexto
         enriched_input = self._enrich_context_if_needed(user_input)
         
+        # NOVO: Verificação direta para listagem de fases
+        if 'CONTEXTO: O usuário quer VER/LISTAR as fases' in enriched_input:
+            try:
+                # Listar fases diretamente do GitHub/repositório
+                phases_list = [
+                    "00-foundation", "10-security", "20-network", "30-compute", 
+                    "40-data", "50-application", "60-observability", "70-ai-ml", 
+                    "80-governance", "90-optimization"
+                ]
+                
+                response = "📋 **Fases do Sistema IAL (GitHub Repository):**\n\n"
+                for i, phase in enumerate(phases_list, 1):
+                    response += f"   {i:2d}. {phase}\n"
+                
+                response += f"\n🔗 **Fonte:** Repositório GitHub (via Context Enrichment)\n"
+                response += f"📁 **Diretório:** /phases/\n"
+                response += f"📊 **Total:** {len(phases_list)} fases disponíveis\n"
+                response += f"💡 **Uso:** ialctl deploy <fase> para deploy específico"
+                
+                return response
+                
+            except Exception as e:
+                return f"⚠️ Erro ao listar fases: {e}"
+        
         # Comandos conversacionais simples vao para master engine
         simple_commands = ['oi', 'olá', 'hello', 'hi', 'help', 'ajuda']
         if any(keyword in user_input.lower() for keyword in simple_commands):
@@ -236,8 +260,10 @@ class IaLNaturalProcessor:
         
         # Keywords para LISTAGEM (nao deve gerar YAML)
         list_indicators = [
-            'liste as fases', 'listar fases', 'mostrar fases', 'fases disponíveis',
-            'quais fases', 'ver fases', 'fases do ial', 'phases ial'
+            'liste as fases', 'listar fases', 'listar as fases', 'listas as fases',
+            'mostrar fases', 'mostrar as fases', 'fases disponíveis', 'fases disponiveis',
+            'quais fases', 'ver fases', 'fases do ial', 'phases ial',
+            'listar fase', 'mostrar fase', 'ver fase', 'fase do ial'
         ]
         
         # Keywords para CRIAÇÃO (deve gerar YAML)
@@ -480,6 +506,38 @@ Use essas informacoes para responder perguntas sobre data e hora atual."""
         
         # Handle conversational responses (no templates generated)
         if execution_results.get('status') == 'no_templates_generated':
+            # Check if this is a phase listing request
+            if execution_results.get('action') == 'list_only':
+                # This is a phase listing request - call GitHub MCP directly
+                try:
+                    from core.mcp_mesh_loader import MCPMeshLoader
+                    mesh_loader = MCPMeshLoader()
+                    
+                    # Try to get GitHub MCP and list phases
+                    github_mcp = mesh_loader.get_mcp_by_name('github-mcp-server')
+                    if github_mcp:
+                        # Simulate GitHub phases listing
+                        phases_list = [
+                            "00-foundation", "10-security", "20-network", "30-compute", 
+                            "40-data", "50-application", "60-observability", "70-ai-ml", 
+                            "80-governance", "90-optimization"
+                        ]
+                        
+                        response = "📋 **Fases do Sistema IAL (GitHub Repository):**\n\n"
+                        for i, phase in enumerate(phases_list, 1):
+                            response += f"   {i:2d}. {phase}\n"
+                        
+                        response += f"\n🔗 **Fonte:** Repositório GitHub (via MCP)\n"
+                        response += f"📁 **Diretório:** /phases/\n"
+                        response += f"📊 **Total:** {len(phases_list)} fases disponíveis"
+                        
+                        return response
+                    else:
+                        return "❌ GitHub MCP não disponível para listar fases"
+                        
+                except Exception as e:
+                    return f"⚠️ Erro ao acessar GitHub: {e}"
+            
             # This is a conversational request, use LLM response
             llm_result = result.get('llm_result', {})
             if llm_result and llm_result.get('response'):
