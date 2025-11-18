@@ -228,7 +228,67 @@ class IaLNaturalProcessor:
             except Exception as e:
                 return f"⚠️ Erro ao listar fases: {e}"
         
-        # NOVO: Verificação direta para deploy de fases (PRIORIDADE ALTA)
+        # NOVO: Verificação direta para exclusão de fases (PRIORIDADE ALTA)
+        delete_keywords = ['delete', 'deletar', 'excluir', 'remover', 'apagar', 'destruir', 'eliminar']
+        phase_keywords = ['fase', 'phase']
+        
+        user_lower = user_input.lower()
+        has_delete = any(word in user_lower for word in delete_keywords)
+        has_phase = any(word in user_lower for word in phase_keywords)
+        
+        # CORREÇÃO: Detectar também delete direto de fases (ex: "delete 20-network")
+        phase_pattern = r'\b(\d+-\w+)\b'  # Padrão XX-nome
+        import re
+        phase_match = re.search(phase_pattern, user_input)
+        has_phase_name = phase_match is not None
+        
+        if has_delete and (has_phase or has_phase_name):
+            try:
+                # Extrair nome da fase
+                if phase_match:
+                    phase_name = phase_match.group(1)
+                    
+                    # Verificar se fase existe
+                    existing_phases = [
+                        "00-foundation", "10-security", "20-network", "30-compute", 
+                        "40-data", "50-application", "60-observability", "70-ai-ml", 
+                        "80-governance", "90-optimization"
+                    ]
+                    
+                    if phase_name in existing_phases:
+                        # Usar Foundation Deployer para exclusão
+                        try:
+                            from core.foundation_deployer import FoundationDeployer
+                            deployer = FoundationDeployer()
+                            
+                            print(f"🗑️ **Iniciando exclusão da fase {phase_name}...**")
+                            result = deployer.delete_phase(phase_name)
+                            
+                            if result.get('success', False):
+                                return f"✅ **Exclusão da fase {phase_name} concluída com sucesso!**\n\n" \
+                                       f"🗑️ **Stacks excluídos:** {result.get('deleted', 0)}/{result.get('total_stacks', 0)}\n" \
+                                       f"🌐 **Região:** AWS {result.get('region', 'us-east-1')}\n" \
+                                       f"📋 **Status:** Recursos da fase {phase_name} removidos da AWS"
+                            else:
+                                return f"❌ **Erro na exclusão da fase {phase_name}:**\n\n" \
+                                       f"🔍 **Detalhes:** {result.get('error', 'Erro desconhecido')}\n" \
+                                       f"💡 **Dica:** Verifique se há stacks dependentes ou recursos protegidos"
+                                       
+                        except ImportError:
+                            return f"⚠️ **Foundation Deployer não disponível**\n\n" \
+                                   f"💡 **Alternativa:** Use AWS Console para excluir stacks da fase {phase_name}"
+                        except Exception as e:
+                            return f"❌ **Erro na exclusão:** {str(e)}"
+                    else:
+                        return f"❌ **Fase {phase_name} não encontrada!**\n\n" \
+                               f"📋 **Fases disponíveis:** Use 'listar as fases' para ver todas\n" \
+                               f"💡 **Dica:** Verifique o nome da fase (formato: XX-nome)"
+                else:
+                    return "⚠️ **Nome da fase não identificado**\n\n" \
+                           "💡 **Formato correto:** delete fase XX-nome (ex: delete fase 20-network)"
+                           
+            except Exception as e:
+                return f"⚠️ Erro ao processar exclusão: {e}"
         deploy_keywords = ['deploy', 'provisionar', 'executar', 'rodar', 'montar', 'fazer', 'construir', 'aplicar']
         phase_keywords = ['fase', 'phase']
         

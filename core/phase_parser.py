@@ -264,37 +264,66 @@ class PhaseParser:
             # Processar recursos IAL
             if 'resources' in ial_metadata:
                 for resource_key, resource_config in ial_metadata['resources'].items():
-                    if isinstance(resource_config, dict) and 'mcp_workflow' in resource_config:
-                        # Extrair propriedades do MCP workflow
-                        mcp_config = resource_config['mcp_workflow']
-                        if 'generate_code' in mcp_config:
-                            gen_config = mcp_config['generate_code']
-                            if 'parameters' in gen_config:
-                                params = gen_config['parameters']
-                                
-                                # Criar recurso CloudFormation
-                                properties = params.get('properties', {})
-                                
-                                # Substituir placeholders
-                                properties_str = yaml.dump(properties)
-                                properties_str = properties_str.replace('{{PROJECT_NAME}}', '!Ref ProjectName')
-                                properties_str = properties_str.replace('{{AWS_REGION}}', '!Ref AWS::Region')
-                                properties = yaml.safe_load(properties_str)
-                                
-                                cf_resource = {
-                                    'Type': params.get('resource_type', 'AWS::CloudFormation::WaitConditionHandle'),
-                                    'Properties': properties
-                                }
-                                
-                                # Usar resource_name se disponível, senão usar key
-                                resource_name = resource_config.get('resource_name', resource_key.replace('-', '').replace('_', ''))
-                                # Garantir que nome é alfanumérico
-                                resource_name = re.sub(r'[^a-zA-Z0-9]', '', resource_name)
-                                # Garantir que nome começa com letra
-                                if not resource_name or not resource_name[0].isalpha():
-                                    resource_name = 'Resource' + resource_name
-                                    
-                                cf_template['Resources'][resource_name] = cf_resource
+                    if isinstance(resource_config, dict):
+                        # Processar recursos com mcp_workflow (formato completo)
+                        if 'mcp_workflow' in resource_config:
+                            mcp_config = resource_config['mcp_workflow']
+                            if 'generate_code' in mcp_config:
+                                gen_config = mcp_config['generate_code']
+                                if 'parameters' in gen_config:
+                                    params = gen_config['parameters']
+                                    properties = params.get('properties', {})
+                                    resource_type = params.get('resource_type', 'AWS::CloudFormation::WaitConditionHandle')
+                        
+                        # Processar recursos IAL simples (sem mcp_workflow)
+                        elif 'type' in resource_config:
+                            properties = resource_config.get('properties', {})
+                            resource_type = resource_config.get('type', 'AWS::CloudFormation::WaitConditionHandle')
+                        
+                        else:
+                            continue  # Pular recursos sem type
+                        
+                        # Processar placeholders recursivamente como objetos
+                        def process_placeholders(obj):
+                            if isinstance(obj, dict):
+                                return {k: process_placeholders(v) for k, v in obj.items()}
+                            elif isinstance(obj, list):
+                                return [process_placeholders(item) for item in obj]
+                            elif isinstance(obj, str):
+                                if '{{PROJECT_NAME}}' in obj:
+                                    if obj == '{{PROJECT_NAME}}':
+                                        return {'Ref': 'ProjectName'}
+                                    else:
+                                        # Substituição com !Sub para concatenação
+                                        new_str = obj.replace('{{PROJECT_NAME}}', '${ProjectName}')
+                                        new_str = new_str.replace('{{AWS_REGION}}', '${AWS::Region}')
+                                        return {'Fn::Sub': new_str}
+                                elif '{{AWS_REGION}}' in obj:
+                                    if obj == '{{AWS_REGION}}':
+                                        return {'Ref': 'AWS::Region'}
+                                    else:
+                                        new_str = obj.replace('{{AWS_REGION}}', '${AWS::Region}')
+                                        return {'Fn::Sub': new_str}
+                                return obj
+                            else:
+                                return obj
+                        
+                        processed_properties = process_placeholders(properties)
+                        
+                        cf_resource = {
+                            'Type': resource_type,
+                            'Properties': processed_properties
+                        }
+                        
+                        # Usar resource_name se disponível, senão usar key
+                        resource_name = resource_config.get('resource_name', resource_key.replace('-', '').replace('_', ''))
+                        # Garantir que nome é alfanumérico
+                        resource_name = re.sub(r'[^a-zA-Z0-9]', '', resource_name)
+                        # Garantir que nome começa com letra
+                        if not resource_name or not resource_name[0].isalpha():
+                            resource_name = 'Resource' + resource_name
+                            
+                        cf_template['Resources'][resource_name] = cf_resource
             
             # Se não tem recursos, criar um placeholder
             if not cf_template['Resources']:
@@ -318,7 +347,11 @@ class PhaseParser:
             
             # Gerar nome de stack válido baseado no arquivo
             base_name = re.sub(r'[^a-zA-Z0-9-]', '', file_name.replace('.yaml', '').replace('.yml', ''))
-            stack_suffix = f"ial-{base_name}-converted"
+            if not base_name:
+                base_name = 'converted'
+            # Garantir que não termina com hífen
+            base_name = base_name.rstrip('-')
+            stack_suffix = f"ial-{base_name}-temp"
             
             with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as temp_file:
                 temp_file.write(template_content)

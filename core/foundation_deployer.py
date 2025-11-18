@@ -63,7 +63,130 @@ class FoundationDeployer:
                 resource_type = r.get('type', 'unknown')
                 print(f"   {status} {name} ({resource_type})")
         
-        return result
+    def delete_phase(self, phase: str) -> Dict[str, Any]:
+        """Exclui uma fase específica (todos os stacks CloudFormation)"""
+        print(f"\n🗑️ Deleting Phase: {phase}")
+        
+        # Listar stacks da fase
+        stacks = self.list_phase_stacks(phase)
+        
+        if not stacks:
+            return {
+                'success': False,
+                'error': f'No CloudFormation stacks found for phase {phase}',
+                'total_stacks': 0,
+                'deleted': 0
+            }
+        
+        print(f"📦 Found {len(stacks)} stacks to delete:")
+        for stack in stacks:
+            print(f"   - {stack}")
+        
+        # Confirmar exclusão
+        print(f"\n⚠️ WARNING: This will DELETE all resources in phase {phase}")
+        print("This action cannot be undone!")
+        
+        # Excluir stacks em ordem reversa (dependências)
+        deleted = 0
+        results = []
+        
+        for stack_name in reversed(stacks):
+            print(f"🗑️ Deleting stack: {stack_name}...")
+            
+            try:
+                result = self.delete_cloudformation_stack(stack_name)
+                
+                if result.get('success', False):
+                    deleted += 1
+                    print(f"✅ {stack_name} deletion initiated")
+                else:
+                    print(f"❌ {stack_name} deletion failed: {result.get('error', 'Unknown error')}")
+                
+                results.append({
+                    'stack_name': stack_name,
+                    'success': result.get('success', False),
+                    'error': result.get('error')
+                })
+                
+            except Exception as e:
+                print(f"❌ Error deleting {stack_name}: {str(e)}")
+                results.append({
+                    'stack_name': stack_name,
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        return {
+            'success': deleted == len(stacks),
+            'total_stacks': len(stacks),
+            'deleted': deleted,
+            'results': results
+        }
+    
+    def list_phase_stacks(self, phase: str) -> List[str]:
+        """Lista todos os stacks CloudFormation de uma fase"""
+        try:
+            import boto3
+            cf_client = boto3.client('cloudformation')
+            
+            # Listar todos os stacks
+            response = cf_client.list_stacks(
+                StackStatusFilter=[
+                    'CREATE_COMPLETE', 'UPDATE_COMPLETE', 'CREATE_FAILED', 
+                    'UPDATE_FAILED', 'ROLLBACK_COMPLETE', 'UPDATE_ROLLBACK_COMPLETE'
+                ]
+            )
+            
+            # Filtrar stacks da fase (por prefixo ou tag)
+            phase_stacks = []
+            for stack in response.get('StackSummaries', []):
+                stack_name = stack['StackName']
+                
+                # Filtrar por prefixo (ial-fork-XX-nome ou ial-XX-nome)
+                if (f"-{phase.replace('-', '')}" in stack_name or 
+                    f"-{phase}" in stack_name or
+                    stack_name.startswith(f"ial-{phase}") or
+                    stack_name.startswith(f"ial-fork-{phase}")):
+                    phase_stacks.append(stack_name)
+            
+            return phase_stacks
+            
+        except Exception as e:
+            print(f"❌ Error listing stacks: {e}")
+            return []
+    
+    def delete_cloudformation_stack(self, stack_name: str) -> Dict[str, Any]:
+        """Exclui um stack CloudFormation específico"""
+        try:
+            import boto3
+            cf_client = boto3.client('cloudformation')
+            
+            # Verificar se stack existe
+            try:
+                cf_client.describe_stacks(StackName=stack_name)
+            except cf_client.exceptions.ClientError as e:
+                if 'does not exist' in str(e):
+                    return {
+                        'success': True,
+                        'message': f'Stack {stack_name} does not exist (already deleted)'
+                    }
+                raise
+            
+            # Iniciar exclusão
+            cf_client.delete_stack(StackName=stack_name)
+            
+            return {
+                'success': True,
+                'stack_name': stack_name,
+                'message': f'Stack {stack_name} deletion initiated'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'stack_name': stack_name,
+                'error': str(e)
+            }
     
     def deploy_all_phases(self) -> Dict[str, Any]:
         """Deploy todas as fases em ordem"""

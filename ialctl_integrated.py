@@ -12,7 +12,7 @@ import asyncio
 sys.path.insert(0, '/home/ial')
 
 async def run_foundation_deploy():
-    """Executar deploy APENAS da foundation (00-foundation)"""
+    """Executar deploy da foundation com conversão IAL→CloudFormation"""
     try:
         from core.foundation_deployer import FoundationDeployer
         
@@ -20,19 +20,67 @@ async def run_foundation_deploy():
         print("=" * 50)
         
         deployer = FoundationDeployer()
-        # Deploy APENAS a fase 00-foundation
+        # Deploy da fase 00-foundation com conversão IAL automática
         result = deployer.deploy_phase("00-foundation")
         
         if result.get('success'):
             print(f"✅ Foundation deployment completed successfully!")
             print(f"📊 Deployed: {result.get('successful', 0)}/{result.get('total_resources', 0)} templates")
-            print("\n💡 Para outras fases, use comandos de linguagem natural:")
-            print("   • 'criar rede VPC privada' → fase 20-network")
-            print("   • 'provisionar ECS cluster' → fase 30-compute") 
-            print("   • 'configurar RDS Aurora' → fase 40-data")
+            print("🔧 IAL→CloudFormation conversion enabled")
+            print("\n💡 Para outras fases, use:")
+            print("   ialctl deploy 20-network    # Deploy fase específica")
+            print("   ialctl                      # Modo interativo")
+            print("   ialctl delete 20-network    # Excluir fase")
             return 0
         else:
             print(f"❌ Foundation deployment failed: {result.get('error')}")
+            return 1
+            
+    except Exception as e:
+        print(f"❌ Erro inesperado: {e}")
+        return 1
+
+def deploy_specific_phase(phase):
+    """Deploy uma fase específica com conversão IAL→CloudFormation"""
+    try:
+        from core.foundation_deployer import FoundationDeployer
+        
+        print(f"🚀 Deploying Phase: {phase}")
+        print("=" * 40)
+        
+        deployer = FoundationDeployer()
+        result = deployer.deploy_phase(phase)
+        
+        if result.get('success'):
+            print(f"✅ Phase {phase} deployed successfully!")
+            print(f"📊 Deployed: {result.get('successful', 0)}/{result.get('total_resources', 0)} resources")
+            print("🔧 IAL→CloudFormation conversion applied")
+            return 0
+        else:
+            print(f"❌ Phase {phase} deployment failed: {result.get('error')}")
+            return 1
+            
+    except Exception as e:
+        print(f"❌ Erro inesperado: {e}")
+        return 1
+
+def delete_specific_phase(phase):
+    """Excluir uma fase específica (todos os stacks CloudFormation)"""
+    try:
+        from core.foundation_deployer import FoundationDeployer
+        
+        print(f"🗑️ Deleting Phase: {phase}")
+        print("=" * 40)
+        
+        deployer = FoundationDeployer()
+        result = deployer.delete_phase(phase)
+        
+        if result.get('success'):
+            print(f"✅ Phase {phase} deleted successfully!")
+            print(f"🗑️ Deleted: {result.get('deleted', 0)}/{result.get('total_stacks', 0)} stacks")
+            return 0
+        else:
+            print(f"❌ Phase {phase} deletion failed: {result.get('error')}")
             return 1
             
     except Exception as e:
@@ -53,6 +101,9 @@ def main():
         elif command == 'deploy' and len(sys.argv) > 2:
             phase = sys.argv[2]
             return deploy_specific_phase(phase)
+        elif command == 'delete' and len(sys.argv) > 2:
+            phase = sys.argv[2]
+            return delete_specific_phase(phase)
         elif command == 'status':
             return show_status()
         elif command == 'logs':
@@ -119,12 +170,13 @@ def show_logs():
 def show_help():
     """Mostra ajuda dos comandos"""
     print("""
-🤖 IAL Infrastructure Assistant v3.1.0
+🤖 IAL Infrastructure Assistant v3.9.0
 
 COMANDOS CLI:
-  ialctl start              Deploy foundation (47 templates)
+  ialctl start              Deploy foundation com conversão IAL→CF
   ialctl list-phases        Lista todas as fases disponíveis
-  ialctl deploy <fase>      Deploy uma fase específica
+  ialctl deploy <fase>      Deploy uma fase específica (com conversão IAL)
+  ialctl delete <fase>      Excluir uma fase específica (todos os stacks)
   ialctl status             Status do sistema
   ialctl logs               Logs recentes
   ialctl --help             Esta ajuda
@@ -135,8 +187,10 @@ MODO INTERATIVO:
 EXEMPLOS:
   ialctl start                    # Deploy foundation
   ialctl list-phases              # Ver fases disponíveis
-  ialctl deploy 20-network        # Deploy fase de rede
-  ialctl deploy 30-compute        # Deploy fase de compute
+  ialctl deploy 20-network        # Deploy fase de rede (IAL→CF)
+  ialctl delete 20-network        # Excluir fase de rede
+  ialctl deploy 30-compute        # Deploy fase de compute (IAL→CF)
+  ialctl delete 30-compute        # Excluir fase de compute
     """)
     return 0
 
