@@ -232,6 +232,12 @@ class PhaseParser:
                         if isinstance(resource, dict) and 'mcp_workflow' in resource:
                             return True
             
+            # Se tem estrutura de workflow (formato antigo), também é IAL
+            if isinstance(content, dict):
+                for key, value in content.items():
+                    if isinstance(value, dict) and 'workflow' in value:
+                        return True
+            
             return False
         except:
             return False
@@ -344,11 +350,63 @@ class PhaseParser:
                             'Properties': processed_properties
                         }
                         
+                        # Adicionar DependsOn para quebrar dependências circulares
+                        if resource_type == 'AWS::EC2::VPCEndpoint':
+                            cf_resource['DependsOn'] = ['Resource03vpc']
+                        elif 'SecurityGroup' in resource_type and 'endpoints' in resource_key.lower():
+                            # Security groups de endpoints não dependem de VPC endpoints
+                            pass
+                        
                         # Usar resource_name se disponível, senão usar key
                         resource_name = resource_config.get('resource_name', resource_key.replace('-', '').replace('_', ''))
                         # Garantir que nome é alfanumérico
                         resource_name = re.sub(r'[^a-zA-Z0-9]', '', resource_name)
                         # Garantir que nome começa com letra
+                        if not resource_name or not resource_name[0].isalpha():
+                            resource_name = 'Resource' + resource_name
+                            
+                        cf_template['Resources'][resource_name] = cf_resource
+            
+            # Processar formato workflow (formato antigo)
+            else:
+                for resource_key, resource_config in ial_metadata.items():
+                    if isinstance(resource_config, dict) and 'workflow' in resource_config:
+                        workflow = resource_config['workflow']
+                        
+                        # Procurar step com generate_infrastructure_code
+                        resource_type = 'AWS::CloudFormation::WaitConditionHandle'
+                        properties = {}
+                        
+                        for step_key, step_config in workflow.items():
+                            if isinstance(step_config, dict) and step_config.get('action') == 'generate_infrastructure_code':
+                                resource_type = step_config.get('resource_type', resource_type)
+                                properties = step_config.get('properties', {})
+                                break
+                        
+                        # Processar placeholders
+                        def process_placeholders(obj):
+                            if isinstance(obj, dict):
+                                return {k: process_placeholders(v) for k, v in obj.items()}
+                            elif isinstance(obj, list):
+                                return [process_placeholders(item) for item in obj]
+                            elif isinstance(obj, str):
+                                if '{{PROJECT_NAME}}' in obj:
+                                    return {'Fn::Sub': obj.replace('{{PROJECT_NAME}}', '${ProjectName}')}
+                                elif '{{AWS_REGION}}' in obj:
+                                    return {'Fn::Sub': obj.replace('{{AWS_REGION}}', '${AWS::Region}')}
+                                return obj
+                            else:
+                                return obj
+                        
+                        processed_properties = process_placeholders(properties)
+                        
+                        cf_resource = {
+                            'Type': resource_type,
+                            'Properties': processed_properties
+                        }
+                        
+                        # Nome do recurso
+                        resource_name = re.sub(r'[^a-zA-Z0-9]', '', resource_key)
                         if not resource_name or not resource_name[0].isalpha():
                             resource_name = 'Resource' + resource_name
                             
