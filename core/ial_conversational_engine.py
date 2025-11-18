@@ -200,6 +200,14 @@ class IALConversationalEngine:
         self.query_engine = QueryEngine()
         self.conversation_context = ConversationContext()
         
+        # Inicializar context_engine
+        self.context_engine = None
+        try:
+            from .memory.context_engine import ContextEngine
+            self.context_engine = ContextEngine()
+        except ImportError:
+            pass
+        
         # Importar engines existentes (fallback)
         try:
             from .ial_orchestrator_stepfunctions import IALOrchestratorStepFunctions

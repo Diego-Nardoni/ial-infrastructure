@@ -471,6 +471,17 @@ def lambda_handler(event, context):
     def run_conversational_interface(self):
         """Executar interface conversacional do IAL"""
         try:
+            import readline
+            import os
+            
+            # Configurar readline para melhor input handling
+            def clear_screen():
+                """Clear the terminal screen"""
+                os.system('clear' if os.name == 'posix' else 'cls')
+            
+            # Set up readline key bindings
+            readline.parse_and_bind('Control-l: clear-screen')
+            
             from core.ial_conversational_engine import IALConversationalEngine
             
             print("🤖 IAL Infrastructure Assistant - Interface Conversacional")
@@ -478,6 +489,7 @@ def lambda_handler(event, context):
             print("💬 Digite suas perguntas sobre AWS ou infraestrutura")
             print("🚀 Use 'ialctl start' para deploy completo")
             print("❌ Digite 'quit', 'exit' ou 'sair' para sair")
+            print("🧹 Digite 'clear' ou use Ctrl+L para limpar a tela")
             print("=" * 60)
             
             engine = IALConversationalEngine()
@@ -492,12 +504,19 @@ def lambda_handler(event, context):
                     
                     if not user_input:
                         continue
+                    
+                    if user_input.lower() in ['clear', 'cls']:
+                        clear_screen()
+                        print("🤖 IAL Infrastructure Assistant - Interface Conversacional")
+                        print("=" * 60)
+                        continue
                         
                     if user_input.lower() == 'help':
                         print("""
 🆘 **Comandos Disponíveis:**
 • 'ialctl start' - Deploy completo da infraestrutura
 • Perguntas sobre AWS, custos, recursos
+• 'clear' ou Ctrl+L - Limpar a tela
 • 'quit' ou 'exit' - Sair da interface
 • 'help' - Mostrar esta ajuda
                         """)
@@ -510,6 +529,9 @@ def lambda_handler(event, context):
                 except EOFError:
                     print("\n👋 Até logo!")
                     break
+                except KeyboardInterrupt:
+                    print("\n\n⚠️ Use 'quit' para sair ou continue digitando...")
+                    continue
                 except Exception as e:
                     print(f"\n❌ Erro: {e}")
                     print("💡 Tente novamente ou digite 'help' para ajuda")

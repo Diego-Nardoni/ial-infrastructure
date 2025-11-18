@@ -1,26 +1,27 @@
 Package: ialctl
-Version: 3.0.2
+Version: 3.0.3
 Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: IAL Team <ial@example.com>
-Description: IAL Infrastructure Assistant - CONVERSATIONAL INTERFACE v3.0.2
- 🤖 INTERFACE CONVERSACIONAL ADICIONADA: Experiência igual Amazon Q Developer!
+Description: IAL Infrastructure Assistant - FIXED CONVERSATIONAL INTERFACE v3.0.3
+ 🔧 INTERFACE CONVERSACIONAL CORRIGIDA: Ctrl+L e funcionalidades restauradas!
  .
- Version 3.0.2 CONVERSATIONAL RELEASE includes:
- - 🤖 Interface conversacional interativa (igual Amazon Q)
- - 💬 Digite perguntas sobre AWS e infraestrutura
- - 🚀 'ialctl start' para deploy completo
- - ✅ Todos os bugs críticos corrigidos (v3.0.1)
- - ✅ 49/49 templates working (100% SUCCESS RATE)
- - ✅ Sistema de memória conversacional
- - ✅ Engine de processamento de linguagem natural
+ Version 3.0.3 BUGFIX RELEASE includes:
+ - ✅ Ctrl+L para limpar tela (readline support)
+ - ✅ Comando 'clear' funcionando
+ - ✅ Context engine inicializado corretamente
+ - ✅ Processamento de linguagem natural funcional
+ - ✅ Detecção de comandos de infraestrutura
+ - ✅ Conversas em linguagem natural
+ - ✅ Keyboard interrupt handling (Ctrl+C)
  .
- NOVA EXPERIÊNCIA DE USO:
- ✅ Execute 'ialctl' para abrir interface conversacional
- ✅ Execute 'ialctl start' para deploy da infraestrutura
- ✅ Pergunte sobre custos, recursos, otimizações
- ✅ Sistema responde com contexto e sugestões
- ✅ Memória de conversação persistente
+ FUNCIONALIDADES RESTAURADAS:
+ ✅ Interface conversacional igual Amazon Q
+ ✅ Processamento de perguntas sobre AWS
+ ✅ Detecção automática de comandos de deploy
+ ✅ Sistema de memória conversacional
+ ✅ Suporte completo a readline
+ ✅ Limpeza de tela com Ctrl+L
  .
- 🤖 CONVERSATIONAL AI: Amazon Q-like Experience
+ 🤖 CONVERSATIONAL EXPERIENCE: Fully Functional
