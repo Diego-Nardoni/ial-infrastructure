@@ -208,6 +208,14 @@ class IALConversationalEngine:
         except ImportError:
             pass
         
+        # Inicializar master engine integrado
+        self.master_engine = None
+        try:
+            from .ial_master_engine_integrated import IALMasterEngineIntegrated
+            self.master_engine = IALMasterEngineIntegrated()
+        except ImportError:
+            pass
+        
         # Importar engines existentes (fallback)
         try:
             from .ial_orchestrator_stepfunctions import IALOrchestratorStepFunctions
@@ -225,7 +233,18 @@ class IALConversationalEngine:
     def process_conversational_input(self, user_input: str) -> str:
         """Interface conversacional principal"""
         
-        # 1. Construir contexto semântico relevante (SEMPRE)
+        # 1. Usar master engine se disponível (tem funcionalidade de listar fases)
+        if self.master_engine:
+            try:
+                import asyncio
+                # Usar master engine para processamento completo
+                result = asyncio.run(self.master_engine.process_conversation(user_input, "user", "session"))
+                return result.get('response', 'Erro no processamento')
+            except Exception as e:
+                # Fallback para processamento básico
+                pass
+        
+        # 2. Construir contexto semântico relevante (SEMPRE)
         context = ""
         if self.context_engine:
             try:
@@ -233,10 +252,10 @@ class IALConversationalEngine:
             except Exception as e:
                 pass  # Silenciar
         
-        # 2. Manter contexto da conversa local
+        # 3. Manter contexto da conversa local
         self.conversation_context.add_user_input(user_input)
         
-        # 3. Preparar input enriquecido com contexto (LLM decide se usa)
+        # 4. Preparar input enriquecido com contexto (LLM decide se usa)
         enriched_input = user_input
         if context:
             enriched_input = f"""Histórico de conversas anteriores:
@@ -245,10 +264,10 @@ class IALConversationalEngine:
 ---
 Pergunta atual do usuário: {user_input}"""
         
-        # 4. Detectar tipo de intenção
+        # 5. Detectar tipo de intenção
         intent_type = self._classify_intent(user_input)
         
-        # 5. Processar baseado no tipo
+        # 6. Processar baseado no tipo
         if intent_type == "query":
             result = self.query_engine.process_via_mcp(enriched_input)
             response = self._format_query_response(result)
@@ -267,17 +286,15 @@ Pergunta atual do usuário: {user_input}"""
         else:
             response = self._format_help_response()
         
-        # 6. Adicionar sugestões contextuais
+        # 7. Adicionar sugestões contextuais
         response += self._generate_contextual_suggestions(user_input, intent_type)
         
-        # 7. Salvar interação completa (user + assistant) com embeddings
+        # 8. Salvar interação completa (user + assistant) com embeddings
         if self.context_engine:
             try:
                 self.context_engine.save_interaction(user_input, response)
             except Exception:
                 pass  # Silenciar
-        
-        # 8. Salvar no contexto local
         self.conversation_context.add_response(response)
         
         return response

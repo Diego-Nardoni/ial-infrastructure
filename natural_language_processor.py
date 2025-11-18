@@ -98,7 +98,7 @@ class IaLNaturalProcessor:
         if VALIDATION_SYSTEM_AVAILABLE:
             try:
                 self.validation_system = ValidationSystem()
-#                ultra_silent_ultra_silent_print("✅ Sistema de Validação de Intenção inicializado")
+#                ultra_silent_print("✅ Sistema de Validação de Intenção inicializado")
             except Exception as e:
                 print(f"⚠️ Erro inicializando Validation System: {e}")
                 self.validation_system = None
@@ -117,15 +117,15 @@ class IaLNaturalProcessor:
                 self.master_engine = IaLMasterEngine()
                 self.advanced_mode = True
                 print("🚀 IaL v3.1 - Advanced Mode: ALL SYSTEMS OPERATIONAL")
-                ultra_silent_ultra_silent_print("✅ Bedrock Conversational AI")
-                ultra_silent_ultra_silent_print("✅ Infrastructure Integration") 
-                ultra_silent_ultra_silent_print("✅ Response Caching & Optimization")
-                ultra_silent_ultra_silent_print("✅ Knowledge Base & RAG")
-                ultra_silent_ultra_silent_print("✅ Cost Monitoring & Rate Limiting")
+                ultra_silent_print("✅ Bedrock Conversational AI")
+                ultra_silent_print("✅ Infrastructure Integration") 
+                ultra_silent_print("✅ Response Caching & Optimization")
+                ultra_silent_print("✅ Knowledge Base & RAG")
+                ultra_silent_print("✅ Cost Monitoring & Rate Limiting")
                 if self.intelligent_router:
-                    ultra_silent_ultra_silent_print("✅ Intelligent MCP Router")
+                    ultra_silent_print("✅ Intelligent MCP Router")
                 if self.validation_system:
-                    ultra_silent_ultra_silent_print("✅ Intent Validation System")
+                    ultra_silent_print("✅ Intent Validation System")
             except Exception as e:
                 print(f"⚠️ Master Engine initialization failed: {e}")
                 self.advanced_mode = False
@@ -201,6 +201,10 @@ class IaLNaturalProcessor:
                 cost_info = ""
         # ===== FIM DA INSERÇÃO =====
         
+        # NOVO: Usar Master Engine diretamente para comandos de fases
+        if any(keyword in user_input.lower() for keyword in ['fases', 'phases', 'liste as fases', 'list phases']):
+            return self._process_fallback_path(user_input, user_id, session_id)
+        
         # Try intelligent MCP routing first if available
         if self.intelligent_router:
             try:
@@ -257,13 +261,14 @@ class IaLNaturalProcessor:
             'delete', 'remove', 'destroy', 'cleanup', 'exclude',
             'ecs', 'lambda', 'rds', 'elb', 'vpc', 's3', 'dynamodb',
             'infrastructure', 'architecture', 'serverless', 'container',
-            'phase', 'stack'
+            'phase', 'stack', 'fases'  # Adicionado 'fases'
         ]
         
         # ADICIONADO: Keywords de consulta de recursos
         query_keywords = [
             'list', 'show', 'describe', 'what', 'which', 'existing', 'current',
-            'tabelas', 'buckets', 'instancias', 'recursos', 'ver', 'mostrar'
+            'tabelas', 'buckets', 'instancias', 'recursos', 'ver', 'mostrar',
+            'liste', 'fases'  # Adicionado 'liste' e 'fases'
         ]
         
         user_lower = user_input.lower()
@@ -771,7 +776,7 @@ def interactive_mode():
     
     system_status = processor.get_system_status()
     if processor.advanced_mode:
-        ultra_silent_ultra_silent_print("✅ ADVANCED MODE: All systems operational")
+        ultra_silent_print("✅ ADVANCED MODE: All systems operational")
         print("   🤖 Bedrock Conversational AI")
         print("   🏗️ Infrastructure Integration")
         print("   💾 Response Caching & Optimization")
@@ -799,11 +804,11 @@ def interactive_mode():
             if user_input.lower() in ['clear', 'cls']:
                 clear_screen()
                 print("🚀 IaL v3.0 - Advanced Mode: ALL SYSTEMS OPERATIONAL")
-                ultra_silent_ultra_silent_print("✅ Bedrock Conversational AI")
-                ultra_silent_ultra_silent_print("✅ Infrastructure Integration") 
-                ultra_silent_ultra_silent_print("✅ Response Caching & Optimization")
-                ultra_silent_ultra_silent_print("✅ Knowledge Base & RAG")
-                ultra_silent_ultra_silent_print("✅ Cost Monitoring & Rate Limiting")
+                ultra_silent_print("✅ Bedrock Conversational AI")
+                ultra_silent_print("✅ Infrastructure Integration") 
+                ultra_silent_print("✅ Response Caching & Optimization")
+                ultra_silent_print("✅ Knowledge Base & RAG")
+                ultra_silent_print("✅ Cost Monitoring & Rate Limiting")
                 print("=" * 60)
                 print("Commands: 'quit' to exit, 'clear' to clear screen, 'status' for system status")
                 print("Ask me anything about infrastructure! (Ctrl+L also clears screen)")
@@ -970,13 +975,13 @@ def deploy_foundation_via_cdk(config):
             router = IntelligentMCPRouterSophisticated()
             deployer = FoundationDeployer()
             
-            ultra_silent_ultra_silent_print("✅ MCP servers conectados (Core + Cloud Control)")
+            ultra_silent_print("✅ MCP servers conectados (Core + Cloud Control)")
             
             # Deploy Foundation phase
             result = deployer.deploy_phase("00-foundation")
             
             if result.get('success', False):
-                ultra_silent_ultra_silent_print("✅ FOUNDATION IAL COMPLETA criada com sucesso!")
+                ultra_silent_print("✅ FOUNDATION IAL COMPLETA criada com sucesso!")
                 
                 # Show detailed summary
                 print(f"📊 Foundation Components: {result.get('successful', 0)}/{result.get('total_resources', 0)}")

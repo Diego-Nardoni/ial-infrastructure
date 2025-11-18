@@ -1,576 +1,101 @@
 #!/usr/bin/env python3
 """
-IALCTL Enhanced - Versão com melhorias de segurança e observabilidade
-Inclui: AWS WAF, X-Ray Tracing, Circuit Breaker Metrics
+IALCTL Enhanced - Wrapper mínimo para o natural_language_processor funcional
+Mantém TODAS as funcionalidades existentes sem modificações
 """
 
 import sys
 import os
-import asyncio
-import json
-import boto3
-from pathlib import Path
+import argparse
 
 # Adicionar diretório do IAL ao path
 sys.path.insert(0, '/home/ial')
 
-class IALCTLEnhanced:
-    def __init__(self):
-        self.session = boto3.Session()
-        
-    async def run_start_command(self):
-        """Executar comando 'start' - deploy da foundation com melhorias"""
-        from core.foundation_deployer import FoundationDeployer
-        from core.mcp_servers_initializer import MCPServersInitializer
-        from core.system_health_validator import SystemHealthValidator
-        import subprocess
-        import boto3
-        import getpass
-        
-        print("🚀 IAL Foundation Deployment Starting (Enhanced)...")
-        print("=" * 50)
-        
-        # 0. Prerequisites & Dependencies
-        print("\n🔧 Step 0/6: Prerequisites & Dependencies...")
-        prereq_result = self._check_and_install_prerequisites()
-        if not prereq_result['success']:
-            print(f"❌ Prerequisites check failed: {prereq_result['error']}")
-            return 1
-        print("✅ All prerequisites validated")
-        
-        # 1. GitHub Configuration
-        print("\n🔑 Step 1/6: GitHub Configuration...")
-        github_token = self._get_github_token()
-        if not github_token:
-            print("❌ GitHub token é obrigatório para IAL funcionar")
-            return 1
-        
-        self._update_github_secret(github_token)
-        print("✅ GitHub token configurado")
-        
-        # 2. Deploy Foundation + WAF
-        print("\n📦 Step 2/6: Deploying AWS Foundation + WAF...")
-        deployer = FoundationDeployer()
-        result = deployer.deploy_foundation_core()
-        
-        # Deploy WAF
-        waf_result = self._deploy_waf_protection()
-        if waf_result['success']:
-            print("   ✅ AWS WAF deployed successfully")
-        else:
-            print(f"   ⚠️  WAF deployment failed: {waf_result['error']}")
-        
-        if result['successful_deployments'] == 0:
-            print("\n❌ IAL Foundation deployment failed!")
-            return 1
-        
-        print(f"✅ Foundation: {result['successful_deployments']}/{result['total_resource_groups']} resource groups deployed")
-        
-        # 3. Initialize MCP Servers + X-Ray
-        print("\n🔌 Step 3/6: Initializing MCP Servers + X-Ray...")
-        mcp_initializer = MCPServersInitializer()
-        mcp_result = await mcp_initializer.initialize_all_servers()
-        
-        # Configure X-Ray Tracing
-        xray_result = self._configure_xray_tracing()
-        if xray_result['success']:
-            print("   ✅ X-Ray tracing configured")
-        else:
-            print(f"   ⚠️  X-Ray configuration failed: {xray_result['error']}")
-        
-        print(f"✅ MCP Servers: {mcp_result['total_initialized']} initialized")
-        
-        # 4. Build Container Lambda + Metrics Publisher
-        print("\n🐳 Step 4/6: Building Container Lambda + Metrics...")
-        try:
-            container_result = self._build_and_deploy_container_lambda()
-            
-            # Deploy Circuit Breaker Metrics Publisher
-            metrics_result = self._deploy_metrics_publisher()
-            if metrics_result['success']:
-                print("   ✅ Circuit Breaker Metrics Publisher deployed")
-            else:
-                print(f"   ⚠️  Metrics Publisher deployment failed: {metrics_result['error']}")
-            
-            if container_result['success']:
-                print("   ✅ Container Lambda deployed successfully")
-            else:
-                print(f"   ⚠️  Container Lambda deployment failed: {container_result['error']}")
-        except Exception as e:
-            print(f"   ⚠️  Warning: Container Lambda build failed: {e}")
-            print("   ℹ️  Enhanced MCP will use fallback mode")
-        
-        # 5. Deploy NL Intent Pipeline
-        print("\n🔀 Step 5/6: Deploying NL Intent Pipeline...")
-        # ... código existente do Step 5 ...
-        
-        # 6. Validate System Health + Setup Monitoring
-        print("\n🏥 Step 6/6: Validating System Health + Monitoring...")
-        validator = SystemHealthValidator()
-        health_result = {'system_ready': True, 'passed': 5, 'total': 5}  # Simplified for now
-        
-        # Setup Monitoring Dashboards
-        monitoring_result = self._setup_monitoring_dashboards()
-        if monitoring_result['success']:
-            print(f"   ✅ Monitoring: {monitoring_result['dashboards']} dashboards, {monitoring_result['alerts']} alerts")
-        else:
-            print(f"   ⚠️  Monitoring setup failed: {monitoring_result['error']}")
-        
-        if health_result['system_ready']:
-            print("\n🎯 Enhanced System ready! Security and observability enabled.")
-            print("   📊 Dashboards: CloudWatch Console")
-            print("   🔒 WAF: API Gateway protected")
-            print("   🔍 X-Ray: Distributed tracing active")
-            print("   📈 Metrics: Circuit breaker monitoring")
-            return 0
-        else:
-            print(f"\n❌ System validation failed: {health_result.get('failed_checks', 'Unknown')}")
-            return 1
+def main():
+    """Main entry point - wrapper para o natural_language_processor"""
     
-
-    def _create_or_update_stack(self, stack_name, template_body, parameters=None, capabilities=None):
-        """Create stack if not exists, update if exists and changed"""
-        cf_client = self.session.client('cloudformation')
-        
+    # Se comando 'start', usar o natural_language_processor com 'start'
+    if len(sys.argv) > 1 and sys.argv[1] == 'start':
+        # Importar e executar o processador com comando start
+        from natural_language_processor import main as nlp_main
+        # Modificar sys.argv temporariamente
+        original_argv = sys.argv[:]
+        sys.argv = ['natural_language_processor.py', 'start']
         try:
-            # Check if stack exists
-            response = cf_client.describe_stacks(StackName=stack_name)
-            stack_status = response['Stacks'][0]['StackStatus']
+            nlp_main()
+        finally:
+            sys.argv = original_argv
+        return
+    
+    # Caso contrário, modo interativo
+    import readline
+    
+    # Configurar readline
+    def clear_screen():
+        os.system('clear' if os.name == 'posix' else 'cls')
+    
+    readline.parse_and_bind('Control-l: clear-screen')
+    
+    # Importar o processador funcional
+    from natural_language_processor import IaLNaturalProcessor
+    import uuid
+    
+    processor = IaLNaturalProcessor()
+    user_id = "ialctl-user"
+    session_id = str(uuid.uuid4())
+    
+    print("🤖 IAL Infrastructure Assistant - Interface Conversacional")
+    print("=" * 60)
+    print("💬 Digite suas perguntas sobre AWS ou infraestrutura")
+    print("🚀 Use 'ialctl start' para deploy completo")
+    print("❌ Digite 'quit', 'exit' ou 'sair' para sair")
+    print("🧹 Digite 'clear' ou use Ctrl+L para limpar a tela")
+    print("=" * 60)
+    
+    while True:
+        try:
+            user_input = input("\n🔵 IAL> ").strip()
             
-            if stack_status in ['CREATE_COMPLETE', 'UPDATE_COMPLETE']:
-                print(f"✅ Stack {stack_name} already exists and is complete")
-                return {'success': True, 'action': 'skipped', 'stack_name': stack_name}
-            elif stack_status in ['ROLLBACK_COMPLETE', 'CREATE_FAILED', 'UPDATE_ROLLBACK_COMPLETE']:
-                print(f"🔄 Stack {stack_name} in failed state, deleting and recreating...")
-                cf_client.delete_stack(StackName=stack_name)
-                waiter = cf_client.get_waiter('stack_delete_complete')
-                waiter.wait(StackName=stack_name, WaiterConfig={'Delay': 15, 'MaxAttempts': 20})
-                # Fall through to create
-            else:
-                print(f"⏳ Stack {stack_name} in progress state: {stack_status}")
-                return {'success': False, 'error': f'Stack in {stack_status} state'}
+            if user_input.lower() in ['quit', 'exit', 'sair', 'q']:
+                print("\n👋 Até logo! Use 'ialctl start' para deploy quando precisar.")
+                break
+            
+            if not user_input:
+                continue
+            
+            if user_input.lower() in ['clear', 'cls']:
+                clear_screen()
+                print("🤖 IAL Infrastructure Assistant - Interface Conversacional")
+                print("=" * 60)
+                continue
                 
-        except cf_client.exceptions.ClientError as e:
-            if 'does not exist' in str(e):
-                print(f"📦 Creating new stack: {stack_name}")
-            else:
-                raise
-        
-        # Create stack
-        cf_client.create_stack(
-            StackName=stack_name,
-            TemplateBody=template_body,
-            Parameters=parameters or [],
-            Capabilities=capabilities or ['CAPABILITY_IAM']
-        )
-        
-        waiter = cf_client.get_waiter('stack_create_complete')
-        waiter.wait(StackName=stack_name, WaiterConfig={'Delay': 30, 'MaxAttempts': 20})
-        
-        return {'success': True, 'action': 'created', 'stack_name': stack_name}
-
-    def _deploy_waf_protection(self):
-        """Deploy AWS WAF for API Gateway protection - Skip if already deployed via template"""
-        try:
-            # Check if WAF stack already exists from template deployment
-            cf_client = self.session.client('cloudformation')
-            
-            try:
-                cf_client.describe_stacks(StackName='ial-fork-42-api-gateway-waf')
-                return {'success': True, 'message': 'WAF already deployed via template'}
-            except cf_client.exceptions.ClientError:
-                pass
-            
-            # If template stack doesn't exist, create standalone WAF
-            # Read WAF template
-            template_path = Path('/home/ial/phases/00-foundation/42-api-gateway-waf.yaml')
-            if not template_path.exists():
-                return {'success': False, 'error': 'WAF template not found'}
-            
-            with open(template_path, 'r') as f:
-                template_body = f.read()
-            
-            stack_name = 'ial-api-gateway-waf-v2-enhanced'
-            
-            parameters = [
-                {
-                    'ParameterKey': 'Environment',
-                    'ParameterValue': 'prod'
-                }
-            ]
-            
-            # Use idempotent stack creation
-            result = self._create_or_update_stack(stack_name, template_body, parameters)
-            return result
-            
-        except Exception as e:
-            return {'success': False, 'error': str(e)}
-    
-    def _configure_xray_tracing(self):
-        """Configure X-Ray tracing for all components"""
-        try:
-            # Check if X-Ray is already enabled
-            xray_client = self.session.client('xray')
-            
-            try:
-                # Check if tracing config exists
-                response = xray_client.get_tracing_config()
-                if response.get('TracingConfig', {}).get('Mode') == 'Active':
-                    print("✅ X-Ray tracing already configured")
-                    return {'success': True, 'action': 'skipped'}
-            except Exception:
-                pass  # Continue with configuration
-            
-            # Enable X-Ray on API Gateway
-            apigateway_client = self.session.client('apigateway')
-            
-            # Get API Gateway ID
-            apis = apigateway_client.get_rest_apis()
-            for api in apis['items']:
-                if 'ial' in api['name'].lower():
-                    # Enable X-Ray tracing
-                    apigateway_client.update_stage(
-                        restApiId=api['id'],
-                        stageName='prod',
-                        patchOps=[
-                            {
-                                'op': 'replace',
-                                'path': '/tracingConfig/tracingEnabled',
-                                'value': 'true'
-                            }
-                        ]
-                    )
-            
-            return {'success': True, 'enabled': True}
-            
-        except Exception as e:
-            return {'success': False, 'error': str(e)}
-    
-    def _deploy_metrics_publisher(self):
-        """Deploy Circuit Breaker Metrics Publisher Lambda"""
-        try:
-            # Check if Lambda already exists
-            lambda_client = self.session.client('lambda')
-            function_name = 'ial-metrics-publisher-prod'
-            
-            try:
-                response = lambda_client.get_function(FunctionName=function_name)
-                print(f"✅ Lambda function {function_name} already exists")
-                return {'success': True, 'action': 'skipped', 'function_name': function_name}
-            except lambda_client.exceptions.ResourceNotFoundException:
-                print(f"📦 Creating Lambda function: {function_name}")
-                pass  # Continue with creation
-            
-            lambda_client = self.session.client('lambda')
-            
-            # Create deployment package
-            import zipfile
-            import tempfile
-            
-            with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp_file:
-                with zipfile.ZipFile(tmp_file.name, 'w') as zip_file:
-                    # Create complete Lambda code inline
-                    lambda_code = '''import boto3
-import json
-import os
-
-def lambda_handler(event, context):
-    """Lambda handler for publishing circuit breaker metrics"""
-    try:
-        cloudwatch = boto3.client('cloudwatch')
-        namespace = os.environ.get('NAMESPACE', 'IAL/CircuitBreaker')
-        
-        # Publish sample metrics
-        cloudwatch.put_metric_data(
-            Namespace=namespace,
-            MetricData=[
-                {
-                    'MetricName': 'CircuitBreakerState',
-                    'Dimensions': [
-                        {
-                            'Name': 'Service',
-                            'Value': 'bedrock'
-                        }
-                    ],
-                    'Value': 1.0,
-                    'Unit': 'Count'
-                }
-            ]
-        )
-        
-        return {
-            'statusCode': 200,
-            'body': json.dumps('Metrics published successfully')
-        }
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return {
-            'statusCode': 500,
-            'body': json.dumps(f'Error: {str(e)}')
-        }
-'''
-                    # Write Lambda code to zip
-                    zip_file.writestr('lambda_function.py', lambda_code)
-                
-                # Deploy Lambda with retry for IAM propagation
-                import time
-                max_retries = 3
-                for attempt in range(max_retries):
-                    try:
-                        with open(tmp_file.name, 'rb') as zip_data:
-                            lambda_client.create_function(
-                                FunctionName=function_name,  # Use the same name as checked
-                                Runtime='python3.9',
-                                Role=self._get_lambda_execution_role_arn(),
-                                Handler='lambda_function.lambda_handler',
-                                Code={'ZipFile': zip_data.read()},
-                                Description='IAL Circuit Breaker Metrics Publisher',
-                                Timeout=60,
-                                Environment={
-                                    'Variables': {
-                                        'NAMESPACE': 'IAL/CircuitBreaker'
-                                    }
-                                }
-                            )
-                        break  # Success, exit retry loop
-                    except lambda_client.exceptions.InvalidParameterValueException as e:
-                        if 'cannot be assumed by Lambda' in str(e) and attempt < max_retries - 1:
-                            print(f"   ⏳ IAM role propagation delay, retrying in 10 seconds... (attempt {attempt + 1}/{max_retries})")
-                            time.sleep(10)
-                        else:
-                            raise  # Re-raise if not IAM issue or max retries reached
-            
-            return {'success': True, 'function_name': function_name}
-            
-        except Exception as e:
-            return {'success': False, 'error': str(e)}
-    
-    def _setup_monitoring_dashboards(self):
-        """Setup CloudWatch Dashboards and Alerts"""
-        try:
-            cloudwatch = self.session.client('cloudwatch')
-            
-            # Create Executive Dashboard
-            executive_dashboard = {
-                "widgets": [
-                    {
-                        "type": "metric",
-                        "properties": {
-                            "metrics": [
-                                ["IAL/CircuitBreaker", "CircuitBreakerState", "Service", "bedrock"],
-                                [".", ".", ".", "dynamodb"],
-                                [".", ".", ".", "s3"]
-                            ],
-                            "period": 300,
-                            "stat": "Average",
-                            "region": "us-east-1",
-                            "title": "Circuit Breaker States"
-                        }
-                    },
-                    {
-                        "type": "metric", 
-                        "properties": {
-                            "metrics": [
-                                ["AWS/WAFV2", "BlockedRequests", "WebACL", "ial-api-gateway-waf-prod"],
-                                [".", "AllowedRequests", ".", "."]
-                            ],
-                            "period": 300,
-                            "stat": "Sum",
-                            "region": "us-east-1", 
-                            "title": "WAF Protection Status"
-                        }
-                    }
-                ]
-            }
-            
-            cloudwatch.put_dashboard(
-                DashboardName='IAL-Executive-Dashboard',
-                DashboardBody=json.dumps(executive_dashboard)
-            )
-            
-            # Create Circuit Breaker OPEN alarm
-            cloudwatch.put_metric_alarm(
-                AlarmName='IAL-CircuitBreaker-Open-Alert',
-                ComparisonOperator='GreaterThanThreshold',
-                EvaluationPeriods=2,
-                MetricName='CircuitBreakerState',
-                Namespace='IAL/CircuitBreaker',
-                Period=300,
-                Statistic='Maximum',
-                Threshold=0.5,
-                ActionsEnabled=True,
-                AlarmDescription='Circuit Breaker is OPEN',
-                Unit='None'
-            )
-            
-            return {
-                'success': True,
-                'dashboards': 1,
-                'alerts': 1
-            }
-            
-        except Exception as e:
-            return {'success': False, 'error': str(e)}
-    
-    def _get_api_gateway_arn(self):
-        """Get API Gateway ARN"""
-        # Placeholder - implement based on existing API Gateway
-        return "arn:aws:apigateway:us-east-1::/restapis/*/stages/prod"
-    
-    def _get_lambda_execution_role_arn(self):
-        """Get Lambda execution role ARN"""
-        # Use the correct metrics publisher role
-        return "arn:aws:iam::221082174220:role/ial-metrics-publisher-role"
-    
-    def _check_and_install_prerequisites(self):
-        """Check and install all prerequisites"""
-        import subprocess
-        import os
-        
-        try:
-            # 1. Check Docker
-            print("   🐳 Checking Docker...")
-            result = subprocess.run(['docker', '--version'], capture_output=True, text=True)
-            if result.returncode != 0:
-                return {'success': False, 'error': 'Docker not installed or not running'}
-            print("   ✅ Docker available")
-            
-            # 2. Check AWS CLI
-            print("   ☁️  Checking AWS CLI...")
-            result = subprocess.run(['aws', '--version'], capture_output=True, text=True)
-            if result.returncode != 0:
-                return {'success': False, 'error': 'AWS CLI not installed'}
-            print("   ✅ AWS CLI available")
-            
-            # 3. Check AWS credentials
-            print("   🔑 Checking AWS credentials...")
-            try:
-                import boto3
-                boto3.client('sts').get_caller_identity()
-                print("   ✅ AWS credentials valid")
-            except Exception as e:
-                return {'success': False, 'error': f'AWS credentials invalid: {e}'}
-            
-            return {'success': True}
-            
-        except Exception as e:
-            return {'success': False, 'error': str(e)}
-    
-    def _get_github_token(self):
-        """Get GitHub token"""
-        return "ghp_placeholder_token"
-    
-    def _update_github_secret(self, token):
-        """Update GitHub secret"""
-        pass
-    
-    def _build_and_deploy_container_lambda(self):
-        """Build and deploy container lambda"""
-        return {'success': True}
-
-    def run_conversational_interface(self):
-        """Executar interface conversacional do IAL"""
-        try:
-            import readline
-            import os
-            
-            # Configurar readline para melhor input handling
-            def clear_screen():
-                """Clear the terminal screen"""
-                os.system('clear' if os.name == 'posix' else 'cls')
-            
-            # Set up readline key bindings
-            readline.parse_and_bind('Control-l: clear-screen')
-            
-            from core.ial_conversational_engine import IALConversationalEngine
-            
-            print("🤖 IAL Infrastructure Assistant - Interface Conversacional")
-            print("=" * 60)
-            print("💬 Digite suas perguntas sobre AWS ou infraestrutura")
-            print("🚀 Use 'ialctl start' para deploy completo")
-            print("❌ Digite 'quit', 'exit' ou 'sair' para sair")
-            print("🧹 Digite 'clear' ou use Ctrl+L para limpar a tela")
-            print("=" * 60)
-            
-            engine = IALConversationalEngine()
-            
-            while True:
-                try:
-                    user_input = input("\n🔵 IAL> ").strip()
-                    
-                    if user_input.lower() in ['quit', 'exit', 'sair', 'q']:
-                        print("\n👋 Até logo! Use 'ialctl start' para deploy quando precisar.")
-                        break
-                    
-                    if not user_input:
-                        continue
-                    
-                    if user_input.lower() in ['clear', 'cls']:
-                        clear_screen()
-                        print("🤖 IAL Infrastructure Assistant - Interface Conversacional")
-                        print("=" * 60)
-                        continue
-                        
-                    if user_input.lower() == 'help':
-                        print("""
+            if user_input.lower() == 'help':
+                print("""
 🆘 **Comandos Disponíveis:**
 • 'ialctl start' - Deploy completo da infraestrutura
 • Perguntas sobre AWS, custos, recursos
+• 'liste as fases do ial' - Mostrar fases disponíveis
 • 'clear' ou Ctrl+L - Limpar a tela
 • 'quit' ou 'exit' - Sair da interface
 • 'help' - Mostrar esta ajuda
-                        """)
-                        continue
-                    
-                    print("\n🤖 Processando...")
-                    response = engine.process_conversational_input(user_input)
-                    print(f"\n{response}")
-                    
-                except EOFError:
-                    print("\n👋 Até logo!")
-                    break
-                except KeyboardInterrupt:
-                    print("\n\n⚠️ Use 'quit' para sair ou continue digitando...")
-                    continue
-                except Exception as e:
-                    print(f"\n❌ Erro: {e}")
-                    print("💡 Tente novamente ou digite 'help' para ajuda")
+                """)
+                continue
             
-            return 0
+            print("\n🤖 Processando...")
             
-        except ImportError as e:
-            print(f"❌ Erro ao carregar engine conversacional: {e}")
-            print("🚀 Use 'ialctl start' para deploy da foundation")
-            return 1
-
-def main():
-    """Main entry point"""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="IALCTL Enhanced - IAL Infrastructure Assistant")
-    parser.add_argument(
-        "command",
-        nargs="?",
-        choices=["start"],
-        help="Comando a executar: 'start' para deploy da foundation com melhorias"
-    )
-    
-    args = parser.parse_args()
-    
-    cli = IALCTLEnhanced()
-    
-    try:
-        if args.command == "start":
-            return asyncio.run(cli.run_start_command())
-        else:
-            # Abrir interface conversacional
-            return cli.run_conversational_interface()
-    except KeyboardInterrupt:
-        print("\n⚠️  Operação cancelada pelo usuário")
-        return 1
-    except Exception as e:
-        print(f"❌ Erro inesperado: {e}")
-        return 1
+            # Usar o processador funcional original (SEM MODIFICAÇÕES)
+            response = processor.process_command(user_input, user_id, session_id)
+            print(f"\n{response}")
+            
+        except EOFError:
+            print("\n👋 Até logo!")
+            break
+        except KeyboardInterrupt:
+            print("\n\n⚠️ Use 'quit' para sair ou continue digitando...")
+            continue
+        except Exception as e:
+            print(f"\n❌ Erro: {e}")
+            print("💡 Tente novamente ou digite 'help' para ajuda")
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
