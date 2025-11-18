@@ -1,38 +1,38 @@
 Package: ialctl
-Version: 3.1.0
+Version: 3.2.0
 Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: IAL Team <ial@example.com>
-Description: IAL Infrastructure Assistant - INTELLIGENT CONVERSATION v3.1.0
- 🤖 CONVERSAÇÃO INTELIGENTE: Interface Amazon Q-like 100% funcional!
+Description: IAL Infrastructure Assistant - GITHUB SOURCE OF TRUTH v3.2.0
+ 🎯 GITHUB SOURCE OF TRUTH: Sistema dinâmico baseado no repositório!
  .
- Version 3.1.0 INTELLIGENT CONVERSATION RELEASE includes:
- - ✅ Conversação natural via Bedrock LLM
- - ✅ Detecção automática: conversação vs criação AWS
- - ✅ Interface Amazon Q-like completamente funcional
- - ✅ Foundation 47/47 templates (100% success)
- - ✅ Sistema LLM + MCP servers integrado
+ Version 3.2.0 GITHUB SOURCE OF TRUTH RELEASE includes:
+ - ✅ Context Enrichment: Detecção inteligente IAL vs IAM
+ - ✅ GitHub Integration: Consulta dinâmica de fases do repositório
+ - ✅ Smart Detection: Listagem vs Criação de fases
+ - ✅ Dynamic System: Funciona em qualquer fork/diretório
+ - ✅ Foundation perfeita: 47/47 templates (100% success)
  .
- INTELIGÊNCIA CONVERSACIONAL:
- ✅ Bedrock LLM: Respostas naturais e humanas
- ✅ Detecção inteligente: Sabe quando é conversa ou infraestrutura
- ✅ MCP routing: 17 MCPs especializados (9 core + 8 domain)
- ✅ Circuit breakers: Tolerância a falhas ativa
- ✅ Performance otimizada: Sub-segundo para conversação
- .
- ARQUITETURA COMPLETA:
- ✅ ialctl start: Foundation deployment (47/47 templates)
- ✅ Interface conversacional: Bedrock + MCP servers
- ✅ Criação de recursos: Via linguagem natural
- ✅ Sistema idempotente: Executável múltiplas vezes
- ✅ Processamento inteligente: LLM + pattern matching
+ INTELIGÊNCIA CONTEXTUAL:
+ ✅ Detecção automática: "liste fases" vs "criar fase"
+ ✅ GitHub como fonte única: Sempre atualizado
+ ✅ Context enrichment: Evita confusão IAL vs IAM
+ ✅ Instruções precisas: LLM sabe exatamente o que fazer
+ ✅ Sistema flexível: Funciona em qualquer repositório
  .
  FUNCIONALIDADES AVANÇADAS:
- ✅ Natural Language Processing: Comandos em português
- ✅ Intelligent MCP Router: Roteamento automático
- ✅ Conversational AI: Respostas contextuais
- ✅ Infrastructure as Code: Templates automáticos
- ✅ GitOps integration: Deploy via GitHub Actions
+ ✅ "liste as fases do ial" → Consulta GitHub, não gera YAML
+ ✅ "criar fase 15-backup" → Verifica GitHub primeiro, cria se não existir
+ ✅ "criar fase 10-security" → Informa que já existe, não gera YAML
+ ✅ Conversação natural: Interface Amazon Q-like preservada
+ ✅ MCP routing: 17 MCPs especializados ativos
  .
- 🚀 PRODUCTION READY: Complete Amazon Q Experience
+ ARQUITETURA DINÂMICA:
+ ✅ GitHub MCP: Acesso direto ao repositório
+ ✅ Context enrichment: Instruções específicas para LLM
+ ✅ Smart routing: Bedrock + MCP servers integrado
+ ✅ Circuit breakers: Tolerância a falhas ativa
+ ✅ Performance otimizada: Sub-segundo para consultas
+ .
+ 🚀 PRODUCTION READY: Dynamic GitHub-Based System
