@@ -12,25 +12,20 @@ import asyncio
 sys.path.insert(0, '/home/ial')
 
 async def run_foundation_deploy():
-    """Executar deploy da foundation com conversão IAL→CloudFormation"""
+    """Executar deploy usando CognitiveEngine completo"""
     try:
-        from core.foundation_deployer import FoundationDeployer
+        from core.cognitive_engine import CognitiveEngine
         
-        print("🚀 IAL Foundation Deployment Starting...")
+        print("🧠 IAL Cognitive Engine Starting...")
         print("=" * 50)
         
-        deployer = FoundationDeployer()
-        # Deploy da fase 00-foundation com conversão IAL automática
-        result = deployer.deploy_phase("00-foundation")
+        engine = CognitiveEngine()
+        # Usar fluxo completo: NL → IAS → Cost → Phase Builder → GitOps
+        result = await engine.process_intent("Deploy foundation infrastructure")
         
         if result.get('success'):
-            print(f"✅ Foundation deployment completed successfully!")
-            print(f"📊 Deployed: {result.get('successful', 0)}/{result.get('total_resources', 0)} templates")
-            print("🔧 IAL→CloudFormation conversion enabled")
-            print("\n💡 Para outras fases, use:")
-            print("   ialctl deploy 20-network    # Deploy fase específica")
-            print("   ialctl                      # Modo interativo")
-            print("   ialctl delete 20-network    # Excluir fase")
+            print(f"✅ Foundation deployment completed via Cognitive Engine!")
+            print("🔧 Full pipeline: IAS → Cost Guardrails → Phase Builder → GitOps")
             return 0
         else:
             print(f"❌ Foundation deployment failed: {result.get('error')}")
@@ -41,20 +36,20 @@ async def run_foundation_deploy():
         return 1
 
 def deploy_specific_phase(phase):
-    """Deploy uma fase específica com conversão IAL→CloudFormation"""
+    """Deploy uma fase específica usando CognitiveEngine"""
     try:
-        from core.foundation_deployer import FoundationDeployer
+        from core.cognitive_engine import CognitiveEngine
         
-        print(f"🚀 Deploying Phase: {phase}")
+        print(f"🧠 Cognitive Engine: Deploying Phase {phase}")
         print("=" * 40)
         
-        deployer = FoundationDeployer()
-        result = deployer.deploy_phase(phase)
+        engine = CognitiveEngine()
+        # Usar fluxo completo para fase específica
+        result = engine.process_intent(f"Deploy phase {phase}")
         
         if result.get('success'):
-            print(f"✅ Phase {phase} deployed successfully!")
-            print(f"📊 Deployed: {result.get('successful', 0)}/{result.get('total_resources', 0)} resources")
-            print("🔧 IAL→CloudFormation conversion applied")
+            print(f"✅ Phase {phase} deployed via Cognitive Engine!")
+            print("🔧 Full pipeline: IAS → Cost → Phase Builder → GitOps")
             return 0
         else:
             print(f"❌ Phase {phase} deployment failed: {result.get('error')}")
