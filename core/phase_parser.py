@@ -304,6 +304,35 @@ class PhaseParser:
                                     else:
                                         new_str = obj.replace('{{AWS_REGION}}', '${AWS::Region}')
                                         return {'Fn::Sub': new_str}
+                                # Placeholders de referência entre recursos
+                                elif obj == '[VPC_ID]':
+                                    return {'Ref': 'Resource03vpc'}
+                                elif obj == '[IGW_ID]':
+                                    return {'Ref': 'Resource03igw'}
+                                elif obj == '[PUBLIC_RT_ID]':
+                                    return {'Ref': 'Resource03publicrt'}
+                                elif obj == '[PRIVATE_RT_ID]':
+                                    return {'Ref': 'Resource03privatert'}
+                                elif obj == '[SG_APP_ID]':
+                                    return {'Ref': 'Resource03sgapp'}
+                                elif obj == '[SG_ALB_ID]':
+                                    return {'Ref': 'Resource03sgalb'}
+                                elif obj == '[SG_ENDPOINTS_ID]':
+                                    return {'Ref': 'Resource03sgendpoints'}
+                                elif obj == '[SG_LAMBDA_ID]':
+                                    return {'Ref': 'Resource03sglambda'}
+                                elif obj == '[PUBLIC_SUBNET_1A_ID]':
+                                    return {'Ref': 'Resource03publicsubnet1a'}
+                                elif obj == '[PUBLIC_SUBNET_1B_ID]':
+                                    return {'Ref': 'Resource03publicsubnet1b'}
+                                elif obj == '[PUBLIC_SUBNET_1C_ID]':
+                                    return {'Ref': 'Resource03publicsubnet1c'}
+                                elif obj == '[PRIVATE_SUBNET_1A_ID]':
+                                    return {'Ref': 'Resource03privatesubnet1a'}
+                                elif obj == '[PRIVATE_SUBNET_1B_ID]':
+                                    return {'Ref': 'Resource03privatesubnet1b'}
+                                elif obj == '[PRIVATE_SUBNET_1C_ID]':
+                                    return {'Ref': 'Resource03privatesubnet1c'}
                                 return obj
                             else:
                                 return obj
