@@ -20,15 +20,15 @@ async def run_foundation_deploy():
         print("=" * 50)
         
         engine = CognitiveEngine()
-        # Usar fluxo completo: NL → IAS → Cost → Phase Builder → GitOps
-        result = await engine.process_intent("Deploy foundation infrastructure")
+        # CORREÇÃO: process_intent é síncrono, não async
+        result = engine.process_intent("Deploy foundation infrastructure")
         
-        if result.get('success'):
+        if result.get('status') == 'success':
             print(f"✅ Foundation deployment completed via Cognitive Engine!")
             print("🔧 Full pipeline: IAS → Cost Guardrails → Phase Builder → GitOps")
             return 0
         else:
-            print(f"❌ Foundation deployment failed: {result.get('error')}")
+            print(f"❌ Foundation deployment failed: {result.get('error', 'Unknown error')}")
             return 1
             
     except Exception as e:
