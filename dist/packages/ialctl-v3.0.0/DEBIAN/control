@@ -1,39 +1,45 @@
 Package: ialctl
-Version: 3.2.1
+Version: 3.3.0
 Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: IAL Team <ial@example.com>
-Description: IAL Infrastructure Assistant - GITHUB SOURCE OF TRUTH v3.2.1 FIXED
- 🎯 GITHUB SOURCE OF TRUTH: Sistema dinâmico baseado no repositório - IMPORT ERROR FIXED!
+Description: IAL Infrastructure Assistant - DUAS LÓGICAS COMPLETAS v3.3.0
+ 🎯 DUAS LÓGICAS COMPLETAS: Sistema conversacional + infraestrutura funcionando!
  .
- Version 3.2.1 IMPORT ERROR FIXED includes:
- - ✅ Import Error CORRIGIDO: IaLNaturalProcessor funcionando
- - ✅ Context Enrichment: Detecção inteligente IAL vs IAM
- - ✅ GitHub Integration: Consulta dinâmica de fases do repositório
- - ✅ Smart Detection: Listagem vs Criação de fases
- - ✅ Dynamic System: Funciona em qualquer fork/diretório
- - ✅ Foundation perfeita: 47/47 templates (100% success)
+ Version 3.3.0 DUAS LÓGICAS COMPLETAS includes:
+ - ✅ Lógica Conversacional: Bedrock LLM para conversas naturais
+ - ✅ Lógica Infraestrutura: MCP routing + YAML generation
+ - ✅ Context Enrichment: GitHub source of truth ativo
+ - ✅ Sistema Completo: 17 MCPs + Foundation 47/47 templates
+ - ✅ Testado e Validado: Ambas lógicas funcionando perfeitamente
  .
- CORREÇÕES v3.2.1:
- ✅ Import Error: IaLNaturalProcessor restaurado e funcionando
- ✅ Syntax Errors: Todos corrigidos sem quebrar funcionalidades
- ✅ Context Enrichment: Ativo e testado
- ✅ CLI Commands: Todos funcionando (--help, start, list-phases)
- ✅ Interactive Mode: Amazon Q-like preservado
- .
- INTELIGÊNCIA CONTEXTUAL:
- ✅ Detecção automática: "liste fases" vs "criar fase"
- ✅ GitHub como fonte única: Sempre atualizado
+ LÓGICA CONVERSACIONAL TESTADA:
+ ✅ Bedrock LLM: Respostas naturais e humanas
+ ✅ Conversação casual: "oi, como vai?" → resposta amigável
+ ✅ Detecção inteligente: Distingue conversa vs infraestrutura
  ✅ Context enrichment: Evita confusão IAL vs IAM
+ ✅ Fallback robusto: DeepSeek + pattern matching
+ .
+ LÓGICA INFRAESTRUTURA TESTADA:
+ ✅ MCP routing: 17 servidores especializados (9 core + 8 domain)
+ ✅ YAML generation: Templates automáticos em phases/99-misc/
+ ✅ Análise inteligente: "criar cluster ECS" → templates gerados
+ ✅ Circuit breakers: Tolerância a falhas ativa
+ ✅ GitOps workflow: Integração completa
+ .
+ CONTEXT ENRICHMENT GITHUB:
+ ✅ "liste as fases do ial" → Consulta GitHub, NÃO gera YAML
+ ✅ "criar fase 15-backup" → Verifica GitHub primeiro
+ ✅ GitHub MCP: Fonte única da verdade ativa
+ ✅ Sistema dinâmico: Funciona em qualquer repositório
  ✅ Instruções precisas: LLM sabe exatamente o que fazer
- ✅ Sistema flexível: Funciona em qualquer repositório
  .
- FUNCIONALIDADES AVANÇADAS:
- ✅ "liste as fases do ial" → Consulta GitHub, não gera YAML
- ✅ "criar fase 15-backup" → Verifica GitHub primeiro, cria se não existir
- ✅ "criar fase 10-security" → Informa que já existe, não gera YAML
- ✅ Conversação natural: Interface Amazon Q-like preservada
- ✅ MCP routing: 17 MCPs especializados ativos
+ SISTEMA COMPLETO VALIDADO:
+ ✅ Duas lógicas funcionando simultaneamente
+ ✅ Advanced mode: ALL SYSTEMS OPERATIONAL
+ ✅ Memory management: Caching + optimization ativo
+ ✅ Foundation deployment: 47/47 templates prontos
+ ✅ CLI + Interactive: Ambos modos funcionando
  .
- 🚀 PRODUCTION READY: Dynamic GitHub-Based System - IMPORT FIXED
+ 🚀 PRODUCTION READY: Duas Lógicas Completas + GitHub Source of Truth
