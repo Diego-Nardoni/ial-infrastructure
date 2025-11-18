@@ -1,46 +1,50 @@
 Package: ialctl
-Version: 3.7.0
+Version: 3.8.0
 Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: IAL Team <ial@example.com>
-Description: IAL Infrastructure Assistant - DYNAMIC PATHS FIXED v3.7.0
- 🔧 CAMINHOS DINÂMICOS: Sistema funciona em qualquer diretório!
+Description: IAL Infrastructure Assistant - DEPLOY LOGIC FIXED v3.8.0
+ 🎯 LÓGICA DE DEPLOY CORRIGIDA: Deploy vs Criação funcionando perfeitamente!
  .
- Version 3.7.0 DYNAMIC PATHS FIXED includes:
- - ✅ Caminhos dinâmicos: Não mais hardcoded /home/ial
- - ✅ Funciona em qualquer diretório de instalação
- - ✅ Binário corrigido: LLM Provider bedrock ativo
- - ✅ MCPs carregados: 8 domínios funcionando
- - ✅ Sistema completo: ALL SYSTEMS OPERATIONAL
+ Version 3.8.0 DEPLOY LOGIC FIXED includes:
+ - ✅ Deploy de fases: Usa Foundation Deployer (correto)
+ - ✅ Criação de recursos: Usa Intelligent Router (correto)
+ - ✅ Detecção melhorada: "deploy XX-nome" sem precisar "fase"
+ - ✅ Lógica duplicada removida: Eliminada confusão
+ - ✅ Comportamentos distintos: Deploy ≠ Criação
  .
  CORREÇÃO CRÍTICA APLICADA:
- ✅ path_utils.py: Utilitário para caminhos dinâmicos
- ✅ LLM Provider: Usa get_config_path() em vez de hardcode
- ✅ MCP Mesh Loader: Usa get_config_path() em vez de hardcode
- ✅ Master Engine: Usa get_base_path() para Git operations
- ✅ PyInstaller: Detecta automaticamente se é binário ou dev
+ ✅ "deploy 20-network" → Foundation Deployer provisiona AWS
+ ✅ "criar bucket s3" → Intelligent Router gera YAML
+ ✅ Detecção de padrão XX-nome para deploy direto
+ ✅ Remoção de lógica duplicada que causava confusão
+ ✅ Priorização correta: Deploy antes de criação
  .
- PROBLEMA RESOLVIDO:
- ❌ ANTES: LLM Provider pattern (degradado)
- ❌ ANTES: MCP Domains 0 (não carregados)
- ❌ ANTES: Comandos não funcionavam
- ✅ DEPOIS: LLM Provider bedrock (completo)
- ✅ DEPOIS: MCP Domains 8 (carregados)
- ✅ DEPOIS: Sistema 100% funcional
- .
- FUNCIONALIDADES TESTADAS v3.7.0:
- ✅ "oi" → Conversação natural via Bedrock LLM
+ COMPORTAMENTOS CORRETOS v3.8.0:
  ✅ "listar as fases" → Lista fases do GitHub
- ✅ "criar fase 20-network" → Informa existente + instruções
- ✅ "deploy fase 20-network" → Foundation Deployer ativo
+ ✅ "criar fase 20-network" → "Fase já existe no GitHub!"
+ ✅ "deploy 20-network" → Foundation Deployer provisiona AWS
+ ✅ "deploy fase 20-network" → Foundation Deployer provisiona AWS
  ✅ "criar bucket s3 nome" → Gera YAML inteligente
  .
- SISTEMA ROBUSTO UNIVERSAL:
- ✅ Funciona em /home/ial (desenvolvimento)
- ✅ Funciona em /usr/local/bin (instalado)
- ✅ Funciona em qualquer diretório do usuário
- ✅ Detecta automaticamente ambiente (dev vs binário)
- ✅ Carrega configs corretamente sempre
+ PROBLEMA RESOLVIDO:
+ ❌ ANTES: "deploy 20-network" gerava YAMLs novos (errado)
+ ✅ DEPOIS: "deploy 20-network" usa Foundation Deployer (correto)
+ ❌ ANTES: Confusão entre deploy e criação
+ ✅ DEPOIS: Lógicas distintas e bem definidas
  .
- 🚀 PRODUCTION READY: Sistema Universal com Caminhos Dinâmicos
+ FLUXO CORRETO IMPLEMENTADO:
+ ✅ Deploy de fases existentes → Foundation Deployer → CloudFormation → AWS
+ ✅ Criação de recursos novos → Intelligent Router → YAML Generation → GitHub
+ ✅ Listagem de informações → Context Enrichment → GitHub Source of Truth
+ ✅ Conversação natural → Bedrock LLM → Resposta inteligente
+ .
+ FUNCIONALIDADES TESTADAS E VALIDADAS:
+ ✅ Foundation Deployer: Provisiona fases existentes na AWS
+ ✅ Intelligent Router: Gera YAMLs para recursos novos
+ ✅ Context Enrichment: Lista fases do GitHub corretamente
+ ✅ Bedrock LLM: Conversação natural funcionando
+ ✅ Detecção robusta: Padrões XX-nome reconhecidos
+ .
+ 🚀 PRODUCTION READY: Deploy vs Criação Funcionando Corretamente

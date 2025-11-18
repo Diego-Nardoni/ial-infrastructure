@@ -236,7 +236,13 @@ class IaLNaturalProcessor:
         has_deploy = any(word in user_lower for word in deploy_keywords)
         has_phase = any(word in user_lower for word in phase_keywords)
         
-        if has_deploy and has_phase:
+        # CORREÇÃO: Detectar também deploy direto de fases (ex: "deploy 20-network")
+        phase_pattern = r'\b(\d+-\w+)\b'  # Padrão XX-nome
+        import re
+        phase_match = re.search(phase_pattern, user_input)
+        has_phase_name = phase_match is not None
+        
+        if has_deploy and (has_phase or has_phase_name):
             try:
                 # Extrair nome da fase
                 import re
@@ -320,65 +326,6 @@ class IaLNaturalProcessor:
                 
             except Exception as e:
                 return f"⚠️ Erro ao processar criação de fase: {e}"
-        
-        # NOVO: Verificação direta para deploy de fases
-        deploy_keywords = ['deploy', 'provisionar', 'executar', 'rodar', 'criar', 'montar', 'fazer', 'construir', 'aplicar']
-        phase_keywords = ['fase', 'phase']
-        
-        user_lower = user_input.lower()
-        has_deploy = any(word in user_lower for word in deploy_keywords)
-        has_phase = any(word in user_lower for word in phase_keywords)
-        
-        if has_deploy and has_phase:
-            try:
-                # Extrair nome da fase
-                import re
-                phase_match = re.search(r'(\d+-\w+)', user_input)
-                if phase_match:
-                    phase_name = phase_match.group(1)
-                    
-                    # Verificar se fase existe
-                    existing_phases = [
-                        "00-foundation", "10-security", "20-network", "30-compute", 
-                        "40-data", "50-application", "60-observability", "70-ai-ml", 
-                        "80-governance", "90-optimization"
-                    ]
-                    
-                    if phase_name in existing_phases:
-                        # Usar Foundation Deployer para deploy real
-                        try:
-                            from core.foundation_deployer import FoundationDeployer
-                            deployer = FoundationDeployer()
-                            
-                            print(f"🚀 **Iniciando deploy da fase {phase_name}...**")
-                            result = deployer.deploy_phase(phase_name)
-                            
-                            if result.get('success', False):
-                                return f"✅ **Deploy da fase {phase_name} concluído com sucesso!**\n\n" \
-                                       f"📊 **Recursos criados:** {result.get('successful', 0)}/{result.get('total_resources', 0)}\n" \
-                                       f"⏱️ **Tempo:** {result.get('duration', 'N/A')}\n" \
-                                       f"🌐 **Região:** AWS {result.get('region', 'us-east-1')}\n" \
-                                       f"📋 **Status:** Infraestrutura {phase_name} ativa na AWS"
-                            else:
-                                return f"❌ **Erro no deploy da fase {phase_name}:**\n\n" \
-                                       f"🔍 **Detalhes:** {result.get('error', 'Erro desconhecido')}\n" \
-                                       f"💡 **Dica:** Verifique credenciais AWS e permissões"
-                                       
-                        except ImportError:
-                            return f"⚠️ **Foundation Deployer não disponível**\n\n" \
-                                   f"💡 **Alternativa:** Use 'ialctl deploy {phase_name}' via CLI"
-                        except Exception as e:
-                            return f"❌ **Erro no deploy:** {str(e)}"
-                    else:
-                        return f"❌ **Fase {phase_name} não encontrada!**\n\n" \
-                               f"📋 **Fases disponíveis:** Use 'listar as fases' para ver todas\n" \
-                               f"💡 **Dica:** Verifique o nome da fase (formato: XX-nome)"
-                else:
-                    return "⚠️ **Nome da fase não identificado**\n\n" \
-                           "💡 **Formato correto:** deploy fase XX-nome (ex: deploy fase 20-network)"
-                           
-            except Exception as e:
-                return f"⚠️ Erro ao processar deploy: {e}"
         
         # Comandos conversacionais simples vao para master engine
         simple_commands = ['oi', 'olá', 'hello', 'hi', 'help', 'ajuda']
