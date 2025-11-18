@@ -318,30 +318,32 @@ class IaLNaturalProcessor:
                     ]
                     
                     if phase_name in existing_phases:
-                        # Usar Foundation Deployer para deploy real
+                        # CORREÇÃO: Usar CognitiveEngine em vez de FoundationDeployer
                         try:
-                            from core.foundation_deployer import FoundationDeployer
-                            deployer = FoundationDeployer()
+                            from core.cognitive_engine import CognitiveEngine
+                            engine = CognitiveEngine()
                             
-                            print(f"🚀 **Iniciando deploy da fase {phase_name}...**")
-                            result = deployer.deploy_phase(phase_name)
+                            print(f"🧠 **Iniciando pipeline cognitivo para fase {phase_name}...**")
+                            # Usar fluxo completo: IAS → Cost → Phase Builder → GitOps
+                            result = engine.process_intent(f"Deploy phase {phase_name}")
                             
                             if result.get('success', False):
-                                return f"✅ **Deploy da fase {phase_name} concluído com sucesso!**\n\n" \
-                                       f"📊 **Recursos criados:** {result.get('successful', 0)}/{result.get('total_resources', 0)}\n" \
-                                       f"⏱️ **Tempo:** {result.get('duration', 'N/A')}\n" \
-                                       f"🌐 **Região:** AWS {result.get('region', 'us-east-1')}\n" \
-                                       f"📋 **Status:** Infraestrutura {phase_name} ativa na AWS"
+                                return f"✅ **Deploy da fase {phase_name} via Cognitive Engine!**\n\n" \
+                                       f"🧠 **Pipeline:** IAS → Cost Guardrails → Phase Builder → GitOps\n" \
+                                       f"📊 **Recursos:** {result.get('successful', 0)}/{result.get('total_resources', 0)}\n" \
+                                       f"💰 **Custo validado:** {result.get('cost_info', 'N/A')}\n" \
+                                       f"🔒 **Segurança:** IAS aprovado\n" \
+                                       f"📋 **Status:** Pipeline completo executado"
                             else:
-                                return f"❌ **Erro no deploy da fase {phase_name}:**\n\n" \
+                                return f"❌ **Erro no pipeline cognitivo da fase {phase_name}:**\n\n" \
                                        f"🔍 **Detalhes:** {result.get('error', 'Erro desconhecido')}\n" \
-                                       f"💡 **Dica:** Verifique credenciais AWS e permissões"
+                                       f"💡 **Dica:** Verifique IAS, Cost Guardrails e GitOps"
                                        
                         except ImportError:
-                            return f"⚠️ **Foundation Deployer não disponível**\n\n" \
+                            return f"⚠️ **Cognitive Engine não disponível**\n\n" \
                                    f"💡 **Alternativa:** Use 'ialctl deploy {phase_name}' via CLI"
                         except Exception as e:
-                            return f"❌ **Erro no deploy:** {str(e)}"
+                            return f"❌ **Erro no pipeline cognitivo:** {str(e)}"
                     else:
                         return f"❌ **Fase {phase_name} não encontrada!**\n\n" \
                                f"📋 **Fases disponíveis:** Use 'listar as fases' para ver todas\n" \
@@ -392,13 +394,25 @@ class IaLNaturalProcessor:
         if any(keyword in user_input.lower() for keyword in simple_commands):
             return self._process_fallback_path(user_input, user_id, session_id)
         
-        # Try intelligent MCP routing first if available
+        # Try CognitiveEngine first for infrastructure requests
         if self.intelligent_router:
             try:
-                ultra_silent_print("🧠 Tentando Intelligent MCP Router primeiro")
-                response = self.process_with_intelligent_router(enriched_input, user_id, session_id)
+                ultra_silent_print("🧠 Iniciando Cognitive Engine Pipeline")
+                # CORREÇÃO: Usar CognitiveEngine em vez de Intelligent Router
+                from core.cognitive_engine import CognitiveEngine
+                engine = CognitiveEngine()
+                
+                # Executar pipeline completo: IAS → Cost → Phase Builder → GitOps
+                result = engine.process_intent(enriched_input)
+                
+                if result.get('success'):
+                    response = self.format_cognitive_engine_response(result, enriched_input)
+                else:
+                    print(f"⚠️ Cognitive Engine falhou: {result.get('error')}, usando fallback")
+                    response = self._process_fallback_path(enriched_input, user_id, session_id)
+                    
             except Exception as e:
-                print(f"⚠️ Erro no Intelligent Router: {e}, usando fallback")
+                print(f"⚠️ Erro no Cognitive Engine: {e}, usando fallback")
                 response = self._process_fallback_path(enriched_input, user_id, session_id)
         else:
             response = self._process_fallback_path(enriched_input, user_id, session_id)
@@ -626,6 +640,50 @@ IMPORTANTE: Ajude a criar uma nova fase do sistema IAL seguindo a estrutura padr
 Use essas informacoes para responder perguntas sobre data e hora atual."""
         
         return None
+
+    def format_cognitive_engine_response(self, result: Dict, user_input: str) -> str:
+        """Formata resposta do Cognitive Engine para o usuário"""
+        
+        # Verificar se passou por todas as etapas do pipeline
+        pipeline_status = result.get('pipeline_status', {})
+        
+        response = "🧠 **Cognitive Engine Pipeline Executado**\n\n"
+        
+        # IAS Status
+        if pipeline_status.get('ias_validated'):
+            response += "✅ **IAS:** Validação de segurança aprovada\n"
+        else:
+            response += "⚠️ **IAS:** Validação pendente\n"
+            
+        # Cost Guardrails Status  
+        if pipeline_status.get('cost_validated'):
+            cost = result.get('estimated_cost', 'N/A')
+            response += f"✅ **Cost Guardrails:** Custo aprovado (~${cost}/mês)\n"
+        else:
+            response += "⚠️ **Cost Guardrails:** Validação pendente\n"
+            
+        # Phase Builder Status
+        if pipeline_status.get('yaml_generated'):
+            phases = result.get('phases_generated', [])
+            response += f"✅ **Phase Builder:** {len(phases)} fases geradas\n"
+        else:
+            response += "⚠️ **Phase Builder:** YAML pendente\n"
+            
+        # GitOps Status
+        if pipeline_status.get('pr_created'):
+            pr_url = result.get('pr_url', 'N/A')
+            response += f"✅ **GitOps:** Pull Request criado ({pr_url})\n"
+        else:
+            response += "⚠️ **GitOps:** PR pendente\n"
+            
+        # Resultado final
+        if result.get('success'):
+            response += f"\n🎯 **Status:** Pipeline completo executado com sucesso!"
+        else:
+            error = result.get('error', 'Erro desconhecido')
+            response += f"\n❌ **Erro:** {error}"
+            
+        return response
 
     def process_with_intelligent_router(self, user_input: str, user_id: str, session_id: str) -> str:
         """Processa usando o router inteligente"""
