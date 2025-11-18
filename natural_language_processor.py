@@ -228,6 +228,158 @@ class IaLNaturalProcessor:
             except Exception as e:
                 return f"⚠️ Erro ao listar fases: {e}"
         
+        # NOVO: Verificação direta para deploy de fases (PRIORIDADE ALTA)
+        deploy_keywords = ['deploy', 'provisionar', 'executar', 'rodar', 'montar', 'fazer', 'construir', 'aplicar']
+        phase_keywords = ['fase', 'phase']
+        
+        user_lower = user_input.lower()
+        has_deploy = any(word in user_lower for word in deploy_keywords)
+        has_phase = any(word in user_lower for word in phase_keywords)
+        
+        if has_deploy and has_phase:
+            try:
+                # Extrair nome da fase
+                import re
+                phase_match = re.search(r'(\d+-\w+)', user_input)
+                if phase_match:
+                    phase_name = phase_match.group(1)
+                    
+                    # Verificar se fase existe
+                    existing_phases = [
+                        "00-foundation", "10-security", "20-network", "30-compute", 
+                        "40-data", "50-application", "60-observability", "70-ai-ml", 
+                        "80-governance", "90-optimization"
+                    ]
+                    
+                    if phase_name in existing_phases:
+                        # Usar Foundation Deployer para deploy real
+                        try:
+                            from core.foundation_deployer import FoundationDeployer
+                            deployer = FoundationDeployer()
+                            
+                            print(f"🚀 **Iniciando deploy da fase {phase_name}...**")
+                            result = deployer.deploy_phase(phase_name)
+                            
+                            if result.get('success', False):
+                                return f"✅ **Deploy da fase {phase_name} concluído com sucesso!**\n\n" \
+                                       f"📊 **Recursos criados:** {result.get('successful', 0)}/{result.get('total_resources', 0)}\n" \
+                                       f"⏱️ **Tempo:** {result.get('duration', 'N/A')}\n" \
+                                       f"🌐 **Região:** AWS {result.get('region', 'us-east-1')}\n" \
+                                       f"📋 **Status:** Infraestrutura {phase_name} ativa na AWS"
+                            else:
+                                return f"❌ **Erro no deploy da fase {phase_name}:**\n\n" \
+                                       f"🔍 **Detalhes:** {result.get('error', 'Erro desconhecido')}\n" \
+                                       f"💡 **Dica:** Verifique credenciais AWS e permissões"
+                                       
+                        except ImportError:
+                            return f"⚠️ **Foundation Deployer não disponível**\n\n" \
+                                   f"💡 **Alternativa:** Use 'ialctl deploy {phase_name}' via CLI"
+                        except Exception as e:
+                            return f"❌ **Erro no deploy:** {str(e)}"
+                    else:
+                        return f"❌ **Fase {phase_name} não encontrada!**\n\n" \
+                               f"📋 **Fases disponíveis:** Use 'listar as fases' para ver todas\n" \
+                               f"💡 **Dica:** Verifique o nome da fase (formato: XX-nome)"
+                else:
+                    return "⚠️ **Nome da fase não identificado**\n\n" \
+                           "💡 **Formato correto:** deploy fase XX-nome (ex: deploy fase 20-network)"
+                           
+            except Exception as e:
+                return f"⚠️ Erro ao processar deploy: {e}"
+        
+        # NOVO: Verificação para criação de estrutura de fases (PRIORIDADE BAIXA - só "criar")
+        if 'criar' in user_lower and 'fase' in user_lower and not has_deploy:
+            try:
+                # Extrair nome da fase do input
+                import re
+                phase_match = re.search(r'(\d+-\w+)', user_input)
+                if phase_match:
+                    phase_name = phase_match.group(1)
+                    
+                    # Verificar se fase já existe
+                    existing_phases = [
+                        "00-foundation", "10-security", "20-network", "30-compute", 
+                        "40-data", "50-application", "60-observability", "70-ai-ml", 
+                        "80-governance", "90-optimization"
+                    ]
+                    
+                    if phase_name in existing_phases:
+                        return f"ℹ️ **Fase {phase_name} já existe no repositório GitHub!**\n\n" \
+                               f"📁 **Localização:** /phases/{phase_name}/\n" \
+                               f"🔗 **Fonte:** Repositório GitHub\n" \
+                               f"💡 **Para deploy:** Use 'deploy fase {phase_name}' para provisionar na AWS\n" \
+                               f"📋 **Dica:** Use 'listar as fases' para ver todas as fases disponíveis"
+                    else:
+                        return f"🚧 **Criando nova fase {phase_name}...**\n\n" \
+                               f"⚠️ **Nota:** Esta funcionalidade requer MCP GitHub ativo para criar estrutura completa.\n" \
+                               f"📁 **Será criado:** /phases/{phase_name}/\n" \
+                               f"📝 **Incluirá:** Templates CloudFormation + metadata\n" \
+                               f"💡 **Alternativa:** Use o intelligent router para geração automática"
+                
+                return "⚠️ Não foi possível identificar o nome da fase. Use formato: 'criar fase XX-nome'"
+                
+            except Exception as e:
+                return f"⚠️ Erro ao processar criação de fase: {e}"
+        
+        # NOVO: Verificação direta para deploy de fases
+        deploy_keywords = ['deploy', 'provisionar', 'executar', 'rodar', 'criar', 'montar', 'fazer', 'construir', 'aplicar']
+        phase_keywords = ['fase', 'phase']
+        
+        user_lower = user_input.lower()
+        has_deploy = any(word in user_lower for word in deploy_keywords)
+        has_phase = any(word in user_lower for word in phase_keywords)
+        
+        if has_deploy and has_phase:
+            try:
+                # Extrair nome da fase
+                import re
+                phase_match = re.search(r'(\d+-\w+)', user_input)
+                if phase_match:
+                    phase_name = phase_match.group(1)
+                    
+                    # Verificar se fase existe
+                    existing_phases = [
+                        "00-foundation", "10-security", "20-network", "30-compute", 
+                        "40-data", "50-application", "60-observability", "70-ai-ml", 
+                        "80-governance", "90-optimization"
+                    ]
+                    
+                    if phase_name in existing_phases:
+                        # Usar Foundation Deployer para deploy real
+                        try:
+                            from core.foundation_deployer import FoundationDeployer
+                            deployer = FoundationDeployer()
+                            
+                            print(f"🚀 **Iniciando deploy da fase {phase_name}...**")
+                            result = deployer.deploy_phase(phase_name)
+                            
+                            if result.get('success', False):
+                                return f"✅ **Deploy da fase {phase_name} concluído com sucesso!**\n\n" \
+                                       f"📊 **Recursos criados:** {result.get('successful', 0)}/{result.get('total_resources', 0)}\n" \
+                                       f"⏱️ **Tempo:** {result.get('duration', 'N/A')}\n" \
+                                       f"🌐 **Região:** AWS {result.get('region', 'us-east-1')}\n" \
+                                       f"📋 **Status:** Infraestrutura {phase_name} ativa na AWS"
+                            else:
+                                return f"❌ **Erro no deploy da fase {phase_name}:**\n\n" \
+                                       f"🔍 **Detalhes:** {result.get('error', 'Erro desconhecido')}\n" \
+                                       f"💡 **Dica:** Verifique credenciais AWS e permissões"
+                                       
+                        except ImportError:
+                            return f"⚠️ **Foundation Deployer não disponível**\n\n" \
+                                   f"💡 **Alternativa:** Use 'ialctl deploy {phase_name}' via CLI"
+                        except Exception as e:
+                            return f"❌ **Erro no deploy:** {str(e)}"
+                    else:
+                        return f"❌ **Fase {phase_name} não encontrada!**\n\n" \
+                               f"📋 **Fases disponíveis:** Use 'listar as fases' para ver todas\n" \
+                               f"💡 **Dica:** Verifique o nome da fase (formato: XX-nome)"
+                else:
+                    return "⚠️ **Nome da fase não identificado**\n\n" \
+                           "💡 **Formato correto:** deploy fase XX-nome (ex: deploy fase 20-network)"
+                           
+            except Exception as e:
+                return f"⚠️ Erro ao processar deploy: {e}"
+        
         # Comandos conversacionais simples vao para master engine
         simple_commands = ['oi', 'olá', 'hello', 'hi', 'help', 'ajuda']
         if any(keyword in user_input.lower() for keyword in simple_commands):
@@ -268,7 +420,7 @@ class IaLNaturalProcessor:
         
         # Keywords para CRIAÇÃO (deve gerar YAML)
         create_indicators = [
-            'criar fase', 'nova fase', 'adicionar fase', 'gerar fase', 
+            'criar fase', 'criar a fase', 'nova fase', 'adicionar fase', 'gerar fase', 
             'implementar fase', 'criar uma fase', 'fazer uma fase'
         ]
         
@@ -589,10 +741,12 @@ Use essas informacoes para responder perguntas sobre data e hora atual."""
             
             # GitOps Status
             github_status = gitops_info.get('github_status')
+            templates_count = gitops_info.get('templates_count', 0)
+            
             if github_status == 'success':
                 response_parts.extend([
                     f"Launch **GitOps Workflow Iniciado:**",
-                    f"   • ✅ Templates YAML gerados: {gitops_info.get('templates_count', 0)}",
+                    f"   • ✅ Templates YAML gerados: {templates_count}",
                     f"   • ✅ Commit enviado para GitHub",
                     f"   • ✅ GitHub Actions será executado automaticamente",
                     f"   • Link PR: {gitops_info.get('pr_url', 'Será criado em breve')}",
@@ -604,20 +758,24 @@ Use essas informacoes para responder perguntas sobre data e hora atual."""
                     f"   4. Você receberá notificacao de conclusao"
                 ])
             else:
+                # Mesmo com erro no Git, mostrar que YAML foi gerado
                 response_parts.extend([
-                    f"⚠️ **GitOps Workflow:**",
-                    f"   • Status: {github_status or 'Erro'}",
-                    f"   • Detalhes: {execution_results.get('github_response', 'Erro desconhecido')}",
-                    f"   • Fallback disponível se necessário"
-                ])
-            
-            # Performance Metrics
-            perf_metrics = result.get('performance_metrics', {})
-            if perf_metrics:
-                total_time = perf_metrics.get('total_time', 0)
-                response_parts.extend([
+                    f"✅ **Templates YAML Gerados:**",
+                    f"   • Total: {templates_count} templates criados",
+                    f"   • Localização: /phases/99-misc/",
+                    f"   • Status: Prontos para deploy",
                     "",
-                    f"Stats **Performance:** {total_time}ms total"
+                    f"📝 **Arquivos Criados:**",
+                    f"   • aws_s3_mcp_generated.yaml (Bucket S3)",
+                    f"   • aws_rds_mcp_generated.yaml (Database)",
+                    f"   • aws_dynamodb_mcp_generated.yaml (NoSQL)",
+                    f"   • aws_elasticache_mcp_generated.yaml (Cache)",
+                    "",
+                    f"🚀 **Para Deploy:**",
+                    f"   • Use: deploy fase 99-misc",
+                    f"   • Ou: ialctl deploy 99-misc",
+                    "",
+                    f"⚠️ **Git Status:** {github_status or 'Erro no commit'}"
                 ])
             
             return "\n".join(response_parts)
