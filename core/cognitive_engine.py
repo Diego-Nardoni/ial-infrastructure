@@ -298,9 +298,16 @@ class CognitiveEngine:
         
         pipeline_steps = []
         
-        # Detectar se é criação ou exclusão
+        # Detectar tipo de operação: deletion, deployment ou creation
         is_deletion = self._is_deletion_request(nl_intent)
-        operation_type = "deletion" if is_deletion else "creation"
+        is_deployment = self._is_deployment_request(nl_intent)
+        
+        if is_deletion:
+            operation_type = "deletion"
+        elif is_deployment:
+            operation_type = "deployment"
+        else:
+            operation_type = "creation"
         
         print(f"🎯 Operação detectada: {operation_type}")
         
@@ -335,6 +342,8 @@ class CognitiveEngine:
             print("3️⃣ Phase Builder - YAML Generation")
             if is_deletion:
                 yaml_result = self.generate_deletion_yaml(ias_result['parsed_intent'])
+            elif is_deployment:
+                yaml_result = self.use_existing_yaml(ias_result['parsed_intent'])
             else:
                 yaml_result = self.generate_creation_yaml(ias_result['parsed_intent'])
             pipeline_steps.append({"step": "Phase Builder", "result": yaml_result})
@@ -380,6 +389,17 @@ class CognitiveEngine:
                 'pipeline_steps': pipeline_steps
             }
     
+    def _is_deployment_request(self, nl_intent: str) -> bool:
+        """Detectar se é solicitação de deployment (usar YAML existente)"""
+        deployment_keywords = ['deploy', 'provisionar', 'aplicar', 'executar', 'rodar']
+        phase_keywords = ['fase', 'phase']
+        
+        intent_lower = nl_intent.lower()
+        has_deployment = any(keyword in intent_lower for keyword in deployment_keywords)
+        has_phase = any(keyword in intent_lower for keyword in phase_keywords)
+        
+        return has_deployment and has_phase
+    
     def _is_deletion_request(self, nl_intent: str) -> bool:
         """Detectar se é solicitação de exclusão"""
         deletion_keywords = ['delete', 'remove', 'destroy', 'cleanup', 'exclude', 'drop']
@@ -406,6 +426,44 @@ class CognitiveEngine:
         except Exception as e:
             return {'error': f'Deletion YAML generation failed: {str(e)}'}
     
+    def use_existing_yaml(self, parsed_intent: Dict) -> Dict[str, Any]:
+        """Usar YAML existente para deployment (não gerar novo)"""
+        print("📁 Usando YAML existente do GitHub")
+        
+        try:
+            # Extrair nome da fase do intent
+            phase_name = self._extract_phase_name(parsed_intent.get('raw', ''))
+            
+            if phase_name:
+                return {
+                    'status': 'success',
+                    'yaml_generated': False,
+                    'yaml_source': 'existing',
+                    'phase_name': phase_name,
+                    'operation': 'deployment',
+                    'message': f'Using existing YAML from GitHub for phase {phase_name}'
+                }
+            else:
+                return {'error': 'Could not extract phase name from deployment request'}
+            
+        except Exception as e:
+            return {'error': f'Existing YAML usage failed: {str(e)}'}
+    
+    def _extract_phase_name(self, nl_intent: str) -> str:
+        """Extrair nome da fase do intent de deployment"""
+        import re
+        # Procurar padrão XX-nome ou apenas nome
+        phase_match = re.search(r'(\d+-\w+|\w+)', nl_intent.lower())
+        if phase_match:
+            phase_name = phase_match.group(1)
+            # Se não tem número, assumir que é network = 20-network
+            if not re.match(r'\d+-', phase_name):
+                if 'network' in phase_name:
+                    return '20-network'
+                # Adicionar outros mapeamentos se necessário
+            return phase_name
+        return ''
+
     def generate_creation_yaml(self, parsed_intent: Dict) -> Dict[str, Any]:
         """Gerar YAML para criação de recursos"""
         print("🏗️ Gerando YAML de criação")
