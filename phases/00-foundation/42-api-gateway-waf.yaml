@@ -12,7 +12,7 @@ Resources:
   IALWebACL:
     Type: AWS::WAFv2::WebACL
     Properties:
-      Name: !Sub 'ial-api-gateway-waf-${Environment}'
+      Name: !Sub 'ial-waf-${Environment}-${AWS::StackName}'
       Scope: REGIONAL
       DefaultAction:
         Allow: {}

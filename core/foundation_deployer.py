@@ -173,7 +173,7 @@ class FoundationDeployer:
         
         print(f"\n🎉 Foundation Core Deployment Complete!")
         print(f"   📊 {successful}/{len(all_files)} templates deployed")
-        print(f"   ⏭️  {len(skip_templates)} duplicates skipped")
+        print(f"   ⏭️  {len(duplicate_but_existing)} duplicates skipped")
         
         return {
             'core_resources': results,
