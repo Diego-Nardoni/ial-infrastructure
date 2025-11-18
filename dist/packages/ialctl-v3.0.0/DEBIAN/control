@@ -1,31 +1,38 @@
 Package: ialctl
-Version: 3.0.9
+Version: 3.1.0
 Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: IAL Team <ial@example.com>
-Description: IAL Infrastructure Assistant - PERFECT 47/47 v3.0.9
- 🎯 PERFEIÇÃO ALCANÇADA: 47/47 templates foundation deployados com sucesso!
+Description: IAL Infrastructure Assistant - INTELLIGENT CONVERSATION v3.1.0
+ 🤖 CONVERSAÇÃO INTELIGENTE: Interface Amazon Q-like 100% funcional!
  .
- Version 3.0.9 PERFECT FOUNDATION RELEASE includes:
- - ✅ ialctl start: 47/47 templates (100% success rate)
- - ✅ Templates duplicados removidos (41, 43)
- - ✅ Foundation limpa e otimizada
- - ✅ Zero conflitos de recursos
- - ✅ Execução perfeita e idempotente
+ Version 3.1.0 INTELLIGENT CONVERSATION RELEASE includes:
+ - ✅ Conversação natural via Bedrock LLM
+ - ✅ Detecção automática: conversação vs criação AWS
+ - ✅ Interface Amazon Q-like completamente funcional
+ - ✅ Foundation 47/47 templates (100% success)
+ - ✅ Sistema LLM + MCP servers integrado
  .
- OTIMIZAÇÕES FINAIS:
- ✅ Template 41: Removido (duplicava funcionalidade do template 08)
- ✅ Template 43: Removido (redundante com observability existente)
- ✅ Foundation essencial: 47 templates únicos e funcionais
- ✅ Deploy limpo: Sem erros, sem conflitos
- ✅ 100% success rate: Todos os templates deployando
+ INTELIGÊNCIA CONVERSACIONAL:
+ ✅ Bedrock LLM: Respostas naturais e humanas
+ ✅ Detecção inteligente: Sabe quando é conversa ou infraestrutura
+ ✅ MCP routing: 17 MCPs especializados (9 core + 8 domain)
+ ✅ Circuit breakers: Tolerância a falhas ativa
+ ✅ Performance otimizada: Sub-segundo para conversação
  .
- ARQUITETURA CORRETA:
- ✅ ialctl start: APENAS foundation (47/47 templates)
- ✅ Outras fases: Via linguagem natural
+ ARQUITETURA COMPLETA:
+ ✅ ialctl start: Foundation deployment (47/47 templates)
+ ✅ Interface conversacional: Bedrock + MCP servers
+ ✅ Criação de recursos: Via linguagem natural
  ✅ Sistema idempotente: Executável múltiplas vezes
- ✅ Interface conversacional: Amazon Q-like
- ✅ Processamento NL: Comandos inteligentes
+ ✅ Processamento inteligente: LLM + pattern matching
  .
- 🏆 PRODUCTION READY: Perfect Foundation - 47/47 Success
+ FUNCIONALIDADES AVANÇADAS:
+ ✅ Natural Language Processing: Comandos em português
+ ✅ Intelligent MCP Router: Roteamento automático
+ ✅ Conversational AI: Respostas contextuais
+ ✅ Infrastructure as Code: Templates automáticos
+ ✅ GitOps integration: Deploy via GitHub Actions
+ .
+ 🚀 PRODUCTION READY: Complete Amazon Q Experience

@@ -201,8 +201,9 @@ class IaLNaturalProcessor:
                 cost_info = ""
         # ===== FIM DA INSERÇÃO =====
         
-        # NOVO: Usar Master Engine diretamente para comandos de fases
-        if any(keyword in user_input.lower() for keyword in ['fases', 'phases', 'liste as fases', 'list phases']):
+        # NOVO: Usar Master Engine diretamente para comandos específicos
+        simple_commands = ['fases', 'phases', 'liste as fases', 'list phases', 'oi', 'olá', 'hello', 'hi', 'help', 'ajuda']
+        if any(keyword in user_input.lower() for keyword in simple_commands):
             return self._process_fallback_path(user_input, user_id, session_id)
         
         # Try intelligent MCP routing first if available
@@ -395,7 +396,10 @@ Use essas informações para responder perguntas sobre data e hora atual."""
 
     def format_intelligent_router_response(self, result: Dict, user_input: str) -> str:
         """Formata resposta do router inteligente para o usuário"""
-        if not result.get('success'):
+        # Verificar sucesso usando 'status' ou 'success'
+        is_success = result.get('success', True) and result.get('status') == 'success'
+        
+        if not is_success:
             error_msg = result.get('error', 'Erro desconhecido')
             if result.get('fallback_used'):
                 return f"⚠️ {error_msg}\n🔄 Usando modo básico para processar sua solicitação."
@@ -405,6 +409,16 @@ Use essas informações para responder perguntas sobre data e hora atual."""
         # Check if GitOps was triggered
         execution_results = result.get('execution_results', {})
         gitops_info = result.get('gitops_info', {})
+        
+        # Handle conversational responses (no templates generated)
+        if execution_results.get('status') == 'no_templates_generated':
+            # This is a conversational request, use LLM response
+            llm_result = result.get('llm_result', {})
+            if llm_result and llm_result.get('response'):
+                return llm_result['response']
+            else:
+                # Fallback to Bedrock conversational
+                return self.try_bedrock_conversational(user_input)
         
         if execution_results.get('status') == 'gitops_triggered':
             # GitOps workflow triggered
