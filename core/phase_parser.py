@@ -6,7 +6,10 @@ import os
 import sys
 import boto3
 import time
-from typing import Dict, List, Any
+import yaml
+import tempfile
+import re
+from typing import Dict, List, Any, Optional
 
 def get_resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
@@ -206,7 +209,6 @@ class PhaseParser:
                     'file_path': file_path,
                     'idempotent': True
                 }
-                
         except Exception as e:
             return {
                 'success': False,
@@ -214,6 +216,126 @@ class PhaseParser:
                 'error': str(e),
                 'file_path': file_path,
                 'idempotent': True
+            }
+                
+    def is_ial_metadata(self, file_path: str) -> bool:
+        """Detecta se arquivo é metadado IAL ou CloudFormation direto"""
+        try:
+            with open(file_path, 'r') as f:
+                content = yaml.safe_load(f)
+            
+            # Se tem 'resources' com 'mcp_workflow', é metadado IAL
+            if isinstance(content, dict) and 'resources' in content:
+                resources = content['resources']
+                if isinstance(resources, dict):
+                    for resource in resources.values():
+                        if isinstance(resource, dict) and 'mcp_workflow' in resource:
+                            return True
+            
+            return False
+        except:
+            return False
+    
+    def convert_ial_to_cloudformation(self, file_path: str) -> Optional[str]:
+        """Converte metadado IAL para template CloudFormation"""
+        try:
+            with open(file_path, 'r') as f:
+                ial_metadata = yaml.safe_load(f)
+            
+            # Template CloudFormation básico
+            cf_template = {
+                'AWSTemplateFormatVersion': '2010-09-09',
+                'Description': f"Generated from IAL metadata: {ial_metadata.get('description', 'IAL Phase')}",
+                'Parameters': {
+                    'ProjectName': {
+                        'Type': 'String',
+                        'Default': 'ial-project',
+                        'Description': 'Project name for resource naming'
+                    },
+                    'Environment': {
+                        'Type': 'String',
+                        'Default': 'dev',
+                        'Description': 'Environment name'
+                    }
+                },
+                'Resources': {}
+            }
+            
+            # Processar recursos IAL
+            if 'resources' in ial_metadata:
+                for resource_key, resource_config in ial_metadata['resources'].items():
+                    if isinstance(resource_config, dict) and 'mcp_workflow' in resource_config:
+                        # Extrair propriedades do MCP workflow
+                        mcp_config = resource_config['mcp_workflow']
+                        if 'generate_code' in mcp_config:
+                            gen_config = mcp_config['generate_code']
+                            if 'parameters' in gen_config:
+                                params = gen_config['parameters']
+                                
+                                # Criar recurso CloudFormation
+                                properties = params.get('properties', {})
+                                
+                                # Substituir placeholders
+                                properties_str = yaml.dump(properties)
+                                properties_str = properties_str.replace('{{PROJECT_NAME}}', '!Ref ProjectName')
+                                properties_str = properties_str.replace('{{AWS_REGION}}', '!Ref AWS::Region')
+                                properties = yaml.safe_load(properties_str)
+                                
+                                cf_resource = {
+                                    'Type': params.get('resource_type', 'AWS::CloudFormation::WaitConditionHandle'),
+                                    'Properties': properties
+                                }
+                                
+                                # Usar resource_name se disponível, senão usar key
+                                resource_name = resource_config.get('resource_name', resource_key.replace('-', '').replace('_', ''))
+                                # Garantir que nome é alfanumérico
+                                resource_name = re.sub(r'[^a-zA-Z0-9]', '', resource_name)
+                                # Garantir que nome começa com letra
+                                if not resource_name or not resource_name[0].isalpha():
+                                    resource_name = 'Resource' + resource_name
+                                    
+                                cf_template['Resources'][resource_name] = cf_resource
+            
+            # Se não tem recursos, criar um placeholder
+            if not cf_template['Resources']:
+                cf_template['Resources']['PlaceholderResource'] = {
+                    'Type': 'AWS::CloudFormation::WaitConditionHandle',
+                    'Properties': {}
+                }
+                
+            return yaml.dump(cf_template, default_flow_style=False)
+            
+        except Exception as e:
+            print(f"❌ Error converting IAL metadata: {e}")
+            return None
+    
+    def deploy_cloudformation_from_template(self, template_content: str, file_name: str) -> Dict[str, Any]:
+        """Deploy CloudFormation a partir de template string"""
+        try:
+            # Criar arquivo temporário com nome válido
+            import tempfile
+            import re
+            
+            # Gerar nome de stack válido baseado no arquivo
+            base_name = re.sub(r'[^a-zA-Z0-9-]', '', file_name.replace('.yaml', '').replace('.yml', ''))
+            stack_suffix = f"ial-{base_name}-converted"
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as temp_file:
+                temp_file.write(template_content)
+                temp_file_path = temp_file.name
+            
+            # Deploy usando método existente
+            result = self.deploy_cloudformation_stack(temp_file_path)
+            
+            # Limpar arquivo temporário
+            os.unlink(temp_file_path)
+            
+            return result
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Error deploying from template: {str(e)}'
             }
 
 def deploy_phase_resources(phase: str = "00-foundation") -> Dict[str, Any]:
@@ -242,7 +364,17 @@ def deploy_phase_resources(phase: str = "00-foundation") -> Dict[str, Any]:
         print(f"🔄 Deploying {file_name}...")
         
         try:
-            result = parser.deploy_cloudformation_stack(file_path)
+            # OPÇÃO 3: Detectar se é metadado IAL e converter para CloudFormation
+            if parser.is_ial_metadata(file_path):
+                print(f"🔧 Converting IAL metadata to CloudFormation...")
+                cf_template = parser.convert_ial_to_cloudformation(file_path)
+                if cf_template:
+                    result = parser.deploy_cloudformation_from_template(cf_template, file_name)
+                else:
+                    result = {'success': False, 'error': 'Failed to convert IAL metadata to CloudFormation'}
+            else:
+                # CloudFormation template direto
+                result = parser.deploy_cloudformation_stack(file_path)
             
             if result.get('success', False):
                 successful += 1
