@@ -5,7 +5,11 @@ a = Analysis(
     ['ialctl_integrated.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ('phases', 'phases'),
+        ('config', 'config'),
+        ('core', 'core'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
