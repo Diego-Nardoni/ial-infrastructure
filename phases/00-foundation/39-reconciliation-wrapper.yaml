@@ -22,12 +22,12 @@ Resources:
         - Key: Purpose
           Value: ReconciliationNotifications
 
-  # EventBridge rule for drift detection
+  # EventBridge rule for drift detection (unique name to avoid conflicts)
   DriftDetectionRule:
     Type: AWS::Events::Rule
     Properties:
-      Name: !Sub '${ProjectName}-drift-detection'
-      Description: 'Periodic drift detection for IAL resources'
+      Name: !Sub '${ProjectName}-drift-detection-wrapper'
+      Description: 'Periodic drift detection for IAL resources (wrapper)'
       ScheduleExpression: 'rate(6 hours)'
       State: ENABLED
       Targets:

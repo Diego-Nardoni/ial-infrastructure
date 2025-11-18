@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'IAL RAG Storage - S3 bucket for knowledge base and vector indices'
+Description: 'IAL RAG Storage - Additional storage for vector indices (non-duplicate)'
 
 Parameters:
   ProjectName:
@@ -8,11 +8,11 @@ Parameters:
     Description: Project name for resource naming
 
 Resources:
-  # S3 Bucket for RAG Knowledge Base
-  RAGStorageBucket:
+  # S3 Bucket for vector indices (unique name to avoid conflicts)
+  VectorIndicesBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${ProjectName}-rag-store-${AWS::AccountId}'
+      BucketName: !Sub '${ProjectName}-vector-indices-${AWS::AccountId}'
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -22,32 +22,20 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-      VersioningConfiguration:
-        Status: Enabled
       Tags:
         - Key: Project
           Value: !Ref ProjectName
         - Key: Component
           Value: IAL-Foundation
         - Key: Purpose
-          Value: RAGStorage
+          Value: VectorIndices
 
-  # S3 Bucket for vector indices
-  VectorIndicesBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub '${ProjectName}-rag-storage-indices-${AWS::AccountId}'
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      Tags:
-        - Key: Project
+Outputs:
+  VectorIndicesBucketName:
+    Description: Name of the vector indices bucket
+    Value: !Ref VectorIndicesBucket
+    Export:
+      Name: !Sub '${ProjectName}-41-VectorIndicesBucketName'
           Value: !Ref ProjectName
         - Key: Component
           Value: IAL-Foundation

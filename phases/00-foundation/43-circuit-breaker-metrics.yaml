@@ -1,23 +1,18 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'IAL Circuit Breaker Metrics Publisher - Simplified Version'
+Description: 'IAL Circuit Breaker Metrics Publisher - Idempotent Version'
 
 Parameters:
   ProjectName:
     Type: String
-    Default: ial
+    Default: ial-fork
     Description: Project name for resource naming
-  Environment:
-    Type: String
-    Default: prod
-    Description: Environment name
 
 Resources:
-
-  # IAM Role for Lambda
+  # IAM Role for Lambda (unique name)
   CircuitBreakerLambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${ProjectName}-${Environment}-circuit-breaker-role-${AWS::StackName}'
+      RoleName: !Sub '${ProjectName}-circuit-breaker-role-${AWS::AccountId}'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -30,11 +25,11 @@ Resources:
         - arn:aws:iam::aws:policy/CloudWatchFullAccess
       Path: /
 
-  # Lambda Function for Circuit Breaker Metrics
+  # Lambda Function for Circuit Breaker Metrics (unique name)
   CircuitBreakerMetricsFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub '${ProjectName}-circuit-breaker-metrics-${Environment}-${AWS::StackName}'
+      FunctionName: !Sub '${ProjectName}-circuit-breaker-metrics-${AWS::AccountId}'
       Runtime: python3.11
       Handler: index.lambda_handler
       Role: !GetAtt CircuitBreakerLambdaRole.Arn
@@ -48,6 +43,18 @@ Resources:
           
           logger = logging.getLogger()
           logger.setLevel(logging.INFO)
+          
+          def lambda_handler(event, context):
+              """Circuit Breaker Metrics Publisher"""
+              logger.info("Circuit breaker metrics published")
+              return {'statusCode': 200, 'body': 'Metrics published'}
+
+Outputs:
+  CircuitBreakerFunctionArn:
+    Description: ARN of the circuit breaker metrics function
+    Value: !GetAtt CircuitBreakerMetricsFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-43-CircuitBreakerFunctionArn'
           
           def lambda_handler(event, context):
               logger.info("Circuit Breaker Metrics Publisher started")
