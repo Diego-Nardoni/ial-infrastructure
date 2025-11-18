@@ -1,18 +1,26 @@
 Package: ialctl
-Version: 3.2.0
+Version: 3.2.1
 Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: IAL Team <ial@example.com>
-Description: IAL Infrastructure Assistant - GITHUB SOURCE OF TRUTH v3.2.0
- 🎯 GITHUB SOURCE OF TRUTH: Sistema dinâmico baseado no repositório!
+Description: IAL Infrastructure Assistant - GITHUB SOURCE OF TRUTH v3.2.1 FIXED
+ 🎯 GITHUB SOURCE OF TRUTH: Sistema dinâmico baseado no repositório - IMPORT ERROR FIXED!
  .
- Version 3.2.0 GITHUB SOURCE OF TRUTH RELEASE includes:
+ Version 3.2.1 IMPORT ERROR FIXED includes:
+ - ✅ Import Error CORRIGIDO: IaLNaturalProcessor funcionando
  - ✅ Context Enrichment: Detecção inteligente IAL vs IAM
  - ✅ GitHub Integration: Consulta dinâmica de fases do repositório
  - ✅ Smart Detection: Listagem vs Criação de fases
  - ✅ Dynamic System: Funciona em qualquer fork/diretório
  - ✅ Foundation perfeita: 47/47 templates (100% success)
+ .
+ CORREÇÕES v3.2.1:
+ ✅ Import Error: IaLNaturalProcessor restaurado e funcionando
+ ✅ Syntax Errors: Todos corrigidos sem quebrar funcionalidades
+ ✅ Context Enrichment: Ativo e testado
+ ✅ CLI Commands: Todos funcionando (--help, start, list-phases)
+ ✅ Interactive Mode: Amazon Q-like preservado
  .
  INTELIGÊNCIA CONTEXTUAL:
  ✅ Detecção automática: "liste fases" vs "criar fase"
@@ -28,11 +36,4 @@ Description: IAL Infrastructure Assistant - GITHUB SOURCE OF TRUTH v3.2.0
  ✅ Conversação natural: Interface Amazon Q-like preservada
  ✅ MCP routing: 17 MCPs especializados ativos
  .
- ARQUITETURA DINÂMICA:
- ✅ GitHub MCP: Acesso direto ao repositório
- ✅ Context enrichment: Instruções específicas para LLM
- ✅ Smart routing: Bedrock + MCP servers integrado
- ✅ Circuit breakers: Tolerância a falhas ativa
- ✅ Performance otimizada: Sub-segundo para consultas
- .
- 🚀 PRODUCTION READY: Dynamic GitHub-Based System
+ 🚀 PRODUCTION READY: Dynamic GitHub-Based System - IMPORT FIXED
