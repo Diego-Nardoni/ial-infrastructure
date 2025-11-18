@@ -1,31 +1,50 @@
 #!/usr/bin/env python3
 """
-IALCTL Enhanced - Wrapper mínimo para o natural_language_processor funcional
-Mantém TODAS as funcionalidades existentes sem modificações
+IALCTL Enhanced - Wrapper direto para FoundationDeployer
+Evita loops infinitos usando deploy direto
 """
 
 import sys
 import os
-import argparse
+import asyncio
 
 # Adicionar diretório do IAL ao path
 sys.path.insert(0, '/home/ial')
 
+async def run_foundation_deploy():
+    """Executar deploy APENAS da foundation (00-foundation)"""
+    try:
+        from core.foundation_deployer import FoundationDeployer
+        
+        print("🚀 IAL Foundation Deployment Starting...")
+        print("=" * 50)
+        
+        deployer = FoundationDeployer()
+        # Deploy APENAS a fase 00-foundation
+        result = deployer.deploy_phase("00-foundation")
+        
+        if result.get('success'):
+            print(f"✅ Foundation deployment completed successfully!")
+            print(f"📊 Deployed: {result.get('successful', 0)}/{result.get('total_resources', 0)} templates")
+            print("\n💡 Para outras fases, use comandos de linguagem natural:")
+            print("   • 'criar rede VPC privada' → fase 20-network")
+            print("   • 'provisionar ECS cluster' → fase 30-compute") 
+            print("   • 'configurar RDS Aurora' → fase 40-data")
+            return 0
+        else:
+            print(f"❌ Foundation deployment failed: {result.get('error')}")
+            return 1
+            
+    except Exception as e:
+        print(f"❌ Erro inesperado: {e}")
+        return 1
+
 def main():
-    """Main entry point - wrapper para o natural_language_processor"""
+    """Main entry point - deploy direto sem loops"""
     
-    # Se comando 'start', usar o natural_language_processor com 'start'
+    # Se comando 'start', usar FoundationDeployer diretamente
     if len(sys.argv) > 1 and sys.argv[1] == 'start':
-        # Importar e executar o processador com comando start
-        from natural_language_processor import main as nlp_main
-        # Modificar sys.argv temporariamente
-        original_argv = sys.argv[:]
-        sys.argv = ['natural_language_processor.py', 'start']
-        try:
-            nlp_main()
-        finally:
-            sys.argv = original_argv
-        return
+        return asyncio.run(run_foundation_deploy())
     
     # Caso contrário, modo interativo
     import readline
@@ -98,4 +117,4 @@ def main():
             print("💡 Tente novamente ou digite 'help' para ajuda")
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
