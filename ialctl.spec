@@ -3,10 +3,24 @@
 
 a = Analysis(
     ['ialctl_integrated.py'],
-    pathex=[],
+    pathex=['/home/ial'],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[
+        ('phases', 'phases'),
+        ('core', 'core'),
+        ('config', 'config'),
+        ('natural_language_processor.py', '.'),
+    ],
+    hiddenimports=[
+        'natural_language_processor',
+        'core.foundation_deployer',
+        'core.phase_parser',
+        'core.ial_master_engine_integrated',
+        'boto3',
+        'botocore',
+        'yaml',
+        'asyncio',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
