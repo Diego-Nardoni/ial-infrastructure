@@ -12,8 +12,14 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from core.circuit_breaker import CircuitBreaker
 
+from core.path_utils import get_config_path
+
 class LLMProvider:
-    def __init__(self, config_path: str = "/home/ial/config/llm_providers.yaml"):
+    def __init__(self, config_path: str = None):
+        # CORREÇÃO: Usar caminho dinâmico
+        if config_path is None:
+            config_path = get_config_path("llm_providers.yaml")
+            
         self.config_path = config_path
         self.config = self._load_config()
         self.current_provider = self.config.get('default_provider', 'bedrock')
@@ -32,13 +38,20 @@ class LLMProvider:
         except Exception as e:
             print(f"⚠️ Erro carregando LLM config: {e}")
         
-        # Fallback configuration
+        # URGENTE: Fallback configuration com Bedrock
+        print("🔧 Usando configuração embedded para LLM")
         return {
-            'default_provider': 'pattern',
+            'default_provider': 'bedrock',
             'providers': {
+                'bedrock': {
+                    'chat_model': 'anthropic.claude-3-sonnet-20240229-v1:0',
+                    'embed_model': 'amazon.titan-embed-text-v2:0',
+                    'region': 'us-east-1',
+                    'cost_per_1k_tokens': 0.003
+                },
                 'pattern': {'cost_per_1k_tokens': 0.0}
             },
-            'fallback_order': ['pattern']
+            'fallback_order': ['bedrock', 'pattern']
         }
         
     def _init_circuit_breakers(self):

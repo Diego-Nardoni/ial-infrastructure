@@ -6,9 +6,14 @@ MCP Mesh Loader - Carrega configuração do mcp-mesh.yaml
 import yaml
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+from core.path_utils import get_config_path
 
 class MCPMeshLoader:
-    def __init__(self, config_path: str = "/home/ial/config/mcp-mesh.yaml"):
+    def __init__(self, config_path: str = None):
+        # CORREÇÃO: Usar caminho dinâmico
+        if config_path is None:
+            config_path = get_config_path("mcp-mesh.yaml")
+            
         self.config_path = config_path
         self.config = self._load_config()
         self.core_mcps = self.config.get('core_mcps', {}).get('always_active', [])

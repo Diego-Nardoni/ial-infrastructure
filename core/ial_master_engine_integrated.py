@@ -11,6 +11,7 @@ from datetime import datetime
 import hashlib
 import platform
 import getpass
+from core.path_utils import get_phases_path, get_base_path
 
 class IALMasterEngineIntegrated:
     """Master Engine usando componentes robustos existentes"""
@@ -295,7 +296,7 @@ class IALMasterEngineIntegrated:
         
         # Salvar YAML
         phase_file = f"{phase_result['phase_number']:02d}-{phase_result['phase_name']}.yaml"
-        phase_path = os.path.join("/home/ial/phases", phase_file)
+        phase_path = os.path.join(get_phases_path(), phase_file)
         
         with open(phase_path, 'w') as f:
             f.write(phase_result['yaml_content'])
@@ -305,12 +306,12 @@ class IALMasterEngineIntegrated:
         # 4. Git commit + push
         print("📬 Criando Pull Request...")
         import subprocess
-        subprocess.run(['git', 'add', phase_path], cwd="/home/ial", check=True)
+        subprocess.run(['git', 'add', phase_path], cwd=get_base_path(), check=True)
         subprocess.run([
             'git', 'commit', '-m',
             f'feat: Add {phase_result["phase_name"]} phase\n\nGenerated from NL intent via IAL\nCost: ${cost_result["total_monthly_cost"]:.2f}/month'
-        ], cwd="/home/ial", check=True)
-        subprocess.run(['git', 'push', 'origin', 'main'], cwd="/home/ial", check=True)
+        ], cwd=get_base_path(), check=True)
+        subprocess.run(['git', 'push', 'origin', 'main'], cwd=get_base_path(), check=True)
         
         print("✅ Pull Request será aberto pelo GitHub Actions")
         
