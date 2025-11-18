@@ -17,12 +17,12 @@ Resources:
         - !ImportValue VPC-PrivateSubnet2
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-user-cluster-subnet-group'
+          Value: !Sub '${ProjectName}-user-unknown-resource-subnet-group'
 
   DatabaseInstance:
     Type: AWS::RDS::DBInstance
     Properties:
-      DBInstanceIdentifier: !Sub '${ProjectName}-user-cluster'
+      DBInstanceIdentifier: !Sub '${ProjectName}-user-unknown-resource'
       DBInstanceClass: db.t3.micro
       Engine: mysql
       EngineVersion: '8.0'
@@ -38,7 +38,7 @@ Resources:
       StorageEncrypted: true
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-user-cluster'
+          Value: !Sub '${ProjectName}-user-unknown-resource'
         - Key: ManagedBy
           Value: IAL-MCP-Router
         - Key: Domain
@@ -49,4 +49,4 @@ Outputs:
     Description: RDS Database Endpoint
     Value: !GetAtt DatabaseInstance.Endpoint.Address
     Export:
-      Name: !Sub '${ProjectName}-user-cluster-endpoint'
+      Name: !Sub '${ProjectName}-user-unknown-resource-endpoint'

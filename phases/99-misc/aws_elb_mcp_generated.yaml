@@ -11,7 +11,7 @@ Resources:
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: !Sub '${ProjectName}-user-cluster'
+      Name: !Sub '${ProjectName}-user-unknown-resource'
       Type: application
       Scheme: internet-facing
       Subnets:
@@ -21,7 +21,7 @@ Resources:
         - !ImportValue VPC-LoadBalancerSecurityGroup
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-user-cluster'
+          Value: !Sub '${ProjectName}-user-unknown-resource'
         - Key: ManagedBy
           Value: IAL-MCP-Router
         - Key: Domain
@@ -30,7 +30,7 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub '${ProjectName}-user-cluster-tg'
+      Name: !Sub '${ProjectName}-user-unknown-resource-tg'
       Port: 80
       Protocol: HTTP
       VpcId: !ImportValue VPC-Id
@@ -53,4 +53,4 @@ Outputs:
     Description: Load Balancer DNS Name
     Value: !GetAtt ApplicationLoadBalancer.DNSName
     Export:
-      Name: !Sub '${ProjectName}-user-cluster-dns'
+      Name: !Sub '${ProjectName}-user-unknown-resource-dns'

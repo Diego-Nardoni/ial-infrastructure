@@ -11,7 +11,7 @@ Resources:
   DynamoDBTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub '${ProjectName}-user-cluster'
+      TableName: !Sub '${ProjectName}-user-unknown-resource'
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: id
@@ -25,7 +25,7 @@ Resources:
         SSEEnabled: true
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-user-cluster'
+          Value: !Sub '${ProjectName}-user-unknown-resource'
         - Key: ManagedBy
           Value: IAL-MCP-Router
         - Key: Domain
@@ -36,4 +36,4 @@ Outputs:
     Description: DynamoDB Table Name
     Value: !Ref DynamoDBTable
     Export:
-      Name: !Sub '${ProjectName}-user-cluster-name'
+      Name: !Sub '${ProjectName}-user-unknown-resource-name'
