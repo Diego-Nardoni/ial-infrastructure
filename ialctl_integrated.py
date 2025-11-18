@@ -468,6 +468,59 @@ def lambda_handler(event, context):
         """Build and deploy container lambda"""
         return {'success': True}
 
+    def run_conversational_interface(self):
+        """Executar interface conversacional do IAL"""
+        try:
+            from core.ial_conversational_engine import IALConversationalEngine
+            
+            print("🤖 IAL Infrastructure Assistant - Interface Conversacional")
+            print("=" * 60)
+            print("💬 Digite suas perguntas sobre AWS ou infraestrutura")
+            print("🚀 Use 'ialctl start' para deploy completo")
+            print("❌ Digite 'quit', 'exit' ou 'sair' para sair")
+            print("=" * 60)
+            
+            engine = IALConversationalEngine()
+            
+            while True:
+                try:
+                    user_input = input("\n🔵 IAL> ").strip()
+                    
+                    if user_input.lower() in ['quit', 'exit', 'sair', 'q']:
+                        print("\n👋 Até logo! Use 'ialctl start' para deploy quando precisar.")
+                        break
+                    
+                    if not user_input:
+                        continue
+                        
+                    if user_input.lower() == 'help':
+                        print("""
+🆘 **Comandos Disponíveis:**
+• 'ialctl start' - Deploy completo da infraestrutura
+• Perguntas sobre AWS, custos, recursos
+• 'quit' ou 'exit' - Sair da interface
+• 'help' - Mostrar esta ajuda
+                        """)
+                        continue
+                    
+                    print("\n🤖 Processando...")
+                    response = engine.process_conversational_input(user_input)
+                    print(f"\n{response}")
+                    
+                except EOFError:
+                    print("\n👋 Até logo!")
+                    break
+                except Exception as e:
+                    print(f"\n❌ Erro: {e}")
+                    print("💡 Tente novamente ou digite 'help' para ajuda")
+            
+            return 0
+            
+        except ImportError as e:
+            print(f"❌ Erro ao carregar engine conversacional: {e}")
+            print("🚀 Use 'ialctl start' para deploy da foundation")
+            return 1
+
 def main():
     """Main entry point"""
     import argparse
@@ -488,8 +541,8 @@ def main():
         if args.command == "start":
             return asyncio.run(cli.run_start_command())
         else:
-            print("🚀 IALCTL Enhanced - Use 'ialctl start' para deploy completo")
-            return 0
+            # Abrir interface conversacional
+            return cli.run_conversational_interface()
     except KeyboardInterrupt:
         print("\n⚠️  Operação cancelada pelo usuário")
         return 1
