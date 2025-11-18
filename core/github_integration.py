@@ -33,6 +33,14 @@ class GitHubIntegration:
         """Execute infrastructure deployment via GitHub"""
         
         try:
+            # Check if this is a list/query intent - don't generate templates
+            if intent.get('intent') == 'list_information':
+                return {
+                    'response': "📋 Para listar as fases do IAL, consulte o repositório GitHub diretamente. Use o MCP GitHub para acessar /phases/ e mostrar as fases existentes.",
+                    'status': 'no_templates_generated',
+                    'action': 'list_only'
+                }
+            
             # 1. Save templates to correct phase directories
             saved_files = self.save_templates_to_phases(templates)
             

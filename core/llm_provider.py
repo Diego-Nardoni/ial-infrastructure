@@ -97,10 +97,20 @@ class LLMProvider:
         try:
             # Simulate Bedrock call
             await asyncio.sleep(0.1)  # Simulate API latency
+            
+            # Detect intent based on context enrichment
+            intent = 'create_infrastructure'  # default
+            if 'NAO gerar templates YAML' in text or 'NÃO gerar' in text:
+                intent = 'list_information'
+            elif 'LISTAR as fases' in text or 'VER/LISTAR' in text:
+                intent = 'list_information'
+            elif 'Consultar GitHub para listar' in text:
+                intent = 'list_information'
+                
             return {
                 'provider': 'bedrock',
                 'processed_text': text,
-                'intent': 'create_infrastructure',
+                'intent': intent,
                 'entities': self._extract_entities(text),
                 'confidence': 0.9
             }

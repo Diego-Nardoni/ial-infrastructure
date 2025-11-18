@@ -142,7 +142,8 @@ class IntelligentMCPRouterSophisticated:
                 'request': request,
                 'mcps_used': list(loaded_mcps.keys()),
                 'architecture_pattern': getattr(self, '_detected_pattern', None),
-                'timestamp': time.time()
+                'timestamp': time.time(),
+                'intent': llm_result.get('intent', 'create_infrastructure')  # Pass LLM intent
             }
             
             # Execute GitOps workflow
