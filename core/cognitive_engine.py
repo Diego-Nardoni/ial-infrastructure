@@ -402,8 +402,16 @@ class CognitiveEngine:
             return {'error': 'Phase Builder not available'}
         
         try:
-            # Usar Phase Builder existente
-            creation_yaml = self.phase_builder.generate_yaml_from_intent(parsed_intent)
+            # CORREÇÃO: Usar método correto do IntelligentPhaseBuilder
+            from core.intelligent_phase_builder import IntelligentPhaseBuilder
+            builder = IntelligentPhaseBuilder()
+            
+            # Usar build_phase_from_intent em vez de generate_yaml_from_intent
+            creation_yaml = builder.build_phase_from_intent(
+                nl_intent=parsed_intent.get('raw', ''),
+                ias_result={'safe': True},
+                cost_result={'estimated_cost': 0.0}
+            )
             
             return {
                 'status': 'success',
@@ -423,17 +431,17 @@ class CognitiveEngine:
             return {'error': 'GitHub Integration not available'}
         
         try:
-            # Usar GitHub Integration existente
-            pr_result = self.github_integration.create_pr(
-                yaml_content=yaml_result.get('template'),
-                operation_type=operation_type,
-                description=f"Automated {operation_type} via IAL Cognitive Engine"
-            )
+            # CORREÇÃO: Usar método correto do GitHubIntegration
+            templates = {'generated_template': yaml_result.get('template', {})}
+            intent = {'operation': operation_type}
+            
+            # Usar execute_infrastructure_deployment em vez de create_pr
+            pr_result = self.github_integration.execute_infrastructure_deployment(templates, intent)
             
             return {
                 'status': 'success',
                 'pr_created': True,
-                'pr_url': pr_result.get('pr_url'),
+                'pr_url': pr_result.get('pr_url', 'N/A'),
                 'operation': operation_type
             }
             
