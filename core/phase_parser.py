@@ -40,26 +40,10 @@ class PhaseParser:
                 return {"success": True, "action": "skipped", "stack_name": stack_name}
             
             elif stack_status in ["ROLLBACK_COMPLETE", "CREATE_FAILED", "UPDATE_ROLLBACK_COMPLETE", "ROLLBACK_FAILED", "DELETE_FAILED"]:
-                print(f"🔄 Stack {stack_name} in failed state ({stack_status}), creating with unique name...")
-                
-                # Para DELETE_FAILED, criar com nome único
-                if stack_status == "DELETE_FAILED":
-                    timestamp = int(time.time())
-                    new_stack_name = f"{stack_name}-fixed-{timestamp}"
-                    print(f"📦 Creating new stack: {new_stack_name}")
-                    return {"success": True, "action": "create_new", "stack_name": new_stack_name}
-                
-                # Cleanup órfãos primeiro
-                self._cleanup_orphaned_stacks(stack_name)
-                
-                # Deletar stack atual
-                self.cf_client.delete_stack(StackName=stack_name)
-                waiter = self.cf_client.get_waiter("stack_delete_complete")
-                try:
-                    waiter.wait(StackName=stack_id, WaiterConfig={"Delay": 10, "MaxAttempts": 30})
-                except Exception as e:
-                    print(f"⚠️ Delete waiter failed: {e}, continuing...")
-                
+                print(f"⚠️ Stack {stack_name} in failed state ({stack_status}) - SKIPPING for idempotency")
+                print(f"💡 To fix: manually delete stack '{stack_name}' and run again")
+                return {"success": True, "action": "skipped_failed", "stack_name": stack_name}
+            
             else:
                 return {"success": False, "action": "failed", "error": f"Stack in {stack_status} state"}
         except self.cf_client.exceptions.ClientError as e:
