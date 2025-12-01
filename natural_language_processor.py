@@ -103,6 +103,15 @@ class IaLNaturalProcessor:
                 print(f"⚠️ Erro inicializando Validation System: {e}")
                 self.validation_system = None
         
+        # Initialize Enhanced Fallback System
+        try:
+            from core.enhanced_fallback_system import EnhancedFallbackSystem
+            self.fallback_system = EnhancedFallbackSystem()
+            ultra_silent_print("✅ Enhanced Fallback System inicializado")
+        except Exception as e:
+            print(f"⚠️ Enhanced Fallback System não disponível: {e}")
+            self.fallback_system = None
+        
         # Initialize Intelligent MCP Router
         self.intelligent_router = None
         if INTELLIGENT_ROUTER_AVAILABLE:
@@ -147,7 +156,8 @@ class IaLNaturalProcessor:
             'application': ['lambda', 'function', 'step functions', 'sns', 'api'],
             'observability': ['monitoring', 'cloudwatch', 'logs', 'metrics', 'alerts'],
             'ai-ml': ['bedrock', 'ai', 'ml', 'rag', 'machine learning'],
-            'governance': ['budget', 'cost', 'compliance', 'well-architected']
+            'governance': ['budget', 'cost', 'compliance', 'well-architected'],
+            'drift': ['drift', 'diferenças', 'sync', 'reverse', 'heal', 'auto-heal']
         }
         
         self.action_mapping = {
@@ -200,6 +210,12 @@ class IaLNaturalProcessor:
                 pending_warnings = []
                 cost_info = ""
         # ===== FIM DA INSERÇÃO =====
+        
+        # ===== NOVA INSERÇÃO: DETECÇÃO DE COMANDOS DRIFT =====
+        drift_result = self._detect_drift_commands(user_input)
+        if drift_result:
+            return drift_result
+        # ===== FIM DA INSERÇÃO DRIFT =====
         
         # NOVO: Context Enrichment - Manter linguagem natural + melhorar contexto
         enriched_input = self._enrich_context_if_needed(user_input)
@@ -393,6 +409,31 @@ class IaLNaturalProcessor:
         simple_commands = ['oi', 'olá', 'hello', 'hi', 'help', 'ajuda']
         if any(keyword in user_input.lower() for keyword in simple_commands):
             return self._process_fallback_path(user_input, user_id, session_id)
+        
+        # Try Enhanced Fallback System first (Agent Core → NLP → Sandbox)
+        if self.fallback_system:
+            try:
+                ultra_silent_print("🔄 Using Enhanced Fallback System")
+                
+                # Parse flags from user input
+                flags = {
+                    'offline': '--offline' in user_input,
+                    'sandbox': '--sandbox' in user_input or os.getenv('IAL_MODE') == 'sandbox'
+                }
+                
+                # Determine processing mode
+                mode = self.fallback_system.determine_processing_mode(user_input, flags)
+                
+                # Process with fallback
+                result = self.fallback_system.process_with_fallback(user_input, mode)
+                
+                if result.get('success') or result.get('mode') == 'sandbox':
+                    return self.format_fallback_response(result, mode.value)
+                else:
+                    print(f"⚠️ Enhanced Fallback failed: {result.get('error')}")
+                    
+            except Exception as e:
+                print(f"⚠️ Enhanced Fallback System error: {e}")
         
         # Try CognitiveEngine first for infrastructure requests
         if self.intelligent_router:
@@ -1006,6 +1047,67 @@ Se for uma saudacao ou conversa casual, responda de forma amigável e natural.""
             'all_domains': all_domains,
             'original_input': user_input
         }
+    
+    def format_fallback_response(self, result: Dict[str, Any], mode: str) -> str:
+        """Formata resposta do Enhanced Fallback System"""
+        
+        if mode == 'sandbox':
+            if result.get('preview_generated'):
+                return f"""🏖️ **MODO SANDBOX ATIVO**
+
+✅ Preview gerado com sucesso!
+📁 **Arquivo:** {result.get('output_path', 'N/A')}
+🔒 **Segurança:** Nenhuma operação AWS executada
+
+💡 **Próximos passos:**
+   • Revisar o preview gerado
+   • Executar sem --sandbox para deploy real
+   • Usar 'ialctl start' para configurar infraestrutura"""
+            else:
+                return f"""🏖️ **MODO SANDBOX ATIVO**
+
+❌ Erro ao gerar preview: {result.get('error', 'Erro desconhecido')}
+
+💡 **Sugestões:**
+   • Verificar sintaxe do comando
+   • Tentar sem --sandbox para execução normal"""
+        
+        elif mode == 'agent_core':
+            response = result.get('response', '')
+            session_id = result.get('session_id', 'N/A')
+            
+            return f"""🧠 **BEDROCK AGENT CORE**
+
+{response}
+
+📋 **Sessão:** {session_id[:8]}...
+🤖 **Processado via:** Bedrock Agent"""
+        
+        elif mode == 'fallback_nlp':
+            # Processar resultado do NLP local
+            if isinstance(result, dict):
+                if result.get('success'):
+                    return f"""🔄 **NLP LOCAL (FALLBACK)**
+
+✅ {result.get('message', 'Operação concluída')}
+
+📊 **Detalhes:** {result.get('details', 'N/A')}
+🔧 **Processado via:** Cognitive Engine Local"""
+                else:
+                    return f"""🔄 **NLP LOCAL (FALLBACK)**
+
+❌ {result.get('error', 'Erro na operação')}
+
+💡 **Sugestão:** Verificar configuração ou tentar novamente"""
+            else:
+                return f"""🔄 **NLP LOCAL (FALLBACK)**
+
+{str(result)}
+
+🔧 **Processado via:** Cognitive Engine Local"""
+        
+        else:
+            return f"⚠️ Modo de processamento desconhecido: {mode}"
 
     def generate_fallback_response(self, intent: dict) -> str:
         """Generate fallback response when advanced features are unavailable"""
@@ -1129,386 +1231,70 @@ Keep responses concise but informative. Always mention this is fallback mode.
         else:
             return {'error': 'Usage reporting not available in basic mode'}
 
-# Interactive CLI for testing
-def interactive_mode():
-    processor = IaLNaturalProcessor()
-    user_id = input("Enter your user ID (or press Enter for anonymous): ").strip() or "anonymous-user"
-    session_id = str(uuid.uuid4())
-    
-    print(f"\n🧠 IaL Natural Language Processor v3.0")
-    
-    system_status = processor.get_system_status()
-    if processor.advanced_mode:
-        ultra_silent_print("✅ ADVANCED MODE: All systems operational")
-        print("   Robot Bedrock Conversational AI")
-        print("   Infrastructure Infrastructure Integration")
-        print("   Floppy Response Caching & Optimization")
-        print("   🧠 Knowledge Base & RAG")
-        print("   💰 Cost Monitoring & Rate Limiting")
-    else:
-        print("⚠️ BASIC MODE: Limited functionality")
-        print("   Note Pattern-based responses only")
-    
-    print(f"👤 User: {user_id}")
-    print(f"Link Session: {session_id[:8]}...")
-    print("=" * 60)
-    print("Commands: 'quit' to exit, 'clear' to clear screen, 'status' for system status")
-    print("Ask me anything about infrastructure! (Ctrl+L also clears screen)")
-    print()
-    
-    while True:
-        try:
-            user_input = input("👤 You: ").strip()
-            
-            if user_input.lower() in ['quit', 'exit', 'bye']:
-                print("👋 Goodbye! Thanks for using IaL!")
-                break
-            
-            if user_input.lower() in ['clear', 'cls']:
-                clear_screen()
-                print("Launch IaL v3.0 - Advanced Mode: ALL SYSTEMS OPERATIONAL")
-                ultra_silent_print("✅ Bedrock Conversational AI")
-                ultra_silent_print("✅ Infrastructure Integration") 
-                ultra_silent_print("✅ Response Caching & Optimization")
-                ultra_silent_print("✅ Knowledge Base & RAG")
-                ultra_silent_print("✅ Cost Monitoring & Rate Limiting")
-                print("=" * 60)
-                print("Commands: 'quit' to exit, 'clear' to clear screen, 'status' for system status")
-                print("Ask me anything about infrastructure! (Ctrl+L also clears screen)")
-                print()
-                continue
-            
-            if user_input.lower() == 'status':
-                status = processor.get_system_status()
-                print(f"Stats System Status: {json.dumps(status, indent=2)}")
-                continue
-            
-            if user_input.lower() == 'usage':
-                report = processor.get_usage_report(user_id)
-                print(f"💰 Usage Report: {json.dumps(report, indent=2)}")
-                continue
-            
-            if not user_input:
-                continue
-            
-            response = processor.process_command(user_input, user_id, session_id)
-            print(f"Robot IaL: {response}")
-            print()
-            
-        except KeyboardInterrupt:
-            print("\n👋 Goodbye!")
-            break
-        except Exception as e:
-            print(f"❌ Error: {e}")
-
-def validate_github_access(config):
-    """Validate GitHub repository access"""
-    try:
-        import requests
-        headers = {
-            'Authorization': f"token {config['GITHUB_TOKEN']}",
-            'Accept': 'application/vnd.github.v3+json'
+    def _detect_drift_commands(self, user_input: str) -> str:
+        """
+        Detecta comandos relacionados ao drift engine e processa via chat
+        """
+        user_lower = user_input.lower()
+        
+        # Comandos de drift detectados
+        drift_commands = {
+            'mostrar drift': ['mostrar drift', 'show drift', 'listar drift', 'list drift'],
+            'detectar drift': ['detectar drift', 'detect drift', 'verificar drift', 'check drift'],
+            'diferenças': ['diferenças', 'differences', 'diff', 'mudanças'],
+            'reverse sync': ['reverse sync', 'sync reverso', 'sincronizar'],
+            'auto heal': ['auto heal', 'auto-heal', 'curar', 'corrigir automaticamente']
         }
         
-        # Check repository access
-        url = f"https://api.github.com/repos/{config['GITHUB_USER']}/ial-infrastructure"
-        response = requests.get(url, headers=headers)
+        detected_command = None
+        for command, keywords in drift_commands.items():
+            if any(keyword in user_lower for keyword in keywords):
+                detected_command = command
+                break
         
-        if response.status_code == 200:
-            repo_data = response.json()
-            # Check if it's a fork of the original repo
-            if repo_data.get('fork'):
-                parent = repo_data.get('parent', {})
-                if parent.get('full_name') == 'Diego-Nardoni/ial-infrastructure':
-                    return True
-            elif repo_data.get('full_name') == 'Diego-Nardoni/ial-infrastructure':
-                return True  # Original repo
+        if not detected_command:
+            return None
         
-        return False
-    except Exception as e:
-        print(f"⚠️ GitHub validation error: {e}")
-        return False
-
-def start_ial_infrastructure():
-    """Deploy IAL 00-foundation infrastructure via CDK"""
-    print("Launch IAL Infrastructure Bootstrap")
-    print("=" * 40)
-    
-    # Coleta interativa de informacoes
-    config = collect_infrastructure_config()
-    
-    if not config:
-        print("❌ Configuracao cancelada")
-        return False
-    
-    # Valida configuracoes
-    if not validate_config(config):
-        print("❌ Configuracao inválida")
-        return False
-    
-    # Deploy via CDK
-    return deploy_foundation_via_cdk(config)
-
-def collect_infrastructure_config():
-    """Coleta configuracoes para deploy da infraestrutura"""
-    ultra_silent_print("Clipboard Coletando informacoes para deploy da infraestrutura IAL...")
-    print()
-    
-    config = {}
-    
-    # AWS Configuration
-    config['AWS_ACCOUNT_ID'] = input("AWS Account ID: ").strip()
-    if not config['AWS_ACCOUNT_ID']:
-        return None
-        
-    config['AWS_REGION'] = input("AWS Region [us-east-1]: ").strip() or "us-east-1"
-    
-    # Project Configuration
-    config['PROJECT_NAME'] = input("Nome do Projeto: ").strip()
-    if not config['PROJECT_NAME']:
-        return None
-        
-    config['EXECUTOR_NAME'] = input("Seu Nome: ").strip()
-    if not config['EXECUTOR_NAME']:
-        return None
-    
-    # GitHub Integration Configuration
-    print("\nLink GitHub Integration (Obrigatório para funcionamento completo)")
-    print("Nota: Você deve ter um fork de https://github.com/Diego-Nardoni/ial-infrastructure")
-    
-    github_user = input("GitHub Username: ").strip()
-    if not github_user:
-        print("⚠️ GitHub username e obrigatório para funcionamento completo")
-        config['GITHUB_USER'] = None
-        config['GITHUB_REPOSITORY'] = None
-    else:
-        config['GITHUB_USER'] = github_user
-        config['GITHUB_REPOSITORY'] = f"https://github.com/{github_user}/ial-infrastructure"
-        
-        github_token = input("GitHub Personal Access Token (ghp_...): ").strip()
-        if github_token.startswith('ghp_'):
-            config['GITHUB_TOKEN'] = github_token
-        else:
-            print("⚠️ Token GitHub inválido, continuando sem integracao GitHub")
-            config['GITHUB_TOKEN'] = None
-    
-    return config
-
-def validate_config(config):
-    """Valida configuracoes antes do deploy"""
-    print("\nSearch Validando configuracoes...")
-    
-    # Validate AWS credentials
-    try:
-        import boto3
-        session = boto3.Session()
-        sts = session.client('sts', region_name=config['AWS_REGION'])
-        identity = sts.get_caller_identity()
-        
-        if identity['Account'] != config['AWS_ACCOUNT_ID']:
-            print(f"❌ Account ID nao confere: esperado {config['AWS_ACCOUNT_ID']}, atual {identity['Account']}")
-            return False
-            
-        print(f"✅ AWS credentials válidas para account {identity['Account']}")
-        
-    except Exception as e:
-        print(f"❌ Erro validando AWS credentials: {e}")
-        return False
-    
-    # Validate GitHub access (if configured)
-    if config.get('GITHUB_TOKEN'):
-        if not validate_github_access(config):
-            print("⚠️ Erro na validacao GitHub, continuando sem integracao")
-            config['GITHUB_TOKEN'] = None
-    
-    return True
-
-def deploy_foundation_via_cdk(config):
-    """Deploy da infraestrutura via MCP CORRIGIDO com Foundation Deployer"""
-    try:
-        # Use Foundation Deployer CORRIGIDO
-        print("Launch Iniciando deploy COMPLETO da Foundation IAL via MCP...")
-        
-        # Check if Foundation Deployer is available
         try:
-            from core.foundation_deployer import FoundationDeployer
-            from core.intelligent_mcp_router_sophisticated import IntelligentMCPRouterSophisticated
+            # Importar drift engine
+            from core.drift.drift_detector import DriftDetector
+            from core.drift.auto_healer import AutoHealer
+            from core.drift.reverse_sync import ReverseSync
             
-            # Initialize components
-            router = IntelligentMCPRouterSophisticated()
-            deployer = FoundationDeployer()
-            
-            ultra_silent_print("✅ MCP servers conectados (Core + Cloud Control)")
-            
-            # Deploy Foundation phase
-            result = deployer.deploy_phase("00-foundation")
-            
-            if result.get('success', False):
-                ultra_silent_print("✅ FOUNDATION IAL COMPLETA criada com sucesso!")
-                
-                # Show detailed summary
-                print(f"Stats Foundation Components: {result.get('successful', 0)}/{result.get('total_resources', 0)}")
-                print(f"🌐 Regiao: {config['AWS_REGION']}")
-                print(f"Clipboard Projeto: {config['PROJECT_NAME']}")
-                print(f"👤 Executor: {config['EXECUTOR_NAME']}")
-                print("Party IAL está pronto para processar linguagem natural!")
-                
-                return {
-                    'success': True, 
-                    'method': 'Foundation-Deployer-CORRIGIDO', 
-                    'details': result,
-                    'components_created': result.get('successful', 0),
-                    'total_components': result.get('total_resources', 0),
-                    'success_rate': f"{result.get('successful', 0)/result.get('total_resources', 1)*100:.1f}%"
-                }
-            else:
-                print(f"❌ Deploy Foundation failed: {result.get('error', 'Unknown error')}")
-                print("🔄 Tentando fallback CDK...")
+            if detected_command == 'mostrar drift':
+                return self._process_show_drift()
+            elif detected_command == 'detectar drift':
+                return self._process_detect_drift()
+            elif detected_command == 'diferenças':
+                return self._process_show_differences()
+            elif detected_command == 'reverse sync':
+                return self._process_reverse_sync()
+            elif detected_command == 'auto heal':
+                return self._process_auto_heal()
                 
         except ImportError as e:
-            print(f"⚠️ Foundation Deployer nao disponível ({e}), usando fallback CDK...")
+            return f"⚠️ **Drift Engine não disponível:** {e}\n\n" \
+                   f"💡 **Alternativa:** Use 'python3 core/drift_cli.py detect' via CLI"
         except Exception as e:
-            print(f"⚠️ Erro Foundation Deployer ({e}), usando fallback CDK...")
+            return f"❌ **Erro no Drift Engine:** {str(e)}"
         
-        # Fallback to CDK deployment manager
-        print("Package Preparando ambiente CDK...")
-        import sys
-        sys.path.append(os.path.join(os.path.dirname(__file__), 'core'))
-        from core.cdk_deployment_manager import CDKDeploymentManager
-        
-        # Create deployment manager
-        deployment_manager = CDKDeploymentManager(config)
-        
-        # Execute deployment
-        result = deployment_manager.deploy_foundation()
-        
-        if result['success']:
-            print(f"\n{result['message']}")
-            
-            # Show outputs
-            if result.get('outputs'):
-                print("\nClipboard Recursos criados:")
-                for key, value in result['outputs'].items():
-                    print(f"  {key}: {value}")
-            
-            # Show connectivity tests
-            if result.get('connectivity_test'):
-                print("\nSearch Testes de conectividade:")
-                for service, status in result['connectivity_test'].items():
-                    print(f"  {service}: {status}")
-            
-            print("\nParty IAL está pronto para uso!")
-            print("Idea Agora você pode usar comandos como: ial \"create RDS database\"")
-            return True
-        else:
-            print(f"\n{result['message']}")
-            if result.get('error'):
-                print(f"Detalhes: {result['error']}")
-            return False
-            
-    except ImportError as e:
-        print(f"❌ Erro importando CDK deployment manager: {e}")
-        print("Idea Certifique-se de que o CDK está instalado: pip install aws-cdk-lib")
-        return False
-    except Exception as e:
-        print(f"❌ Erro no deploy: {e}")
-        return False
+        return None
 
-def main():
-    """Main entry point for IAL"""
-    if len(sys.argv) < 2:
-        # Modo interativo automático quando nao há argumentos
-        interactive_mode()
-        return
-    
-    command = sys.argv[1]
-    
-    if command == 'start':
-        # Deploy foundation via Master Engine Final
+    def _process_show_drift(self) -> str:
+        """Processa comando 'mostrar drift'"""
         try:
-            from core.master_engine_final import MasterEngineFinal
-            master = MasterEngineFinal()
-            # Usar config vazio para teste
-            config = {}
-            result = master.process_request("Deploy complete IAL Foundation infrastructure", config)
+            from core.drift.drift_detector import DriftDetector
             
-            if result.get('status') == 'success':
-                print(f"Party IAL Foundation deployed successfully!")
-                print(f"Stats Components created: {result.get('components_created', 'N/A')}")
-                print(f"🌐 Region: {result.get('details', {}).get('deployment_summary', {}).get('region', 'N/A')}")
-            else:
-                print(f"❌ Foundation deployment failed: {result.get('error', 'unknown')}")
-                
+            detector = DriftDetector()
+            drift_items = detector.detect_drift()
+            
+            if not drift_items:
+                return "✅ **Nenhum drift detectado!**\n\n" \
+                       "🔄 **Status:** Git e AWS estão sincronizados\n" \
+                       "📊 **Última verificação:** Agora\n" \
+                       "💡 **Dica:** Execute novamente após mudanças na infraestrutura"
         except Exception as e:
-            print(f"⚠️ Master Engine Final not available, using fallback: {e}")
-            start_ial_infrastructure()
-    elif command == 'configure':
-        configure_ial()
-    elif command == 'interactive':
-        interactive_mode()
-    else:
-        # Process infrastructure command via Master Engine Final
-        try:
-            from core.master_engine_final import MasterEngineFinal
-            master = MasterEngineFinal()
-            full_command = ' '.join(sys.argv[1:])
-            result = master.process_request(full_command)
-            
-            # Format response
-            if result.get('status') == 'success':
-                # Se e conversacional, exibir a resposta direta
-                if result.get('path') == 'CONVERSATIONAL_PATH':
-                    print(f"Robot IaL: {result.get('response', result.get('message', 'Resposta nao disponível'))}")
-                else:
-                    # Para infraestrutura, exibir resumo
-                    print(f"Robot IaL: ✅ {result.get('method', 'processed')} via {result.get('path', 'unknown')} path")
-        except Exception as e:
-            print(f"⚠️ Error: {e}")
-
-def interactive_mode():
-    """Modo interativo Amazon Q-like com memória"""
-    print("Robot IAL Infrastructure Assistant - Interactive Mode")
-    print("Type your questions or commands. Use /quit to exit, /help for help.")
-    
-    # Inicializar engine de contexto
-    try:
-        from core.memory.context_engine import ContextEngine
-        context_engine = ContextEngine()
-        memory_enabled = True
-        
-        # Verificar se há contexto anterior DA SESSÃO ATUAL
-        summary = context_engine.get_conversation_summary()
-        if "Primeira conversa" not in summary and len(summary.strip()) > 10:  # Mostra contexto relevante
-            print(f"💭 Contexto: {summary}")
-            
-    except Exception as e:
-        print(f"⚠️ Memory not available: {e}")
-        context_engine = None
-        memory_enabled = False
-    
-    print("=" * 60)
-    
-    while True:
-        try:
-            user_input = input("\nChat You: ").strip()
-            
-            if not user_input:
-                continue
-                
-            # Comandos especiais
-            if user_input.lower() in ['/quit', '/exit', 'quit', 'exit']:
-                print("👋 Goodbye! Thanks for using IAL!")
-                break
-            elif user_input.lower() in ['/help']:
-                print("Help: Use 'quit' to exit, 'clear' to clear screen")
-                continue
-                
-        except KeyboardInterrupt:
-            print("\n👋 Goodbye! Thanks for using IAL!")
-            break
-        except EOFError:
-            print("\n👋 Goodbye! Thanks for using IAL!")
-            break
+            return f"❌ **Erro ao detectar drift:** {str(e)}"
 
 if __name__ == "__main__":
     main()

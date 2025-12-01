@@ -1,0 +1,55 @@
+stages:
+  - validate
+  - test
+  - governance
+
+variables:
+  CI: "true"
+  IAL_MODE: "offline"
+
+before_script:
+  - apt-get update -qq
+  - apt-get install -y wget python3 python3-pip
+  - wget https://github.com/your-org/ial/releases/latest/download/ialctl-latest.deb
+  - dpkg -i ialctl-latest.deb || apt-get install -f
+
+ial-fast-tests:
+  stage: test
+  script:
+    - ialctl ci test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+ial-validate-phases:
+  stage: validate
+  script:
+    - ialctl ci validate
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+ial-governance:
+  stage: governance
+  script:
+    - ialctl ci governance
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+ial-completeness:
+  stage: governance
+  script:
+    - ialctl ci completeness
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Drift detection (scheduled job)
+ial-drift-detection:
+  stage: validate
+  script:
+    - ialctl ci drift
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  allow_failure: false

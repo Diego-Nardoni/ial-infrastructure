@@ -1,0 +1,46 @@
+name: IAL Basic Validation
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  ial-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Download IAL
+      run: |
+        wget https://github.com/your-org/ial/releases/latest/download/ialctl-latest.deb
+        sudo dpkg -i ialctl-latest.deb || sudo apt-get install -f
+    
+    - name: Run IAL Fast Tests
+      run: |
+        export CI=true
+        export IAL_MODE=offline
+        ialctl ci test
+    
+    - name: Validate Phases
+      run: |
+        export CI=true
+        ialctl ci validate
+    
+    - name: Check Governance
+      run: |
+        export CI=true
+        ialctl ci governance
+    
+    - name: Validate Completeness
+      run: |
+        export CI=true
+        ialctl ci completeness

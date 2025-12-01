@@ -1,0 +1,65 @@
+name: IAL Drift Detection
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  drift-detection:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+    
+    - name: Download IAL
+      run: |
+        wget https://github.com/your-org/ial/releases/latest/download/ialctl-latest.deb
+        sudo dpkg -i ialctl-latest.deb || sudo apt-get install -f
+    
+    - name: Run Drift Detection
+      id: drift
+      run: |
+        export CI=true
+        ialctl ci drift
+      continue-on-error: true
+    
+    - name: Create Issue on Drift
+      if: steps.drift.outcome == 'failure'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🚨 Infrastructure Drift Detected',
+            body: `Infrastructure drift has been detected in the environment.
+            
+            **Action Required:** Please review and resolve the drift.
+            
+            **Workflow:** ${context.workflow}
+            **Run ID:** ${context.runId}
+            **Timestamp:** ${new Date().toISOString()}
+            
+            Use \`ialctl ci drift\` to see detailed drift information.`,
+            labels: ['infrastructure', 'drift', 'urgent']
+          })
+    
+    - name: Test MCP Connectivity
+      run: |
+        export CI=true
+        ialctl ci mcp-test

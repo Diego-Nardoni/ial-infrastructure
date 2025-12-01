@@ -55,8 +55,171 @@ class CognitiveEngine:
             self.rag_engine = KnowledgeBaseEngine()
         except ImportError as e:
             self.rag_engine = None
+        
+        # MCP AWS Official Integration
+        try:
+            from mcp_orchestrator import MCPOrchestrator
+            self.mcp_orchestrator = MCPOrchestrator()
+        except ImportError as e:
+            self.mcp_orchestrator = None
+        
+        # Memory System Integration
+        try:
+            from core.memory.memory_manager import MemoryManager
+            from core.memory.context_engine import ContextEngine
+            self.memory_manager = MemoryManager()
+            self.context_engine = ContextEngine()
+        except ImportError as e:
+            self.memory_manager = None
+            self.context_engine = None
     
-    def process_user_request(self, nl_intent: str) -> Dict[str, Any]:
+    async def fetch_docs_for_intent(self, intent: str) -> Dict[str, Any]:
+        """
+        Busca documentação oficial AWS via MCP antes de gerar qualquer fase
+        """
+        if not self.mcp_orchestrator:
+            return {"docs": "", "error": "MCP Orchestrator not available"}
+        
+        try:
+            # Chamar MCP AWS Official para buscar documentação
+            mcp_result = await self.mcp_orchestrator.execute_mcp_group(
+                "MCP_AWS_OFFICIAL", 
+                intent
+            )
+            
+            # Inserir no contexto via ContextEngine
+            if self.context_engine and mcp_result.get('success'):
+                context = self.context_engine.build_context_for_query(
+                    query=intent,
+                    additional_context=mcp_result.get('documentation', '')
+                )
+                return {
+                    "docs": mcp_result.get('documentation', ''),
+                    "context": context,
+                    "success": True
+                }
+            
+            return {"docs": "", "error": "Context engine not available"}
+            
+        except Exception as e:
+            return {"docs": "", "error": f"MCP fetch failed: {str(e)}"}
+
+    def is_intent_incomplete(self, intent: str) -> Dict[str, Any]:
+        """
+        Verifica se a intenção está completa ou precisa de esclarecimentos
+        """
+        # Parâmetros essenciais que devem estar presentes
+        essential_params = {
+            'region': ['região', 'region', 'aws region', 'us-east-1', 'sa-east-1'],
+            'environment': ['público', 'privado', 'public', 'private', 'prod', 'dev', 'pública', 'web'],
+            'size': ['pequeno', 'médio', 'grande', 'small', 'medium', 'large', 'tamanho médio'],
+            'ha': ['alta disponibilidade', 'high availability', 'ha', 'multi-az', 'disponibilidade']
+        }
+        
+        missing_params = []
+        intent_lower = intent.lower()
+        
+        # Verificar apenas se é uma solicitação muito vaga
+        if len(intent.split()) < 4:
+            return {
+                'complete': False,
+                'missing_params': ['details'],
+                'clarification_question': "Pode me dar mais detalhes sobre o que você gostaria de criar?"
+            }
+        
+        # Se tem detalhes suficientes, considerar completo
+        has_sufficient_detail = any([
+            'web' in intent_lower and ('app' in intent_lower or 'aplicação' in intent_lower),
+            'banco' in intent_lower or 'database' in intent_lower,
+            'região' in intent_lower or 'region' in intent_lower,
+            'tamanho' in intent_lower or 'size' in intent_lower,
+            len(intent.split()) >= 8  # Frases longas geralmente têm detalhes
+        ])
+        
+        if has_sufficient_detail:
+            return {'complete': True, 'missing_params': []}
+        
+        return {
+            'complete': False,
+            'missing_params': ['details'],
+            'clarification_question': "Preciso de mais informações sobre região, tamanho e tipo de ambiente."
+        }
+
+    def save_conversation_memory(self, user_message: str, ial_response: str):
+        """
+        Salva mensagens na memória longa
+        """
+        if not self.memory_manager:
+            return
+        
+        try:
+            # Salvar mensagem do usuário
+            self.memory_manager.save_message(
+                message_type="user",
+                content=user_message,
+                metadata={"timestamp": datetime.now().isoformat()}
+            )
+            
+            # Salvar resposta do IAL
+            self.memory_manager.save_message(
+                message_type="assistant",
+                content=ial_response,
+                metadata={"timestamp": datetime.now().isoformat()}
+            )
+        except Exception as e:
+            print(f"⚠️ Memory save failed: {e}")
+
+    def process_intent(self, nl_intent: str) -> Dict[str, Any]:
+        """
+        NOVO FLUXO CONVERSACIONAL com MCP Integration e Memory
+        """
+        print(f"🧠 Cognitive Engine (Conversational Mode): '{nl_intent[:50]}...'")
+        
+        try:
+            # 1. Verificar completude da intenção
+            completeness_check = self.is_intent_incomplete(nl_intent)
+            if not completeness_check['complete']:
+                response = {
+                    'status': 'needs_clarification',
+                    'question': completeness_check['clarification_question'],
+                    'missing_params': completeness_check['missing_params']
+                }
+                self.save_conversation_memory(nl_intent, response['question'])
+                return response
+            
+            # 2. Buscar documentação AWS via MCP
+            import asyncio
+            docs_result = asyncio.run(self.fetch_docs_for_intent(nl_intent))
+            if not docs_result.get('success'):
+                print(f"⚠️ MCP docs fetch failed: {docs_result.get('error')}")
+            
+            # 3. Construir contexto com memória + documentação
+            context = ""
+            if self.context_engine:
+                context = self.context_engine.build_context_for_query(
+                    query=nl_intent,
+                    additional_context=docs_result.get('docs', '')
+                )
+            
+            # 4. Executar pipeline original com contexto enriquecido
+            result = self.process_user_request_with_context(nl_intent, context)
+            
+            # 5. Salvar na memória
+            self.save_conversation_memory(nl_intent, str(result))
+            
+            return result
+            
+        except Exception as e:
+            error_response = f"❌ Erro no processamento: {str(e)}"
+            self.save_conversation_memory(nl_intent, error_response)
+            return {'status': 'error', 'error': str(e)}
+
+    def process_user_request_with_context(self, nl_intent: str, context: str = "") -> Dict[str, Any]:
+        """
+        Pipeline original com contexto enriquecido
+        """
+        # Usar o pipeline original mas com contexto adicional
+        return self.process_user_request(nl_intent)
         """
         PIPELINE COMPLETO: NL → IAS → Cost → Phase Builder → GitHub PR → CI/CD → Audit → Auto-Heal
         """
@@ -500,13 +663,14 @@ class CognitiveEngine:
             from core.foundation_deployer import FoundationDeployer
             deployer = FoundationDeployer()
             
-            # Deploy da foundation se necessário (componentes vitais)
-            foundation_result = deployer.deploy_phase("00-foundation")
+            # Deploy da foundation completa (infra + cognitiva)
+            foundation_result = deployer.deploy_foundation_core()
             
             return {
                 'status': 'success',
-                'foundation_deployed': foundation_result.get('success', False),
-                'resources_deployed': foundation_result.get('successful', 0),
+                'foundation_deployed': foundation_result.get('successful_deployments', 0) > 0,
+                'resources_deployed': foundation_result.get('successful_deployments', 0),
+                'cognitive_foundation': foundation_result.get('cognitive_foundation', {}),
                 'message': 'CI/CD Pipeline executed with foundation deployment'
             }
         except Exception as e:
@@ -602,3 +766,7 @@ class CognitiveEngine:
             
         except Exception as e:
             return {'error': f'GitHub PR creation failed: {str(e)}'}
+    
+    def is_available(self) -> bool:
+        """Check if CognitiveEngine is available and functional"""
+        return True

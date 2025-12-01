@@ -37,11 +37,11 @@ class MasterEngineFinal:
         except ImportError as e:
             self.mcp_infrastructure_manager = None
     
-    def process_request(self, nl_intent: str, config: Dict = None) -> Dict[str, Any]:
+    def process_request(self, nl_intent: str, config: Dict = None, preview_mode: bool = False) -> Dict[str, Any]:
         """
         QUADRUPLE LOGIC: Conversational vs CORE resources vs RESOURCE QUERY vs USER resources
+        Agora com PREVIEW MODE support
         """
-        
         
         # LÓGICA 0: CONVERSATIONAL (saudações, perguntas gerais) - BEDROCK
         if self._is_conversational_request(nl_intent):
@@ -53,11 +53,14 @@ class MasterEngineFinal:
             return self.process_core_foundation_path(nl_intent, config or {})
         
         # NOVA ARQUITETURA: LLM+MCP SEMPRE PRIMEIRO
-        print("🧠 INTELLIGENT REQUEST - Roteando para LLM+MCP Router")
+        print(f"🧠 INTELLIGENT REQUEST - {'PREVIEW MODE' if preview_mode else 'EXECUTION MODE'}")
         
         # Tentar LLM+MCP Router primeiro (para TUDO)
         try:
-            return self.process_intelligent_mcp_path(nl_intent)
+            if preview_mode:
+                return self.process_preview_mode(nl_intent)
+            else:
+                return self.process_intelligent_mcp_path(nl_intent)
         except Exception as e:
             print(f"⚠️ LLM+MCP falhou: {e}")
             
@@ -1039,3 +1042,122 @@ Pergunta do usuário: {user_input}"""
         except Exception as e:
             print(f"❌ Falha ao instalar CDK: {e}")
             print("💡 Execute manualmente: npm install -g aws-cdk")
+    def process_preview_mode(self, nl_intent: str) -> Dict[str, Any]:
+        """
+        PREVIEW MODE: Gera preview da arquitetura sem executar
+        """
+        print("🔍 PREVIEW MODE: Gerando preview da arquitetura...")
+        
+        try:
+            # 1. Gerar phases previstas (sem YAML final)
+            predicted_phases = self._generate_predicted_phases(nl_intent)
+            
+            # 2. Gerar DAG previsto
+            predicted_dag = self._generate_predicted_dag(predicted_phases)
+            
+            # 3. Estimar riscos e custos
+            risk_assessment = self._assess_risks(predicted_phases)
+            cost_estimate = self._estimate_costs(predicted_phases)
+            
+            return {
+                'status': 'preview_ready',
+                'mode': 'preview',
+                'predicted_phases': predicted_phases,
+                'predicted_dag': predicted_dag,
+                'risk_assessment': risk_assessment,
+                'cost_estimate': cost_estimate,
+                'requires_confirmation': True,
+                'confirmation_message': f"Deseja prosseguir com a criação de {len(predicted_phases)} fases estimadas em ${cost_estimate.get('monthly_cost', 0)}/mês?"
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'preview_error',
+                'error': f"Erro no preview: {str(e)}"
+            }
+
+    def _generate_predicted_phases(self, nl_intent: str) -> List[Dict]:
+        """Gera lista de fases previstas baseada na intenção"""
+        phases = []
+        intent_lower = nl_intent.lower()
+        
+        # Foundation sempre necessária
+        phases.append({
+            'name': '00-foundation',
+            'description': 'Base infrastructure (DynamoDB, S3, IAM)',
+            'estimated_resources': 5
+        })
+        
+        # Detectar serviços específicos
+        if any(word in intent_lower for word in ['web', 'api', 'application', 'app']):
+            phases.extend([
+                {'name': '20-network', 'description': 'VPC and networking', 'estimated_resources': 3},
+                {'name': '30-compute', 'description': 'ECS/ALB for web application', 'estimated_resources': 4}
+            ])
+        
+        if any(word in intent_lower for word in ['database', 'db', 'data']):
+            phases.append({
+                'name': '40-data', 
+                'description': 'Database services (Aurora/DynamoDB)', 
+                'estimated_resources': 2
+            })
+        
+        if any(word in intent_lower for word in ['monitor', 'observability', 'logs']):
+            phases.append({
+                'name': '60-observability', 
+                'description': 'CloudWatch monitoring', 
+                'estimated_resources': 2
+            })
+        
+        return phases
+
+    def _generate_predicted_dag(self, phases: List[Dict]) -> Dict:
+        """Gera DAG previsto baseado nas fases"""
+        return {
+            'nodes': [phase['name'] for phase in phases],
+            'dependencies': {
+                '20-network': ['00-foundation'],
+                '30-compute': ['20-network'],
+                '40-data': ['20-network'],
+                '60-observability': ['30-compute', '40-data']
+            },
+            'execution_order': [phase['name'] for phase in phases]
+        }
+
+    def _assess_risks(self, phases: List[Dict]) -> Dict:
+        """Avalia riscos das fases previstas"""
+        total_resources = sum(phase.get('estimated_resources', 0) for phase in phases)
+        
+        risk_level = 'low'
+        if total_resources > 15:
+            risk_level = 'high'
+        elif total_resources > 8:
+            risk_level = 'medium'
+        
+        return {
+            'risk_level': risk_level,
+            'total_estimated_resources': total_resources,
+            'warnings': [
+                'Multi-AZ deployment increases costs',
+                'Production workloads require backup strategy'
+            ] if risk_level != 'low' else []
+        }
+
+    def _estimate_costs(self, phases: List[Dict]) -> Dict:
+        """Estima custos das fases previstas"""
+        total_resources = sum(phase.get('estimated_resources', 0) for phase in phases)
+        
+        # Custo base por recurso (estimativa conservadora)
+        cost_per_resource = 25  # USD/mês
+        monthly_cost = total_resources * cost_per_resource
+        
+        return {
+            'monthly_cost': monthly_cost,
+            'yearly_cost': monthly_cost * 12,
+            'breakdown': {
+                'compute': monthly_cost * 0.4,
+                'storage': monthly_cost * 0.2,
+                'networking': monthly_cost * 0.2,
+                'monitoring': monthly_cost * 0.2
+            }
+        }

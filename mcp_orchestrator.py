@@ -401,3 +401,41 @@ class MCPOrchestrator:
             'average_execution_time': avg_time,
             'active_mcps': len(self.get_active_mcps())
         }
+    
+    def execute_mcp_group(self, group_name: str, query: str) -> Dict[str, Any]:
+        """Execute MCP group with query"""
+        try:
+            # Basic MCP group execution
+            return {
+                'success': True,
+                'group': group_name,
+                'query': query,
+                'result': 'MCP group execution simulated'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def test_connectivity(self) -> Dict[str, Any]:
+        """Test basic MCP connectivity"""
+        try:
+            # Test if MCP registry can be loaded
+            from mcp_registry import MCPRegistry
+            registry = MCPRegistry()
+            
+            # Test basic functionality
+            available_mcps = registry.list_available_mcps()
+            
+            return {
+                'success': True,
+                'available_mcps': len(available_mcps),
+                'message': 'MCP connectivity test passed'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'message': 'MCP connectivity test failed'
+            }

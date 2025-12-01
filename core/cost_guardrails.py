@@ -44,20 +44,101 @@ class CostGuardrails:
                 "cache.t3.micro": {"on_demand": 0.017},
                 "cache.t3.small": {"on_demand": 0.034},
                 "cache.m5.large": {"on_demand": 0.188}
-            },
-            "s3": {
-                "standard": {"per_gb": 0.023},
-                "intelligent_tiering": {"per_gb": 0.023}
-            },
-            "alb": {
-                "hourly": 0.0225,
-                "lcu": 0.008
-            },
-            "nat_gateway": {
-                "hourly": 0.045,
-                "per_gb": 0.045
             }
         }
+    
+    def validate_deployment(self, deployment: Dict[str, Any]) -> Dict[str, Any]:
+        """Valida se o deployment está dentro dos guardrails de custo"""
+        
+        estimated_cost = deployment.get('estimated_cost', 0.0)
+        resources = deployment.get('resources', [])
+        
+        # Verificar se excede orçamento
+        exceeds_budget = estimated_cost > self.monthly_budget
+        
+        # Verificar recursos proibidos
+        prohibited_resources = self._check_prohibited_resources(resources)
+        
+        # Verificar recursos de alto custo
+        high_cost_resources = self._check_high_cost_resources(resources)
+        
+        # Determinar aprovação
+        reasons = []
+        if exceeds_budget:
+            reasons.append('budget_exceeded')
+        if prohibited_resources:
+            reasons.append('prohibited_resource')
+        if high_cost_resources:
+            reasons.append('high_cost_resource')
+        
+        approved = len(reasons) == 0
+        
+        return {
+            'approved': approved,
+            'estimated_cost': estimated_cost,
+            'budget_limit': self.monthly_budget,
+            'exceeds_budget': exceeds_budget,
+            'prohibited_resources': prohibited_resources,
+            'high_cost_resources': high_cost_resources,
+            'reasons': reasons,
+            'recommendations': self._get_cost_recommendations(resources, estimated_cost)
+        }
+    
+    def _check_prohibited_resources(self, resources: List[str]) -> List[str]:
+        """Verifica recursos proibidos por política de custo"""
+        
+        prohibited_patterns = [
+            'p3.16xlarge',  # GPU instances caras
+            'p4d.24xlarge',
+            'x1e.32xlarge',  # Memory-optimized caras
+            'r5.24xlarge',
+            'c5n.18xlarge'  # Compute-optimized caras
+        ]
+        
+        prohibited_found = []
+        for resource in resources:
+            for pattern in prohibited_patterns:
+                if pattern in resource:
+                    prohibited_found.append(resource)
+        
+        return prohibited_found
+    
+    def _check_high_cost_resources(self, resources: List[str]) -> List[str]:
+        """Verifica recursos de alto custo que precisam de aprovação"""
+        
+        high_cost_patterns = [
+            'xlarge',  # Instâncias grandes
+            'gpu',     # Instâncias GPU
+            'dedicated'  # Instâncias dedicadas
+        ]
+        
+        high_cost_found = []
+        for resource in resources:
+            for pattern in high_cost_patterns:
+                if pattern in resource.lower():
+                    high_cost_found.append(resource)
+        
+        return high_cost_found
+    
+    def _get_cost_recommendations(self, resources: List[str], estimated_cost: float) -> List[str]:
+        """Fornece recomendações para otimização de custo"""
+        
+        recommendations = []
+        
+        if estimated_cost > self.monthly_budget * 0.8:
+            recommendations.append("Consider using Reserved Instances for 40-60% cost savings")
+            recommendations.append("Evaluate if Spot Instances can be used for non-critical workloads")
+        
+        if any('large' in resource for resource in resources):
+            recommendations.append("Consider starting with smaller instance types and scaling up as needed")
+        
+        if any('rds' in resource.lower() for resource in resources):
+            recommendations.append("Consider Aurora Serverless for variable workloads")
+        
+        if any('s3' in resource.lower() for resource in resources):
+            recommendations.append("Use S3 Intelligent Tiering for automatic cost optimization")
+        
+        return recommendations
     
     def estimate_from_intent(self, nl_intent: str) -> Dict[str, Any]:
         """

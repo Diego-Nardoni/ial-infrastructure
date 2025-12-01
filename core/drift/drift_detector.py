@@ -10,7 +10,44 @@ class DriftDetector:
         self.desired_state_builder = DesiredStateBuilder()
         self.audit_validator = AuditValidator()
         
-    def detect_drift(self) -> List[Dict[str, Any]]:
+    def detect_drift(self, stack_name: str = None) -> Dict[str, Any]:
+        """Detect drift between Git (desired) and AWS (current)"""
+        
+        if stack_name:
+            # Detectar drift para stack específico
+            return self._detect_stack_drift(stack_name)
+        else:
+            # Detectar drift geral
+            return self._detect_general_drift()
+    
+    def _detect_stack_drift(self, stack_name: str) -> Dict[str, Any]:
+        """Detectar drift para um stack específico do CloudFormation"""
+        try:
+            cf_client = boto3.client('cloudformation', region_name=self.region)
+            
+            # Verificar status do stack
+            response = cf_client.describe_stacks(StackName=stack_name)
+            stack = response['Stacks'][0]
+            
+            drift_info = stack.get('DriftInformation', {})
+            drift_status = drift_info.get('StackDriftStatus', 'UNKNOWN')
+            
+            return {
+                'stack_name': stack_name,
+                'drift_status': drift_status,
+                'stack_status': stack.get('StackStatus'),
+                'last_updated': stack.get('LastUpdatedTime'),
+                'drift_detection_time': drift_info.get('LastDriftDetectionTime')
+            }
+            
+        except Exception as e:
+            return {
+                'stack_name': stack_name,
+                'drift_status': 'ERROR',
+                'error': str(e)
+            }
+    
+    def _detect_general_drift(self) -> List[Dict[str, Any]]:
         """Detect drift between Git (desired) and AWS (current)"""
         
         # Get desired state from Git (using all phases)
@@ -23,7 +60,11 @@ class DriftDetector:
         # Compare and find differences
         drift_items = self._compare_states(desired_spec, current_state)
         
-        return drift_items
+        return {
+            'drift_status': 'DRIFTED' if drift_items else 'IN_SYNC',
+            'drift_items': drift_items,
+            'total_drifts': len(drift_items)
+        }
     
     def _compare_states(self, desired: Dict, current: Dict) -> List[Dict[str, Any]]:
         """Compare desired vs current state and identify drift"""

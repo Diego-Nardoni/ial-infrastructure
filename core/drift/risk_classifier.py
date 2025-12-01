@@ -28,11 +28,119 @@ class RiskClassifier:
         # Define critical properties that always need approval
         self.critical_properties = {
             'deletion_protection',
-            'backup_deletion',
-            'encryption_key',
-            'public_subnet',
-            'internet_gateway'
+            'backup_policy',
+            'access_policy'
         }
+        
+        # Risk levels by resource type and change type
+        self.risk_matrix = {
+            'AWS::S3::Bucket': {
+                'tag_update': 'LOW',
+                'policy_change': 'HIGH',
+                'deletion': 'CRITICAL'
+            },
+            'AWS::RDS::DBInstance': {
+                'tag_update': 'LOW',
+                'parameter_change': 'MEDIUM',
+                'deletion': 'CRITICAL'
+            },
+            'AWS::IAM::Role': {
+                'tag_update': 'LOW',
+                'policy_change': 'CRITICAL',
+                'deletion': 'CRITICAL'
+            }
+        }
+    
+    def classify_risk(self, change: Dict[str, Any]) -> Dict[str, Any]:
+        """Classifica o risco de uma mudança"""
+        
+        resource_type = change.get('resource_type', '')
+        change_type = change.get('change_type', '')
+        impact_scope = change.get('impact_scope', 'single_resource')
+        
+        # Determinar nível base de risco
+        base_risk = self._get_base_risk(resource_type, change_type)
+        
+        # Ajustar baseado no escopo de impacto
+        final_risk = self._adjust_risk_by_scope(base_risk, impact_scope)
+        
+        return {
+            'level': final_risk,
+            'resource_type': resource_type,
+            'change_type': change_type,
+            'impact_scope': impact_scope,
+            'reasoning': self._get_risk_reasoning(resource_type, change_type, final_risk),
+            'mitigation_steps': self._get_mitigation_steps(final_risk)
+        }
+    
+    def _get_base_risk(self, resource_type: str, change_type: str) -> str:
+        """Determina o risco base baseado no tipo de recurso e mudança"""
+        
+        if resource_type in self.risk_matrix:
+            return self.risk_matrix[resource_type].get(change_type, 'MEDIUM')
+        
+        # Fallback baseado no tipo de mudança
+        if change_type == 'deletion':
+            return 'HIGH'
+        elif change_type in ['policy_change', 'security_change']:
+            return 'HIGH'
+        elif change_type in ['tag_update', 'description_change']:
+            return 'LOW'
+        else:
+            return 'MEDIUM'
+    
+    def _adjust_risk_by_scope(self, base_risk: str, impact_scope: str) -> str:
+        """Ajusta o risco baseado no escopo de impacto"""
+        
+        risk_levels = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+        current_level = risk_levels.index(base_risk) if base_risk in risk_levels else 1
+        
+        if impact_scope == 'account_wide':
+            # Aumenta o risco para mudanças que afetam toda a conta
+            return risk_levels[min(current_level + 1, len(risk_levels) - 1)]
+        elif impact_scope == 'multi_resource':
+            # Aumenta ligeiramente para mudanças que afetam múltiplos recursos
+            return risk_levels[min(current_level + 1, len(risk_levels) - 1)]
+        
+        return base_risk
+    
+    def _get_risk_reasoning(self, resource_type: str, change_type: str, risk_level: str) -> str:
+        """Fornece justificativa para o nível de risco"""
+        
+        if risk_level == 'CRITICAL':
+            return f"Critical risk: {change_type} on {resource_type} can cause significant impact"
+        elif risk_level == 'HIGH':
+            return f"High risk: {change_type} on {resource_type} requires careful review"
+        elif risk_level == 'MEDIUM':
+            return f"Medium risk: {change_type} on {resource_type} should be monitored"
+        else:
+            return f"Low risk: {change_type} on {resource_type} is generally safe"
+    
+    def _get_mitigation_steps(self, risk_level: str) -> List[str]:
+        """Fornece passos de mitigação baseados no nível de risco"""
+        
+        if risk_level == 'CRITICAL':
+            return [
+                "Require manual approval",
+                "Create backup before change",
+                "Test in staging environment",
+                "Have rollback plan ready"
+            ]
+        elif risk_level == 'HIGH':
+            return [
+                "Require senior approval",
+                "Monitor closely after change",
+                "Have rollback plan ready"
+            ]
+        elif risk_level == 'MEDIUM':
+            return [
+                "Monitor after change",
+                "Document change reason"
+            ]
+        else:
+            return [
+                "Standard monitoring"
+            ]
     
     def classify_drift(self, drift_item: Dict[str, Any]) -> str:
         """Classify drift as safe, risky, or critical"""

@@ -4,7 +4,10 @@ Foundation Deployer - Deploy automatizado de todas as fases IAL Foundation
 
 import os
 import sys
+import json
+import boto3
 from typing import Dict, List, Any
+from datetime import datetime
 from core.phase_parser import PhaseParser, deploy_phase_resources
 
 def get_resource_path(relative_path):
@@ -221,11 +224,16 @@ class FoundationDeployer:
         print(f"   📊 Total: {total_successful}/{total_resources} resources deployed")
         print(f"   📋 Phases processed: {len([p for p in all_results if 'error' not in all_results[p]])}")
         
+        # Configurar Bedrock Agent após deploy completo
+        agent_config_result = self.configure_bedrock_agent()
+        all_results['bedrock_agent_config'] = agent_config_result
+        
         return {
             'total_successful': total_successful,
             'total_resources': total_resources,
             'phases_results': all_results,
-            'deployment_complete': True
+            'deployment_complete': True,
+            'agent_configured': agent_config_result.get('success', False)
         }
     
     def deploy_foundation_core(self) -> Dict[str, Any]:
@@ -298,11 +306,251 @@ class FoundationDeployer:
         print(f"   📊 {successful}/{len(all_files)} templates deployed")
         print(f"   ⏭️  {len(duplicate_but_existing)} duplicates skipped")
         
+        # Deploy Cognitive Foundation (Bedrock Agent) if available
+        cognitive_result = self.deploy_cognitive_foundation()
+        
         return {
             'core_resources': results,
             'successful_deployments': successful,
-            'total_resource_groups': len(all_files)
+            'total_resource_groups': len(all_files),
+            'cognitive_foundation': cognitive_result
         }
+    
+    def deploy_cognitive_foundation(self) -> Dict[str, Any]:
+        """Deploy Bedrock Agent Core via CloudFormation"""
+        print("\n🧠 Deploying Cognitive Foundation (Bedrock Agent Core)")
+        print("=" * 50)
+        
+        try:
+            # Check if Bedrock Agents is available in region
+            import boto3
+            region = boto3.Session().region_name or 'us-east-1'
+            
+            # Bedrock Agents availability check
+            bedrock_regions = [
+                'us-east-1', 'us-west-2', 'eu-west-1', 'eu-central-1', 
+                'ap-southeast-1', 'ap-northeast-1'
+            ]
+            
+            if region not in bedrock_regions:
+                print(f"⚠️ Bedrock Agents not available in region {region}")
+                print("   Skipping cognitive foundation deployment")
+                return {
+                    'success': False,
+                    'reason': 'bedrock_not_available',
+                    'region': region,
+                    'available_regions': bedrock_regions
+                }
+            
+            # Deploy Bedrock Agent Core template
+            template_path = os.path.join(self.phases_dir, '00-foundation', '44-bedrock-agent-core.yaml')
+            
+            if not os.path.exists(template_path):
+                print(f"⚠️ Cognitive foundation template not found: {template_path}")
+                return {
+                    'success': False,
+                    'reason': 'template_not_found',
+                    'template_path': template_path
+                }
+            
+            print(f"🔄 Deploying Bedrock Agent Core...")
+            result = self.parser.deploy_cloudformation_stack(template_path, "ial-cognitive")
+            
+            if result['success']:
+                print("✅ Bedrock Agent Core deployed successfully")
+                
+                # Read CloudFormation outputs
+                outputs = self.read_cognitive_stack_outputs()
+                
+                if outputs:
+                    # Save agent config locally
+                    config_saved = self.save_agent_config(outputs)
+                    
+                    return {
+                        'success': True,
+                        'stack_result': result,
+                        'outputs': outputs,
+                        'config_saved': config_saved
+                    }
+                else:
+                    print("⚠️ Could not read stack outputs")
+                    return {
+                        'success': True,
+                        'stack_result': result,
+                        'outputs': None,
+                        'config_saved': False
+                    }
+            else:
+                print(f"❌ Bedrock Agent Core deployment failed: {result.get('error', 'Unknown error')}")
+                return {
+                    'success': False,
+                    'stack_result': result
+                }
+                
+        except Exception as e:
+            print(f"❌ Cognitive foundation deployment error: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def read_cognitive_stack_outputs(self) -> Dict[str, str]:
+        """Read outputs from cognitive foundation CloudFormation stack"""
+        try:
+            import boto3
+            cf_client = boto3.client('cloudformation')
+            
+            stack_name = 'ial-cognitive-44-bedrock-agent-core'
+            
+            response = cf_client.describe_stacks(StackName=stack_name)
+            stack = response['Stacks'][0]
+            
+            outputs = {}
+            if 'Outputs' in stack:
+                for output in stack['Outputs']:
+                    outputs[output['OutputKey']] = output['OutputValue']
+            
+            print(f"📋 Read {len(outputs)} outputs from cognitive stack")
+            return outputs
+            
+        except Exception as e:
+            print(f"⚠️ Could not read stack outputs: {e}")
+            return {}
+    
+    def configure_bedrock_agent(self) -> Dict[str, Any]:
+        """Configura Bedrock Agent após deploy da foundation"""
+        try:
+            print("\n🧠 Configuring Bedrock Agent...")
+            
+            # Verificar se stack do agente existe
+            cf_client = boto3.client('cloudformation')
+            
+            # Buscar stack com o agente
+            agent_stack_name = None
+            stacks = cf_client.list_stacks(StackStatusFilter=['CREATE_COMPLETE', 'UPDATE_COMPLETE'])
+            
+            for stack in stacks['StackSummaries']:
+                if 'bedrock-agent-foundation' in stack['StackName']:
+                    agent_stack_name = stack['StackName']
+                    break
+            
+            if not agent_stack_name:
+                return {
+                    'success': False,
+                    'error': 'Bedrock Agent stack not found',
+                    'fallback_mode': True
+                }
+            
+            # Ler outputs da stack
+            stack_info = cf_client.describe_stacks(StackName=agent_stack_name)
+            outputs = stack_info['Stacks'][0].get('Outputs', [])
+            
+            agent_config = {}
+            for output in outputs:
+                key = output['OutputKey']
+                value = output['OutputValue']
+                
+                if key == 'IALAgentId':
+                    agent_config['agent_id'] = value
+                elif key == 'IALAgentAliasId':
+                    agent_config['agent_alias_id'] = value
+                elif key == 'IALAgentAliasArn':
+                    agent_config['agent_alias_arn'] = value
+                elif key == 'BedrockAgentsSupported':
+                    agent_config['bedrock_supported'] = value == 'true'
+            
+            # Adicionar região
+            agent_config['region'] = boto3.Session().region_name or 'us-east-1'
+            agent_config['configured_at'] = datetime.now().isoformat()
+            
+            # Salvar configuração local
+            config_result = self.save_agent_config(agent_config)
+            
+            if agent_config.get('bedrock_supported', False):
+                print("   ✅ Bedrock Agent configured successfully")
+                return {
+                    'success': True,
+                    'agent_config': agent_config,
+                    'config_file': config_result.get('config_file')
+                }
+            else:
+                print("   ⚠️  Bedrock Agents not supported in this region - fallback mode enabled")
+                return {
+                    'success': True,
+                    'agent_config': agent_config,
+                    'fallback_mode': True,
+                    'config_file': config_result.get('config_file')
+                }
+                
+        except Exception as e:
+            print(f"   ⚠️  Agent configuration failed: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'fallback_mode': True
+            }
+    
+    def save_agent_config(self, agent_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Salva configuração do agente em arquivo local"""
+        try:
+            # Criar diretório ~/.ial se não existir
+            config_dir = os.path.expanduser('~/.ial')
+            os.makedirs(config_dir, exist_ok=True)
+            
+            config_file = os.path.join(config_dir, 'agent_config.json')
+            
+            with open(config_file, 'w') as f:
+                json.dump(agent_config, f, indent=2)
+            
+            print(f"   📝 Agent config saved to: {config_file}")
+            
+            return {
+                'success': True,
+                'config_file': config_file
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def save_agent_config(self, outputs: Dict[str, str]) -> bool:
+        """Save agent configuration to local file"""
+        try:
+            import json
+            import os
+            from pathlib import Path
+            
+            # Create ~/.ial directory if it doesn't exist
+            ial_dir = Path.home() / '.ial'
+            ial_dir.mkdir(exist_ok=True)
+            
+            config_file = ial_dir / 'agent_config.json'
+            
+            # Get current region
+            import boto3
+            region = boto3.Session().region_name or 'us-east-1'
+            
+            config = {
+                'agent_id': outputs.get('IALAgentId'),
+                'agent_alias_id': outputs.get('IALAgentAliasId'), 
+                'agent_alias_arn': outputs.get('IALAgentAliasArn'),
+                'agent_role_arn': outputs.get('IALAgentRoleArn'),
+                'region': region,
+                'created_at': str(datetime.now()),
+                'stack_name': 'ial-cognitive-44-bedrock-agent-core'
+            }
+            
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            print(f"💾 Agent config saved to: {config_file}")
+            return True
+            
+        except Exception as e:
+            print(f"⚠️ Could not save agent config: {e}")
+            return False
 
 def deploy_complete_foundation() -> Dict[str, Any]:
     """Função principal para deployment completo"""

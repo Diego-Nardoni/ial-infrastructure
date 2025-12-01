@@ -524,3 +524,47 @@ def deploy_phase_resources(phase: str = "00-foundation") -> Dict[str, Any]:
         'successful': successful,
         'results': results
     }
+
+def validate_yaml_syntax(yaml_path: str) -> bool:
+    """Validate YAML syntax with CloudFormation functions support"""
+    try:
+        with open(yaml_path, 'r') as f:
+            content = f.read()
+            
+            # Skip validation for domain-metadata files (they have different structure)
+            if 'domain-metadata.yaml' in yaml_path:
+                return True
+            
+            # Create CloudFormation-aware YAML loader
+            import yaml
+            
+            # CloudFormation constructor that accepts any CF function
+            def cf_constructor(loader, node):
+                if isinstance(node, yaml.ScalarNode):
+                    return loader.construct_scalar(node)
+                elif isinstance(node, yaml.SequenceNode):
+                    return loader.construct_sequence(node)
+                elif isinstance(node, yaml.MappingNode):
+                    return loader.construct_mapping(node)
+                return None
+            
+            # Create custom loader for CloudFormation
+            class CFLoader(yaml.SafeLoader):
+                pass
+            
+            # Add ALL CloudFormation intrinsic functions and conditions
+            cf_tags = ['!Ref', '!GetAtt', '!Sub', '!Join', '!Select', '!Split', 
+                      '!Base64', '!GetAZs', '!ImportValue', '!FindInMap', '!Condition',
+                      '!Equals', '!Not', '!And', '!Or', '!If']
+            
+            for tag in cf_tags:
+                CFLoader.add_constructor(tag, cf_constructor)
+            
+            try:
+                yaml.load(content, Loader=CFLoader)
+                return True
+            except yaml.YAMLError as e:
+                raise ValueError(f"Invalid YAML syntax: {str(e)}")
+            
+    except Exception as e:
+        raise ValueError(f"YAML validation failed for {yaml_path}: {str(e)}")

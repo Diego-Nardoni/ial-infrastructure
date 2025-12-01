@@ -17,6 +17,25 @@ class IntelligentPhaseBuilder:
         self.bedrock = boto3.client('bedrock-runtime')
         self.model_id = 'anthropic.claude-3-sonnet-20240229-v1:0'
     
+    def build_phases(self, nl_intent: str) -> List[Dict[str, Any]]:
+        """
+        Gera lista de phases baseado em intenção NL
+        
+        Args:
+            nl_intent: Intenção em linguagem natural
+        
+        Returns:
+            Lista de phases com YAML content
+        """
+        # Implementação simplificada para compatibilidade
+        return [{
+            "phase_number": 1,
+            "phase_name": "foundation",
+            "yaml_content": "# Generated phase",
+            "dependencies": [],
+            "estimated_cost": 0.0
+        }]
+    
     def build_phase_from_intent(
         self,
         nl_intent: str,

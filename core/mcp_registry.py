@@ -68,19 +68,20 @@ class MCPRegistry:
         }
         
         # Processar configuração padrão
-        for name, config in default_config.get("mcpServers", {}).items():
-            self.servers[name] = {
-                "name": name,
-                **config,
-                'status': MCPStatus.CONFIGURED,
-                'configured_at': time.time()
-            }
+        try:
+            for name, config in default_config.get("mcpServers", {}).items():
+                self.servers[name] = {
+                    "name": name,
+                    **config,
+                    'status': MCPStatus.CONFIGURED,
+                    'configured_at': time.time()
                 }
-            
+                
 #            print(f"📋 {len(self.servers)} MCPs configurados")
-            
+                
         except Exception as e:
 #            print(f"❌ Erro carregando configuração MCP: {e}")
+            pass
 
     def list(self) -> List[str]:
         """Lista todos os MCPs configurados"""

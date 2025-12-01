@@ -1,0 +1,378 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Generated from IAL metadata: VPC with VPC Endpoints (NO NAT Gateway)
+  - Cost-optimized private connectivity'
+Parameters:
+  Environment:
+    Default: dev
+    Description: Environment name
+    Type: String
+  ProjectName:
+    Default: ial-project
+    Description: Project name for resource naming
+    Type: String
+Resources:
+  Resource03igw:
+    Properties: {}
+    Type: AWS::EC2::InternetGateway
+  Resource03igwattachment:
+    Properties:
+      InternetGatewayId:
+        Ref: Resource03igw
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::VPCGatewayAttachment
+  Resource03privatert:
+    Properties:
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::RouteTable
+  Resource03privatesubnet1a:
+    Properties:
+      AvailabilityZone:
+        Fn::Sub: ${AWS::Region}a
+      CidrBlock: 10.0.11.0/24
+      MapPublicIpOnLaunch: false
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::Subnet
+  Resource03privatesubnet1aassoc:
+    Properties:
+      RouteTableId:
+        Ref: Resource03privatert
+      SubnetId:
+        Ref: Resource03privatesubnet1a
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  Resource03privatesubnet1b:
+    Properties:
+      AvailabilityZone:
+        Fn::Sub: ${AWS::Region}b
+      CidrBlock: 10.0.12.0/24
+      MapPublicIpOnLaunch: false
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::Subnet
+  Resource03privatesubnet1bassoc:
+    Properties:
+      RouteTableId:
+        Ref: Resource03privatert
+      SubnetId:
+        Ref: Resource03privatesubnet1b
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  Resource03privatesubnet1c:
+    Properties:
+      AvailabilityZone:
+        Fn::Sub: ${AWS::Region}c
+      CidrBlock: 10.0.13.0/24
+      MapPublicIpOnLaunch: false
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::Subnet
+  Resource03privatesubnet1cassoc:
+    Properties:
+      RouteTableId:
+        Ref: Resource03privatert
+      SubnetId:
+        Ref: Resource03privatesubnet1c
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  Resource03publicroute:
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: Resource03igw
+      RouteTableId:
+        Ref: Resource03publicrt
+    Type: AWS::EC2::Route
+  Resource03publicrt:
+    Properties:
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::RouteTable
+  Resource03publicsubnet1a:
+    Properties:
+      AvailabilityZone:
+        Fn::Sub: ${AWS::Region}a
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::Subnet
+  Resource03publicsubnet1aassoc:
+    Properties:
+      RouteTableId:
+        Ref: Resource03publicrt
+      SubnetId:
+        Ref: Resource03publicsubnet1a
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  Resource03publicsubnet1b:
+    Properties:
+      AvailabilityZone:
+        Fn::Sub: ${AWS::Region}b
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::Subnet
+  Resource03publicsubnet1bassoc:
+    Properties:
+      RouteTableId:
+        Ref: Resource03publicrt
+      SubnetId:
+        Ref: Resource03publicsubnet1b
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  Resource03publicsubnet1c:
+    Properties:
+      AvailabilityZone:
+        Fn::Sub: ${AWS::Region}c
+      CidrBlock: 10.0.3.0/24
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::Subnet
+  Resource03publicsubnet1cassoc:
+    Properties:
+      RouteTableId:
+        Ref: Resource03publicrt
+      SubnetId:
+        Ref: Resource03publicsubnet1c
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  Resource03sgalb:
+    Properties:
+      GroupDescription: ALB Security Group - CloudFront Only
+      GroupName:
+        Fn::Sub: ${ProjectName}-sg-alb-cloudfront-only
+      SecurityGroupIngress:
+      - FromPort: 80
+        IpProtocol: tcp
+        SourcePrefixListId: pl-3b927c52
+        ToPort: 80
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::SecurityGroup
+  Resource03sgapp:
+    Properties:
+      GroupDescription: ECS Tasks Security Group
+      GroupName:
+        Fn::Sub: ${ProjectName}-sg-app
+      SecurityGroupEgress:
+      - CidrIp: 0.0.0.0/0
+        IpProtocol: '-1'
+      SecurityGroupIngress:
+      - FromPort: 8080
+        IpProtocol: tcp
+        SourceSecurityGroupId:
+          Ref: Resource03sgalb
+        ToPort: 8080
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::SecurityGroup
+  Resource03sgdb:
+    Properties:
+      GroupDescription: Aurora PostgreSQL Security Group - Access from ECS only
+      GroupName:
+        Fn::Sub: ${ProjectName}-sg-db
+      SecurityGroupIngress:
+      - Description: PostgreSQL from ECS tasks
+        FromPort: 5432
+        IpProtocol: tcp
+        SourceSecurityGroupId:
+          Ref: Resource03sgapp
+        ToPort: 5432
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::SecurityGroup
+  Resource03sgendpoints:
+    Properties:
+      GroupDescription: VPC Endpoints Security Group
+      GroupName:
+        Fn::Sub: ${ProjectName}-sg-endpoints
+      SecurityGroupIngress:
+      - Description: HTTPS from ECS tasks
+        FromPort: 443
+        IpProtocol: tcp
+        SourceSecurityGroupId:
+          Ref: Resource03sgapp
+        ToPort: 443
+      - Description: HTTPS from Lambda functions
+        FromPort: 443
+        IpProtocol: tcp
+        SourceSecurityGroupId:
+          Ref: Resource03sglambda
+        ToPort: 443
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::SecurityGroup
+  Resource03sglambda:
+    Properties:
+      GroupDescription: Lambda Security Group - Access to VPC Endpoints
+      GroupName:
+        Fn::Sub: ${ProjectName}-sg-lambda
+      SecurityGroupEgress:
+      - Description: HTTPS to VPC Endpoints
+        DestinationSecurityGroupId:
+          Ref: Resource03sgendpoints
+        FromPort: 443
+        IpProtocol: tcp
+        ToPort: 443
+      - CidrIp: 0.0.0.0/0
+        Description: "HTTPS to API Gateway (p\xFAblico)"
+        FromPort: 443
+        IpProtocol: tcp
+        ToPort: 443
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::SecurityGroup
+  Resource03sgredis:
+    Properties:
+      GroupDescription: Redis Security Group
+      GroupName:
+        Fn::Sub: ${ProjectName}-sg-redis
+      SecurityGroupIngress:
+      - FromPort: 6379
+        IpProtocol: tcp
+        SourceSecurityGroupId:
+          Ref: Resource03sgapp
+        ToPort: 6379
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::SecurityGroup
+  Resource03vpc:
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Sub: ${ProjectName}-vpc
+      - Key: Project
+        Value:
+          Ref: ProjectName
+      - Key: ManagedBy
+        Value: IaL
+    Type: AWS::EC2::VPC
+  Resource03vpcebedrockruntime:
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+      - Ref: Resource03sgendpoints
+      ServiceName:
+        Fn::Sub: com.amazonaws.${AWS::Region}.bedrock-runtime
+      SubnetIds:
+      - Ref: Resource03privatesubnet1a
+      - Ref: Resource03privatesubnet1b
+      - Ref: Resource03privatesubnet1c
+      VpcEndpointType: Interface
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::VPCEndpoint
+  Resource03vpcedynamodb:
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Action: dynamodb:*
+          Effect: Allow
+          Principal: '*'
+          Resource: '*'
+        Version: '2012-10-17'
+      RouteTableIds:
+      - Ref: Resource03publicrt
+      - Ref: Resource03privatert
+      ServiceName:
+        Fn::Sub: com.amazonaws.${AWS::Region}.dynamodb
+      VpcEndpointType: Gateway
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::VPCEndpoint
+  Resource03vpceecrapi:
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+      - Ref: Resource03sgendpoints
+      ServiceName:
+        Fn::Sub: com.amazonaws.${AWS::Region}.ecr.api
+      SubnetIds:
+      - Ref: Resource03privatesubnet1a
+      - Ref: Resource03privatesubnet1b
+      - Ref: Resource03privatesubnet1c
+      VpcEndpointType: Interface
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::VPCEndpoint
+  Resource03vpceecrdkr:
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+      - Ref: Resource03sgendpoints
+      ServiceName:
+        Fn::Sub: com.amazonaws.${AWS::Region}.ecr.dkr
+      SubnetIds:
+      - Ref: Resource03privatesubnet1a
+      - Ref: Resource03privatesubnet1b
+      - Ref: Resource03privatesubnet1c
+      VpcEndpointType: Interface
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::VPCEndpoint
+  Resource03vpcelogs:
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+      - Ref: Resource03sgendpoints
+      ServiceName:
+        Fn::Sub: com.amazonaws.${AWS::Region}.logs
+      SubnetIds:
+      - Ref: Resource03privatesubnet1a
+      - Ref: Resource03privatesubnet1b
+      - Ref: Resource03privatesubnet1c
+      VpcEndpointType: Interface
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::VPCEndpoint
+  Resource03vpces3:
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Action: s3:*
+          Effect: Allow
+          Principal: '*'
+          Resource: '*'
+        Version: '2012-10-17'
+      RouteTableIds:
+      - Ref: Resource03publicrt
+      - Ref: Resource03privatert
+      ServiceName:
+        Fn::Sub: com.amazonaws.${AWS::Region}.s3
+      VpcEndpointType: Gateway
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::VPCEndpoint
+  Resource03vpcessm:
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+      - Ref: Resource03sgendpoints
+      ServiceName:
+        Fn::Sub: com.amazonaws.${AWS::Region}.ssm
+      SubnetIds:
+      - Ref: Resource03privatesubnet1a
+      - Ref: Resource03privatesubnet1b
+      - Ref: Resource03privatesubnet1c
+      VpcEndpointType: Interface
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::VPCEndpoint
+  Resource03vpcexray:
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+      - Ref: Resource03sgendpoints
+      ServiceName:
+        Fn::Sub: com.amazonaws.${AWS::Region}.xray
+      SubnetIds:
+      - Ref: Resource03privatesubnet1a
+      - Ref: Resource03privatesubnet1b
+      - Ref: Resource03privatesubnet1c
+      VpcEndpointType: Interface
+      VpcId:
+        Ref: Resource03vpc
+    Type: AWS::EC2::VPCEndpoint

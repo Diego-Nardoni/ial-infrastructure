@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-IALCTL Enhanced - Wrapper direto para FoundationDeployer
-Evita loops infinitos usando deploy direto
+IALCTL Enhanced - Conversational Infrastructure Assistant
+Suporte completo para modo conversacional estilo Amazon Q
 """
 
 import sys
@@ -10,6 +10,123 @@ import asyncio
 
 # Adicionar diretório do IAL ao path
 sys.path.insert(0, '/home/ial')
+
+def conversational_mode():
+    """Modo conversacional interativo com Bedrock Agent Core"""
+    try:
+        # Check Agent Core availability via config file
+        try:
+            from core.bedrock_agent_core import BedrockAgentCore
+            agent_core = BedrockAgentCore()
+            agent_available = agent_core.is_available()
+            
+            if agent_available:
+                print("🧠 AGENT MODE - Using Bedrock Agent Core")
+                print(f"   Agent ID: {agent_core.agent_id}")
+                print(f"   Region: {agent_core.region}")
+            else:
+                print("🔄 FALLBACK MODE - Agent not configured")
+                print("   Run 'ialctl start' to configure Bedrock Agent")
+                
+        except Exception as e:
+            print(f"⚠️ Agent check failed: {e}")
+            agent_available = False
+        
+        print("🤖 IAL Conversational Assistant")
+        print("=" * 50)
+        
+        if not agent_available:
+            print("🔄 FALLBACK MODE - Using local NLP")
+            # Fallback to original engines
+            from core.cognitive_engine import CognitiveEngine
+            from core.master_engine_final import MasterEngineFinal
+            engine = CognitiveEngine()
+            master_engine = MasterEngineFinal()
+        
+        print("💬 Modo conversacional ativo - Digite 'quit' para sair")
+        print("🔍 Comandos especiais: 'preview <request>' para preview mode")
+        print("📋 Exemplos: 'mostrar drift', 'criar web app', 'listar fases'")
+        print("🔧 Comandos: '--offline' (modo offline), '--online' (modo agent)")
+        print()
+        
+        while True:
+            try:
+                user_input = input("💭 Você: ").strip()
+                
+                if user_input.lower() in ['quit', 'exit', 'sair']:
+                    print("👋 Até logo!")
+                    break
+                
+                if not user_input:
+                    continue
+                
+                # Handle mode switching
+                if user_input == '--offline' and integration:
+                    integration.set_offline_mode(True)
+                    continue
+                elif user_input == '--online' and integration:
+                    integration.set_offline_mode(False)
+                    continue
+                
+                # Detectar preview mode
+                preview_mode = False
+                if user_input.lower().startswith('preview '):
+                    preview_mode = True
+                    user_input = user_input[8:]  # Remove 'preview '
+                    print("🔍 PREVIEW MODE ativado")
+                
+                print("🧠 IAL: Processando...")
+                
+                # Use Agent Core if available, otherwise fallback
+                if integration and agent_available:
+                    result = integration.process_message(user_input)
+                    
+                    if result.get('success'):
+                        response = result.get('response', '')
+                        source = result.get('source', 'unknown')
+                        print(f"🤖 IAL ({source}): {response}")
+                    else:
+                        print(f"❌ IAL: {result.get('error', 'Erro desconhecido')}")
+                else:
+                    # Original fallback logic
+                    if preview_mode:
+                        result = master_engine.process_request(user_input, preview_mode=True)
+                    else:
+                        result = engine.process_intent(user_input)
+                    
+                    # Formatar resposta
+                    if isinstance(result, dict):
+                        if result.get('status') == 'needs_clarification':
+                            print(f"❓ IAL: {result.get('question')}")
+                        elif result.get('status') == 'preview_ready':
+                            print("🔍 PREVIEW GERADO:")
+                            print(f"📊 Fases previstas: {len(result.get('predicted_phases', []))}")
+                            print(f"💰 Custo estimado: ${result.get('cost_estimate', {}).get('monthly_cost', 0)}/mês")
+                            print(f"⚠️ Nível de risco: {result.get('risk_assessment', {}).get('risk_level', 'unknown')}")
+                            print(f"\n❓ {result.get('confirmation_message', 'Prosseguir?')}")
+                        elif result.get('status') == 'success':
+                            print("✅ IAL: Operação concluída com sucesso!")
+                        elif result.get('status') == 'error':
+                            print(f"❌ IAL: {result.get('error', 'Erro desconhecido')}")
+                        else:
+                            print(f"🤖 IAL: {result}")
+                    else:
+                        print(f"🤖 IAL: {result}")
+                
+                print()  # Linha em branco para separar conversas
+                
+            except KeyboardInterrupt:
+                print("\n👋 Interrompido pelo usuário. Até logo!")
+                break
+            except Exception as e:
+                print(f"❌ Erro: {e}")
+                print()
+        
+        return 0
+        
+    except Exception as e:
+        print(f"❌ Erro ao inicializar modo conversacional: {e}")
+        return 1
 
 async def run_foundation_deploy():
     """Executar deploy usando CognitiveEngine completo"""
@@ -91,6 +208,12 @@ def main():
         # CLI Commands explícitos
         if command == 'start':
             return asyncio.run(run_foundation_deploy())
+        elif command == 'ci':
+            # IAL CI Mode
+            from core.ci_mode import main as ci_main
+            return ci_main()
+        elif command == 'chat' or command == 'conversational':
+            return conversational_mode()
         elif command == 'list-phases':
             return list_phases()
         elif command == 'deploy' and len(sys.argv) > 2:
@@ -106,8 +229,8 @@ def main():
         elif command == '--help' or command == '-h':
             return show_help()
     
-    # Modo interativo conversacional
-    return run_interactive_mode()
+    # Modo interativo conversacional (padrão)
+    return conversational_mode()
 
 def list_phases():
     """Lista todas as fases disponíveis"""
@@ -169,6 +292,13 @@ def show_help():
 
 COMANDOS CLI:
   ialctl start              Deploy foundation com conversão IAL→CF
+  ialctl ci <subcomando>    Modo CI/CD profissional
+    ialctl ci validate      Validar phases YAML e DAG
+    ialctl ci governance    Validar governança e segurança
+    ialctl ci completeness  Validar completude dos phases
+    ialctl ci drift         Detectar drift de infraestrutura
+    ialctl ci mcp-test      Testar conectividade MCP
+    ialctl ci test          Executar testes rápidos (< 5s)
   ialctl list-phases        Lista todas as fases disponíveis
   ialctl deploy <fase>      Deploy uma fase específica (com conversão IAL)
   ialctl delete <fase>      Excluir uma fase específica (todos os stacks)

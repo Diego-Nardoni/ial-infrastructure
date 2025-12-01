@@ -1,0 +1,18 @@
+Package: ialctl
+Version: 3.14.0-PROMPT5-20251201
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: IAL Team <ial@example.com>
+Description: IAL Infrastructure Assistant with Professional CI/CD Mode
+ PROMPT 5 Implementation - Complete CI/CD Integration
+ .
+ Features:
+ - Professional CI/CD mode with ialctl ci commands
+ - Fast/slow test separation for optimal pipeline performance
+ - GitHub Actions, GitLab CI, and Bitbucket templates
+ - POSIX exit codes and CI-friendly logging
+ - Drift detection as PR guardian
+ - Governance and completeness validation
+ - MCP connectivity testing
+ - Enterprise-ready for any CI/CD pipeline

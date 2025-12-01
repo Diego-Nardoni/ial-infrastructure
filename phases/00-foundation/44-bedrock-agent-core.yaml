@@ -1,0 +1,249 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Bedrock Agent Core - Cognitive Foundation'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'ial'
+    Description: 'Project name for resource naming'
+  
+  FoundationModel:
+    Type: String
+    Default: 'anthropic.claude-3-haiku-20240307-v1:0'
+    Description: 'Foundation model for the Bedrock Agent'
+    AllowedValues:
+      - 'anthropic.claude-3-haiku-20240307-v1:0'
+      - 'anthropic.claude-3-sonnet-20240229-v1:0'
+      - 'amazon.titan-text-lite-v1'
+
+Resources:
+  # IAM Role for Bedrock Agent
+  IALAgentExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'AmazonBedrockExecutionRoleForAgents_${ProjectName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                'aws:SourceAccount': !Ref AWS::AccountId
+      Policies:
+        - PolicyName: IALAgentExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Lambda invocation permissions
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-agent-tools'
+              # DynamoDB access for memory
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:UpdateItem
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}-*'
+              # S3 access for context
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${ProjectName}-*'
+                  - !Sub 'arn:aws:s3:::${ProjectName}-*/*'
+              # Step Functions access
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                  - states:DescribeExecution
+                Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ProjectName}-*'
+
+  # Bedrock Agent - IALCoreBrain
+  IALCoreBrainAgent:
+    Type: AWS::Bedrock::Agent
+    Properties:
+      AgentName: 'IALCoreBrain'
+      AgentResourceRoleArn: !GetAtt IALAgentExecutionRole.Arn
+      FoundationModel: !Ref FoundationModel
+      Description: 'IAL Core Brain - Agente principal para orquestração de infraestrutura, validação e drift'
+      Instruction: |
+        Você é o agente principal do IAL (Infrastructure as Language), responsável por orquestrar tools para:
+        
+        1. PROVISIONAMENTO: Criar e gerenciar infraestrutura AWS via CloudFormation
+        2. VALIDAÇÃO: Executar validações de risco e compliance
+        3. DRIFT: Detectar e corrigir drift de configuração
+        4. CUSTOS: Estimar e monitorar custos de infraestrutura
+        5. DOCUMENTAÇÃO: Buscar documentação AWS relevante
+        
+        REGRAS IMPORTANTES:
+        - Sempre use as tools disponíveis para executar ações
+        - Para deploy de infraestrutura, use generate_phases + apply_phase
+        - Para validações, use risk_validation antes de aplicar mudanças
+        - Para custos, use estimate_cost antes de provisionar recursos
+        - Mantenha conversas focadas em infraestrutura AWS
+        
+        Seja preciso, técnico e sempre priorize segurança e compliance.
+      IdleSessionTTLInSeconds: 1800
+      ActionGroups:
+        - ActionGroupName: 'IALTools'
+          Description: 'Core IAL infrastructure tools'
+          ActionGroupExecutor:
+            Lambda: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-agent-tools'
+          ApiSchema:
+            Payload: |
+              {
+                "openapi": "3.0.0",
+                "info": {
+                  "title": "IAL Agent Tools API",
+                  "version": "1.0.0"
+                },
+                "paths": {
+                  "/get_aws_docs": {
+                    "post": {
+                      "description": "Get AWS documentation for services and features",
+                      "parameters": [
+                        {
+                          "name": "query",
+                          "in": "query",
+                          "required": true,
+                          "schema": {"type": "string"},
+                          "description": "Documentation search query"
+                        }
+                      ],
+                      "responses": {"200": {"description": "Documentation found"}}
+                    }
+                  },
+                  "/estimate_cost": {
+                    "post": {
+                      "description": "Estimate costs for infrastructure intent",
+                      "parameters": [
+                        {
+                          "name": "intent",
+                          "in": "query", 
+                          "required": true,
+                          "schema": {"type": "string"},
+                          "description": "Infrastructure intent to estimate"
+                        }
+                      ],
+                      "responses": {"200": {"description": "Cost estimation completed"}}
+                    }
+                  },
+                  "/risk_validation": {
+                    "post": {
+                      "description": "Validate risks for infrastructure changes",
+                      "parameters": [
+                        {
+                          "name": "intent",
+                          "in": "query",
+                          "required": true, 
+                          "schema": {"type": "string"},
+                          "description": "Infrastructure intent to validate"
+                        }
+                      ],
+                      "responses": {"200": {"description": "Risk validation completed"}}
+                    }
+                  },
+                  "/generate_phases": {
+                    "post": {
+                      "description": "Generate deployment phases for infrastructure",
+                      "parameters": [
+                        {
+                          "name": "intent",
+                          "in": "query",
+                          "required": true,
+                          "schema": {"type": "string"},
+                          "description": "Infrastructure intent to generate phases for"
+                        }
+                      ],
+                      "responses": {"200": {"description": "Phases generated"}}
+                    }
+                  },
+                  "/apply_phase": {
+                    "post": {
+                      "description": "Apply a specific deployment phase",
+                      "parameters": [
+                        {
+                          "name": "phase_name",
+                          "in": "query",
+                          "required": true,
+                          "schema": {"type": "string"},
+                          "description": "Name of phase to apply"
+                        }
+                      ],
+                      "responses": {"200": {"description": "Phase applied"}}
+                    }
+                  },
+                  "/check_drift": {
+                    "post": {
+                      "description": "Check for configuration drift",
+                      "parameters": [
+                        {
+                          "name": "resource_type",
+                          "in": "query",
+                          "required": false,
+                          "schema": {"type": "string"},
+                          "description": "Specific resource type to check"
+                        }
+                      ],
+                      "responses": {"200": {"description": "Drift check completed"}}
+                    }
+                  },
+                  "/reverse_sync": {
+                    "post": {
+                      "description": "Reverse sync infrastructure to fix drift",
+                      "parameters": [
+                        {
+                          "name": "resource_id",
+                          "in": "query",
+                          "required": true,
+                          "schema": {"type": "string"},
+                          "description": "Resource ID to reverse sync"
+                        }
+                      ],
+                      "responses": {"200": {"description": "Reverse sync completed"}}
+                    }
+                  }
+                }
+              }
+
+  # Bedrock Agent Alias
+  IALCoreBrainAlias:
+    Type: AWS::Bedrock::AgentAlias
+    Properties:
+      AgentId: !Ref IALCoreBrainAgent
+      AgentAliasName: 'IALCoreBrainAlias'
+      Description: 'Stable alias for IAL Core Brain agent'
+
+Outputs:
+  IALAgentId:
+    Description: 'ID of the IAL Core Brain agent'
+    Value: !Ref IALCoreBrainAgent
+    Export:
+      Name: !Sub '${ProjectName}-agent-id'
+
+  IALAgentAliasArn:
+    Description: 'ARN of the IAL Core Brain agent alias'
+    Value: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent-alias/${IALCoreBrainAgent}/${IALCoreBrainAlias}'
+    Export:
+      Name: !Sub '${ProjectName}-agent-alias-arn'
+
+  IALAgentAliasId:
+    Description: 'ID of the IAL Core Brain agent alias'
+    Value: !Ref IALCoreBrainAlias
+    Export:
+      Name: !Sub '${ProjectName}-agent-alias-id'
+
+  IALAgentRoleArn:
+    Description: 'ARN of the IAL agent execution role'
+    Value: !GetAtt IALAgentExecutionRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-agent-role-arn'

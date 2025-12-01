@@ -53,6 +53,74 @@ class IntentParser:
         operations = self._detect_operations(user_input)
         
         # Detectar padrões arquiteturais
+        patterns = self._detect_patterns(user_input, service_names)
+        
+        # Calcular confiança
+        confidence = self._calculate_confidence(user_input, service_names, operations)
+        
+        return ParsedIntent(
+            raw_text=user_input,
+            operations=operations,
+            aws_services=service_names,
+            confidence=confidence,
+            detected_patterns=patterns
+        )
+    
+    def parse_intent_dict(self, user_input: str) -> Dict:
+        """Parse intent retornando dicionário para compatibilidade com testes"""
+        parsed = self.parse_intent(user_input)
+        
+        # Determinar tipo de intent baseado nos serviços e operações
+        intent_type = self._determine_intent_type(parsed.aws_services, parsed.operations)
+        
+        return {
+            'intent_type': intent_type,
+            'entities': {
+                'services': parsed.aws_services,
+                'operations': [op.value for op in parsed.operations],
+                'patterns': parsed.detected_patterns
+            },
+            'confidence': parsed.confidence,
+            'raw_text': parsed.raw_text
+        }
+    
+    def _determine_intent_type(self, services: List[str], operations: List[OperationType]) -> str:
+        """Determina o tipo de intent baseado nos serviços e operações"""
+        
+        # Análise de custo
+        cost_keywords = ['cost', 'billing', 'budget', 'price', 'expense']
+        if any(keyword in ' '.join(services).lower() for keyword in cost_keywords):
+            return 'cost_analysis'
+        
+        # Análise de segurança
+        security_services = ['iam', 'kms', 'waf', 'guardduty', 'security']
+        security_keywords = ['security', 'vulnerability', 'compliance', 'audit']
+        if (any(service in security_services for service in services) or 
+            any(keyword in ' '.join(services).lower() for keyword in security_keywords)):
+            return 'security_analysis'
+        
+        # Deployment
+        if OperationType.CREATE in operations:
+            return 'deployment'
+        
+        # Update
+        if OperationType.UPDATE in operations:
+            return 'update'
+        
+        # Análise/leitura
+        if OperationType.READ in operations:
+            return 'analysis'
+        
+        # Default
+        if not services and not operations:
+            return 'unknown'
+        
+        return 'deployment'
+        
+        # Detectar operações
+        operations = self._detect_operations(user_input)
+        
+        # Detectar padrões arquiteturais
         patterns = self._detect_patterns(user_input)
         
         # Calcular confiança

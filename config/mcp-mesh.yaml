@@ -1,12 +1,21 @@
 # MCP Mesh Configuration - IAL Intelligent Router
 # Configuração completa dos MCPs especializados
 
-version: "1.0"
-updated: "2025-11-04"
+version: "1.1"
+updated: "2025-12-01"
 
 # MCPs sempre ativos (core essenciais)
 core_mcps:
   always_active:
+    - name: MCP_AWS_OFFICIAL
+      priority: 0
+      load_timeout: 5.0
+      health_check_interval: 60
+      description: "Official AWS MCP Server from Model Context Protocol"
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-aws"]
+      capabilities: ['search_documentation', 'get_service_info', 'list_resources']
+      
     - name: aws-cloudformation-mcp
       priority: 1
       load_timeout: 3.0

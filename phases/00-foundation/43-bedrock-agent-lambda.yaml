@@ -1,0 +1,131 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Bedrock Agent Tools Lambda Function'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'ial'
+    Description: 'Project name for resource naming'
+
+Resources:
+  # IAM Role for Agent Tools Lambda
+  AgentToolsLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-agent-tools-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: IALAgentToolsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:UpdateItem
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}-*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${ProjectName}-*'
+                  - !Sub 'arn:aws:s3:::${ProjectName}-*/*'
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectName}-*'
+              - Effect: Allow
+                Action:
+                  - stepfunctions:StartExecution
+                  - stepfunctions:DescribeExecution
+                Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ProjectName}-*'
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: '*'
+
+  # Lambda Layer for IAL Dependencies
+  IALDependenciesLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Sub '${ProjectName}-dependencies'
+      Description: 'IAL core dependencies for agent tools'
+      Content:
+        S3Bucket: !Sub '${ProjectName}-artifacts-${AWS::Region}'
+        S3Key: 'layers/ial-dependencies.zip'
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - x86_64
+
+  # Agent Tools Lambda Function
+  AgentToolsLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-agent-tools'
+      Description: 'Bedrock Agent tools for IAL operations'
+      Runtime: python3.12
+      Handler: agent_tools_lambda.lambda_handler
+      Role: !GetAtt AgentToolsLambdaRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          IAL_PROJECT_NAME: !Ref ProjectName
+          IAL_REGION: !Ref AWS::Region
+      Layers:
+        - !Ref IALDependenciesLayer
+      Code:
+        ZipFile: |
+          # Placeholder - will be updated with actual code
+          import json
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'message': 'IAL Agent Tools Lambda'})
+              }
+
+  # Lambda Permission for Bedrock Agent
+  AgentLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AgentToolsLambda
+      Action: lambda:InvokeFunction
+      Principal: bedrock.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+
+Outputs:
+  AgentToolsLambdaArn:
+    Description: 'ARN of the Agent Tools Lambda function'
+    Value: !GetAtt AgentToolsLambda.Arn
+    Export:
+      Name: !Sub '${ProjectName}-agent-tools-lambda-arn'
+
+  AgentToolsLambdaName:
+    Description: 'Name of the Agent Tools Lambda function'
+    Value: !Ref AgentToolsLambda
+    Export:
+      Name: !Sub '${ProjectName}-agent-tools-lambda-name'
+
+  IALDependenciesLayerArn:
+    Description: 'ARN of the IAL dependencies layer'
+    Value: !Ref IALDependenciesLayer
+    Export:
+      Name: !Sub '${ProjectName}-dependencies-layer-arn'

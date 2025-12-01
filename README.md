@@ -58,6 +58,100 @@ O Intelligent MCP Router automatiza a seleção e coordenação de servidores MC
 - **Recursos Reais**: Cria recursos AWS reais via CloudFormation
 - **Validação Completa**: Sistema de validação integrado
 
+## Using IAL in CI/CD
+
+O IAL inclui um modo CI/CD profissional que permite usar o sistema como "guardião de PR" em qualquer pipeline.
+
+### Comandos CI/CD
+
+```bash
+# Testes rápidos (< 5s) - ideal para PRs
+ialctl ci test
+
+# Validação de phases YAML e DAG
+ialctl ci validate
+
+# Validação de governança e segurança
+ialctl ci governance
+
+# Validação de completude dos phases
+ialctl ci completeness
+
+# Detecção de drift (bloqueia PR se encontrar)
+ialctl ci drift
+
+# Teste de conectividade MCP
+ialctl ci mcp-test
+```
+
+### Exit Codes
+
+- `0` = OK
+- `1` = Erro de validação
+- `2` = Erro de comunicação com AWS
+- `3` = Drift encontrado
+- `4` = Problemas de governança
+- `5` = Parser incompleto
+
+### GitHub Actions
+
+```yaml
+name: IAL Validation
+on: [pull_request]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup IAL
+      run: |
+        wget https://github.com/your-org/ial/releases/latest/download/ialctl-latest.deb
+        sudo dpkg -i ialctl-latest.deb
+    - name: Run IAL CI
+      run: |
+        export CI=true
+        export IAL_MODE=offline
+        ialctl ci test
+        ialctl ci validate
+        ialctl ci governance
+```
+
+### GitLab CI
+
+```yaml
+stages: [validate, test]
+
+ial-validation:
+  stage: validate
+  script:
+    - apt-get update && apt-get install -y wget
+    - wget https://github.com/your-org/ial/releases/latest/download/ialctl-latest.deb
+    - dpkg -i ialctl-latest.deb
+    - export CI=true IAL_MODE=offline
+    - ialctl ci test
+    - ialctl ci validate
+```
+
+### Modo Offline
+
+Para testes sem AWS:
+```bash
+export IAL_MODE=offline
+ialctl ci test        # Testes unitários apenas
+ialctl ci validate    # Validação de sintaxe
+```
+
+### Drift Detection
+
+Para bloquear PRs com drift:
+```bash
+# Retorna exit code 3 se drift encontrado
+ialctl ci drift
+```
+
+Veja exemplos completos em `examples/ci/` após instalação.
+
 ## Arquitetura
 
 ```
