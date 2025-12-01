@@ -228,14 +228,14 @@ async def integrate_phase_discovery(ial_engine):
     phase_tool = PhaseDiscoveryTool(ial_engine.mcp_client)
     
     # Descobre fases disponíveis
-    available_phases = await phase_tool.discover_phases()
+    available_phases = phase_tool.discover_phases()
     
     if available_phases:
         logger.info(f"✅ Descobertas {len(available_phases)} fases disponíveis")
         
         # Atualiza contexto do engine
         ial_engine.available_phases = available_phases
-        ial_engine.deployment_order = await phase_tool.get_deployment_order()
+        ial_engine.deployment_order = phase_tool.get_deployment_order()
         
         return True
     else:
