@@ -354,7 +354,24 @@ class FoundationDeployer:
                 }
             
             print(f"🔄 Deploying Bedrock Agent Core...")
-            result = self.parser.deploy_cloudformation_stack(template_path, "ial-cognitive")
+            
+            # Check if stack already exists with ial-fork prefix (from foundation deployment)
+            existing_stack_name = 'ial-fork-44-bedrock-agent-core'
+            try:
+                cf_client = boto3.client('cloudformation')
+                response = cf_client.describe_stacks(StackName=existing_stack_name)
+                stack_status = response['Stacks'][0]['StackStatus']
+                
+                if stack_status == 'CREATE_COMPLETE':
+                    print(f"✅ Bedrock Agent Core already exists: {existing_stack_name}")
+                    # Use existing stack instead of creating duplicate
+                    result = {'success': True, 'stack_name': existing_stack_name}
+                else:
+                    print(f"🔧 Stack {existing_stack_name} in state {stack_status} - AUTO-FIXING...")
+                    result = self.parser.deploy_cloudformation_stack(template_path, "ial-fork")
+            except cf_client.exceptions.ClientError:
+                # Stack doesn't exist, create it
+                result = self.parser.deploy_cloudformation_stack(template_path, "ial-fork")
             
             if result['success']:
                 print("✅ Bedrock Agent Core deployed successfully")
@@ -412,7 +429,8 @@ class FoundationDeployer:
             import boto3
             cf_client = boto3.client('cloudformation')
             
-            stack_name = 'ial-cognitive-44-bedrock-agent-core'
+            # Use the existing ial-fork stack instead of creating duplicate
+            stack_name = 'ial-fork-44-bedrock-agent-core'
             
             response = cf_client.describe_stacks(StackName=stack_name)
             stack = response['Stacks'][0]
@@ -422,7 +440,7 @@ class FoundationDeployer:
                 for output in stack['Outputs']:
                     outputs[output['OutputKey']] = output['OutputValue']
             
-            print(f"📋 Read {len(outputs)} outputs from cognitive stack")
+            print(f"📋 Read {len(outputs)} outputs from bedrock agent stack")
             return outputs
             
         except Exception as e:
