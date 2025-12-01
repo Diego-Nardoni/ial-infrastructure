@@ -244,9 +244,9 @@ async def integrate_phase_discovery(ial_engine):
 
 if __name__ == "__main__":
     # Teste standalone
-    async def test_discovery():
+    def test_discovery():
         tool = PhaseDiscoveryTool()
-        phases = await tool.discover_phases()
+        phases = tool.discover_phases()
         print(tool.get_phase_summary(phases))
     
-    asyncio.run(test_discovery())
+    test_discovery()

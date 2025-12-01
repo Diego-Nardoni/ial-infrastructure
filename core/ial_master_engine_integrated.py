@@ -55,18 +55,9 @@ class IALMasterEngineIntegrated:
             'phase_discovery': True
         }
         
-        # 🚀 INICIALIZAÇÃO AUTOMÁTICA DA PHASE DISCOVERY
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Se já há um loop rodando, agenda para depois
-                asyncio.create_task(self._startup_phase_discovery())
-            else:
-                # Se não há loop, roda diretamente
-                asyncio.run(self._startup_phase_discovery())
-        except Exception as e:
-            print(f"⚠️ Phase Discovery será inicializada sob demanda: {e}")
+        # 🚀 INICIALIZAÇÃO AUTOMÁTICA DA PHASE DISCOVERY - DESABILITADA
+        # Inicialização será feita sob demanda para evitar problemas de async/sync
+        print("🔍 Phase Discovery será inicializada sob demanda")
     
     async def _startup_phase_discovery(self):
         """Inicialização automática da Phase Discovery no startup"""
@@ -637,8 +628,8 @@ O pipeline está rodando em background. Você receberá notificações sobre o p
         """Inicializa descoberta de fases via MCP GitHub Server"""
         try:
             print("🔍 Descobrindo fases disponíveis...")
-            self.available_phases = await self.phase_discovery.discover_phases()
-            self.deployment_order = await self.phase_discovery.get_deployment_order()
+            self.available_phases = self.phase_discovery.discover_phases()
+            self.deployment_order = self.phase_discovery.get_deployment_order()
             
             if self.available_phases:
                 print(f"✅ Descobertas {len(self.available_phases)} fases com {sum(p['template_count'] for p in self.available_phases)} templates")

@@ -128,7 +128,7 @@ def conversational_mode():
         print(f"❌ Erro ao inicializar modo conversacional: {e}")
         return 1
 
-async def run_foundation_deploy():
+def run_foundation_deploy():
     """Deploy apenas 00-foundation (recursos core do IAL)"""
     try:
         from core.foundation_deployer import FoundationDeployer
@@ -138,7 +138,7 @@ async def run_foundation_deploy():
         print("📦 Installing IAL core infrastructure (00-foundation only)")
         
         deployer = FoundationDeployer()
-        result = await deployer.deploy_foundation_core()
+        result = deployer.deploy_foundation_core()
         
         if result.get('success'):
             print(f"✅ IAL Foundation deployed successfully!")
@@ -208,7 +208,7 @@ def main():
         
         # CLI Commands explícitos
         if command == 'start':
-            return asyncio.run(run_foundation_deploy())
+            return run_foundation_deploy()
         elif command == 'ci':
             # IAL CI Mode
             from core.ci_mode import main as ci_main
