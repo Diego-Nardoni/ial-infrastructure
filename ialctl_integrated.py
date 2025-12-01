@@ -129,20 +129,21 @@ def conversational_mode():
         return 1
 
 async def run_foundation_deploy():
-    """Executar deploy usando CognitiveEngine completo"""
+    """Deploy apenas 00-foundation (recursos core do IAL)"""
     try:
-        from core.cognitive_engine import CognitiveEngine
+        from core.foundation_deployer import FoundationDeployer
         
-        print("🧠 IAL Cognitive Engine Starting...")
+        print("🚀 IAL Foundation Deployment")
         print("=" * 50)
+        print("📦 Installing IAL core infrastructure (00-foundation only)")
         
-        engine = CognitiveEngine()
-        # CORREÇÃO: process_intent é síncrono, não async
-        result = engine.process_intent("Deploy foundation infrastructure")
+        deployer = FoundationDeployer()
+        result = await deployer.deploy_foundation_core()
         
-        if result.get('status') == 'success':
-            print(f"✅ Foundation deployment completed via Cognitive Engine!")
-            print("🔧 Full pipeline: IAS → Cost Guardrails → Phase Builder → GitOps")
+        if result.get('success'):
+            print(f"✅ IAL Foundation deployed successfully!")
+            print("🔧 Core resources: VPC, IAM, S3, CloudTrail, etc.")
+            print("💡 Use 'ialctl chat' for conversational infrastructure management")
             return 0
         else:
             print(f"❌ Foundation deployment failed: {result.get('error', 'Unknown error')}")
