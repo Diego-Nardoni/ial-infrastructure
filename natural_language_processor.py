@@ -25,7 +25,7 @@ import json
 import readline
 import asyncio
 import warnings
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 # Suprimir warnings e erros nao-críticos
 warnings.filterwarnings('ignore')
