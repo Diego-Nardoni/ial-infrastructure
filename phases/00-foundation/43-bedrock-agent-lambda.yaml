@@ -8,6 +8,30 @@ Parameters:
     Description: 'Project name for resource naming'
 
 Resources:
+  # S3 Bucket for Lambda artifacts
+  IALArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-artifacts-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Bedrock-Agent
+        - Key: Purpose
+          Value: Lambda-Artifacts
+
   # IAM Role for Agent Tools Lambda
   AgentToolsLambdaRole:
     Type: AWS::IAM::Role
@@ -68,8 +92,16 @@ Resources:
       LayerName: !Sub '${ProjectName}-dependencies'
       Description: 'IAL core dependencies for agent tools'
       Content:
-        S3Bucket: !Sub '${ProjectName}-artifacts-${AWS::Region}'
-        S3Key: 'layers/ial-dependencies.zip'
+        ZipFile: |
+          # IAL Dependencies Layer
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('IAL Dependencies Layer loaded')
+              }
       CompatibleRuntimes:
         - python3.12
       CompatibleArchitectures:
