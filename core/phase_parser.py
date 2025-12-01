@@ -40,9 +40,22 @@ class PhaseParser:
                 return {"success": True, "action": "skipped", "stack_name": stack_name}
             
             elif stack_status in ["ROLLBACK_COMPLETE", "CREATE_FAILED", "UPDATE_ROLLBACK_COMPLETE", "ROLLBACK_FAILED", "DELETE_FAILED"]:
-                print(f"⚠️ Stack {stack_name} in failed state ({stack_status}) - SKIPPING for idempotency")
-                print(f"💡 To fix: manually delete stack '{stack_name}' and run again")
-                return {"success": True, "action": "skipped_failed", "stack_name": stack_name}
+                print(f"🔧 Stack {stack_name} in failed state ({stack_status}) - AUTO-FIXING...")
+                
+                # Deletar stack falho automaticamente
+                try:
+                    print(f"🗑️ Deleting failed stack: {stack_name}")
+                    self.cf_client.delete_stack(StackName=stack_name)
+                    
+                    # Aguardar deleção
+                    waiter = self.cf_client.get_waiter("stack_delete_complete")
+                    waiter.wait(StackName=stack_id, WaiterConfig={"Delay": 10, "MaxAttempts": 30})
+                    print(f"✅ Failed stack deleted successfully")
+                    
+                except Exception as e:
+                    print(f"⚠️ Delete failed, continuing: {e}")
+                
+                # Continuar para criação (não retornar aqui)
             
             else:
                 return {"success": False, "action": "failed", "error": f"Stack in {stack_status} state"}
