@@ -461,18 +461,25 @@ class CognitiveEngine:
         
         pipeline_steps = []
         
-        # Detectar tipo de operação: deletion, deployment ou creation
+        # Detectar tipo de operação: deletion, deployment, query ou creation
         is_deletion = self._is_deletion_request(nl_intent)
         is_deployment = self._is_deployment_request(nl_intent)
+        is_query = self._is_query_request(nl_intent)
         
         if is_deletion:
             operation_type = "deletion"
         elif is_deployment:
             operation_type = "deployment"
+        elif is_query:
+            operation_type = "query"
         else:
             operation_type = "creation"
         
         print(f"🎯 Operação detectada: {operation_type}")
+        
+        # Handle queries differently - no need for full pipeline
+        if operation_type == "query":
+            return self._handle_query_request(nl_intent)
         
         try:
             # STEP 1: IAS - Intent Validation Sandbox
@@ -567,6 +574,42 @@ class CognitiveEngine:
         """Detectar se é solicitação de exclusão"""
         deletion_keywords = ['delete', 'remove', 'destroy', 'cleanup', 'exclude', 'drop']
         return any(keyword in nl_intent.lower() for keyword in deletion_keywords)
+    
+    def _is_query_request(self, nl_intent: str) -> bool:
+        """Detectar se é solicitação de consulta/informação"""
+        query_keywords = ['qual', 'quais', 'como', 'onde', 'quando', 'mostrar', 'listar', 'ver', 'status', 'info', 'últimas', 'ultimas', 'histórico', 'historico', 'logs']
+        return any(keyword in nl_intent.lower() for keyword in query_keywords)
+    
+    def _handle_query_request(self, nl_intent: str) -> Dict[str, Any]:
+        """Tratar solicitações de consulta/informação"""
+        print("📋 Processando consulta...")
+        
+        intent_lower = nl_intent.lower()
+        
+        if 'últimas' in intent_lower or 'ultimas' in intent_lower or 'solicitações' in intent_lower:
+            return {
+                'success': True,
+                'response': "📋 Suas últimas solicitações não estão sendo rastreadas no momento. Para ver logs do sistema, use 'ialctl logs' ou para ver status use 'ialctl status'.",
+                'operation_type': 'query'
+            }
+        elif 'status' in intent_lower:
+            return {
+                'success': True, 
+                'response': "🔍 Para verificar status do sistema, use 'ialctl status'. Para ver fases disponíveis, use 'ialctl list-phases'.",
+                'operation_type': 'query'
+            }
+        elif 'logs' in intent_lower:
+            return {
+                'success': True,
+                'response': "📝 Para ver logs do sistema, use 'ialctl logs'. Para logs específicos de uma fase, especifique a fase.",
+                'operation_type': 'query'
+            }
+        else:
+            return {
+                'success': True,
+                'response': f"❓ Consulta recebida: '{nl_intent}'. Para comandos específicos, use 'ialctl --help' ou faça perguntas mais específicas sobre infraestrutura AWS.",
+                'operation_type': 'query'
+            }
     
     def generate_deletion_yaml(self, parsed_intent: Dict) -> Dict[str, Any]:
         """Gerar YAML para exclusão de recursos"""
