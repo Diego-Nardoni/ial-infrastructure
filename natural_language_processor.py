@@ -496,9 +496,15 @@ class IaLNaturalProcessor:
             except Exception as e:
                 return f"⚠️ Erro ao processar criação de fase: {e}"
         
-        # Comandos conversacionais simples vao para master engine
+        # Comandos conversacionais simples (apenas saudações isoladas)
         simple_commands = ['oi', 'olá', 'hello', 'hi', 'help', 'ajuda']
-        if any(keyword in user_input.lower() for keyword in simple_commands):
+        # Verificar se é APENAS saudação (não contém termos técnicos AWS)
+        aws_terms = ['ec2', 's3', 'lambda', 'rds', 'vpc', 'iam', 'cloudformation', 'bucket', 'instance', 'aws', 'infraestrutura', 'deploy', 'create', 'list', 'show', 'quantas', 'quais']
+        is_simple_greeting = (any(keyword == user_input.lower().strip() for keyword in simple_commands) or 
+                             (any(keyword in user_input.lower() for keyword in simple_commands) and 
+                              not any(term in user_input.lower() for term in aws_terms)))
+        
+        if is_simple_greeting:
             return self._process_fallback_path(user_input, user_id, session_id)
         
         # Try Enhanced Fallback System first (Agent Core → NLP → Sandbox)
@@ -526,26 +532,23 @@ class IaLNaturalProcessor:
             except Exception as e:
                 print(f"⚠️ Enhanced Fallback System error: {e}")
         
-        # Try CognitiveEngine first for infrastructure requests
+        # Try Intelligent MCP Router for infrastructure requests
         if self.intelligent_router:
             try:
-                ultra_silent_print("🧠 Iniciando Cognitive Engine Pipeline")
-                # CORREÇÃO: Usar CognitiveEngine em vez de Intelligent Router
-                from core.cognitive_engine import CognitiveEngine
-                engine = CognitiveEngine()
+                ultra_silent_print("🧠 Iniciando Intelligent MCP Router")
                 
-                # Executar pipeline completo: IAS → Cost → Phase Builder → GitOps
-                result = engine.process_intent(enriched_input)
+                # Usar o método síncrono do router sophisticated
+                result = self.intelligent_router.route_request(user_input)
                 
                 if result.get('success'):
-                    response = self.format_cognitive_engine_response(result, enriched_input)
+                    response = self.format_intelligent_router_response(result, user_input)
                 else:
-                    print(f"⚠️ Cognitive Engine falhou: {result.get('error')}, usando fallback")
-                    response = self._process_fallback_path(enriched_input, user_id, session_id)
+                    print(f"⚠️ Intelligent Router falhou: {result.get('error')}, usando fallback")
+                    response = self._process_fallback_path(user_input, user_id, session_id)
                     
             except Exception as e:
-                print(f"⚠️ Erro no Cognitive Engine: {e}, usando fallback")
-                response = self._process_fallback_path(enriched_input, user_id, session_id)
+                print(f"⚠️ Erro no Intelligent Router: {e}, usando fallback")
+                response = self._process_fallback_path(user_input, user_id, session_id)
         else:
             response = self._process_fallback_path(enriched_input, user_id, session_id)
         
