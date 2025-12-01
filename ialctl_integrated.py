@@ -15,6 +15,7 @@ def conversational_mode():
     """Modo conversacional interativo com Bedrock Agent Core"""
     try:
         # Check Agent Core availability via config file
+        integration = None
         try:
             from core.bedrock_agent_core import BedrockAgentCore
             agent_core = BedrockAgentCore()
@@ -24,6 +25,7 @@ def conversational_mode():
                 print("🧠 AGENT MODE - Using Bedrock Agent Core")
                 print(f"   Agent ID: {agent_core.agent_id}")
                 print(f"   Region: {agent_core.region}")
+                integration = agent_core
             else:
                 print("🔄 FALLBACK MODE - Agent not configured")
                 print("   Run 'ialctl start' to configure Bedrock Agent")
