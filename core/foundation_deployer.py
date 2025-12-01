@@ -363,8 +363,20 @@ class FoundationDeployer:
                 outputs = self.read_cognitive_stack_outputs()
                 
                 if outputs:
+                    # Convert outputs to agent config format
+                    agent_config = {
+                        'bedrock_supported': True,
+                        'agent_id': outputs.get('IALAgentId'),
+                        'agent_alias_id': outputs.get('IALAgentAliasId'),
+                        'agent_alias_arn': outputs.get('IALAgentAliasArn'),
+                        'agent_role_arn': outputs.get('IALAgentRoleArn'),
+                        'region': boto3.Session().region_name or 'us-east-1',
+                        'configured_at': datetime.now().isoformat()
+                    }
+                    
                     # Save agent config locally
-                    config_saved = self.save_agent_config(outputs)
+                    config_result = self.save_agent_config(agent_config)
+                    config_saved = config_result.get('success', False)
                     
                     return {
                         'success': True,
@@ -515,43 +527,6 @@ class FoundationDeployer:
                 'error': str(e)
             }
     
-    def save_agent_config(self, outputs: Dict[str, str]) -> bool:
-        """Save agent configuration to local file"""
-        try:
-            import json
-            import os
-            from pathlib import Path
-            
-            # Create ~/.ial directory if it doesn't exist
-            ial_dir = Path.home() / '.ial'
-            ial_dir.mkdir(exist_ok=True)
-            
-            config_file = ial_dir / 'agent_config.json'
-            
-            # Get current region
-            import boto3
-            region = boto3.Session().region_name or 'us-east-1'
-            
-            config = {
-                'agent_id': outputs.get('IALAgentId'),
-                'agent_alias_id': outputs.get('IALAgentAliasId'), 
-                'agent_alias_arn': outputs.get('IALAgentAliasArn'),
-                'agent_role_arn': outputs.get('IALAgentRoleArn'),
-                'region': region,
-                'created_at': str(datetime.now()),
-                'stack_name': 'ial-cognitive-44-bedrock-agent-core'
-            }
-            
-            with open(config_file, 'w') as f:
-                json.dump(config, f, indent=2)
-            
-            print(f"💾 Agent config saved to: {config_file}")
-            return True
-            
-        except Exception as e:
-            print(f"⚠️ Could not save agent config: {e}")
-            return False
-
 def deploy_complete_foundation() -> Dict[str, Any]:
     """Função principal para deployment completo"""
     deployer = FoundationDeployer()
