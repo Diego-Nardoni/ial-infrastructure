@@ -169,7 +169,7 @@ Resources:
                 Action:
                   - s3:PutObject
                   - s3:PutObjectAcl
-                Resource: !Sub '${IALArtifactsBucket}/*'
+                Resource: !Sub '${IALArtifactsBucket.Arn}/*'
 
   # Lambda Layer for IAL Dependencies
   IALDependenciesLayer:
