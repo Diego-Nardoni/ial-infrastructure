@@ -216,7 +216,7 @@ def main():
             from core.ci_mode import main as ci_main
             return ci_main()
         elif command == 'chat' or command == 'conversational':
-            return conversational_mode()
+            return run_interactive_mode()
         elif command == 'list-phases':
             return list_phases()
         elif command == 'deploy' and len(sys.argv) > 2:
@@ -233,7 +233,7 @@ def main():
             return show_help()
     
     # Modo interativo conversacional (padrão)
-    return conversational_mode()
+    return run_interactive_mode()
 
 def list_phases():
     """Lista todas as fases disponíveis"""
