@@ -85,23 +85,107 @@ Resources:
                   - bedrock:InvokeModelWithResponseStream
                 Resource: '*'
 
+  # Custom Resource to create layer ZIP file
+  CreateLayerZip:
+    Type: AWS::CloudFormation::CustomResource
+    DependsOn: IALArtifactsBucket
+    Properties:
+      ServiceToken: !GetAtt CreateLayerZipFunction.Arn
+      BucketName: !Ref IALArtifactsBucket
+      S3Key: 'layers/ial-dependencies.zip'
+
+  # Lambda function to create the layer ZIP
+  CreateLayerZipFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: IALArtifactsBucket
+    Properties:
+      FunctionName: !Sub '${ProjectName}-create-layer-zip'
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt CreateLayerZipRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import zipfile
+          import io
+          import cfnresponse
+          
+          def lambda_handler(event, context):
+              try:
+                  if event['RequestType'] == 'Delete':
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                      return
+                  
+                  bucket_name = event['ResourceProperties']['BucketName']
+                  s3_key = event['ResourceProperties']['S3Key']
+                  
+                  # Create a simple layer ZIP with basic dependencies
+                  zip_buffer = io.BytesIO()
+                  with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                      # Add a simple Python file
+                      zip_file.writestr('python/ial_dependencies.py', '''
+import json
+import boto3
+
+def get_version():
+    return "1.0.0"
+''')
+                  
+                  # Upload to S3
+                  s3 = boto3.client('s3')
+                  s3.put_object(
+                      Bucket=bucket_name,
+                      Key=s3_key,
+                      Body=zip_buffer.getvalue(),
+                      ContentType='application/zip'
+                  )
+                  
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {
+                      'Message': f'Layer ZIP created at s3://{bucket_name}/{s3_key}'
+                  })
+              except Exception as e:
+                  print(f'Error: {str(e)}')
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {
+                      'Message': str(e)
+                  })
+
+  # IAM Role for the CreateLayerZip function
+  CreateLayerZipRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-create-layer-zip-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource: !Sub '${IALArtifactsBucket}/*'
+
   # Lambda Layer for IAL Dependencies
   IALDependenciesLayer:
     Type: AWS::Lambda::LayerVersion
+    DependsOn: CreateLayerZip
     Properties:
       LayerName: !Sub '${ProjectName}-dependencies'
       Description: 'IAL core dependencies for agent tools'
       Content:
-        ZipFile: |
-          # IAL Dependencies Layer
-          import json
-          import boto3
-          
-          def lambda_handler(event, context):
-              return {
-                  'statusCode': 200,
-                  'body': json.dumps('IAL Dependencies Layer loaded')
-              }
+        S3Bucket: !Ref IALArtifactsBucket
+        S3Key: 'layers/ial-dependencies.zip'
       CompatibleRuntimes:
         - python3.12
       CompatibleArchitectures:
