@@ -125,12 +125,7 @@ Resources:
                   zip_buffer = io.BytesIO()
                   with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                       # Add a simple Python file
-                      layer_code = """import json
-import boto3
-
-def get_version():
-    return "1.0.0"
-"""
+                      layer_code = "import json\nimport boto3\n\ndef get_version():\n    return '1.0.0'\n"
                       zip_file.writestr('python/ial_dependencies.py', layer_code)
                   
                   # Upload to S3
