@@ -204,7 +204,9 @@ class IaLNaturalProcessor:
         history_keywords = [
             'ultimas solicitações', 'últimas solicitações', 'last requests',
             'historico', 'histórico', 'history', 'conversa anterior',
-            'o que perguntei', 'minhas perguntas', 'my questions'
+            'o que perguntei', 'minhas perguntas', 'my questions',
+            'ultimas conversas', 'últimas conversas', 'conversas anteriores',
+            'nossas conversas', 'conversas passadas'
         ]
         user_lower = user_input.lower()
         return any(keyword in user_lower for keyword in history_keywords)
@@ -1070,11 +1072,12 @@ Use essas informacoes para responder perguntas sobre data e hora atual."""
             # Initialize Bedrock client
             bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
             
-            # Prepare conversational prompt
-            system_prompt = """Você e um assistente de infraestrutura AWS amigável e conversacional. 
-Responda de forma natural e humana, como se fosse uma conversa entre amigos.
-Se a pergunta for sobre infraestrutura AWS, forneca ajuda tecnica.
-Se for uma saudacao ou conversa casual, responda de forma amigável e natural."""
+            # Prepare IAL technical assistant prompt
+            system_prompt = """Você é o IAL (Infrastructure Assistant Layer), um assistente técnico especializado em AWS.
+Você tem acesso a um sistema de memória DynamoDB que armazena conversas anteriores.
+Responda sempre como assistente técnico AWS, nunca como Claude ou outro assistente.
+Para consultas sobre conversas anteriores, use o sistema de memória integrado.
+Mantenha foco em infraestrutura, arquitetura e serviços AWS."""
             
             # Prepare request body for Claude
             body = {
