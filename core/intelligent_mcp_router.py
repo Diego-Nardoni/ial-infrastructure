@@ -147,7 +147,30 @@ class IntelligentMCPRouter:
         # Mostrar plano de execução
         self._print_execution_plan(decision)
         
-        # CORREÇÃO: Forçar uso do AWS Real Executor
+        # CORREÇÃO: Detectar intenção (query vs create) primeiro
+        user_input_lower = decision.user_input.lower()
+        
+        # Detectar se é consulta/query
+        is_query = any(word in user_input_lower for word in [
+            'liste', 'list', 'show', 'mostrar', 'ver', 'consultar', 'quais', 'what', 'meus', 'my'
+        ])
+        
+        # Detectar se é criação/deploy
+        is_create = any(word in user_input_lower for word in [
+            'create', 'deploy', 'provision', 'criar', 'construir', 'setup'
+        ])
+        
+        # Se é query, usar Resource Query Path
+        if is_query and not is_create:
+            print("📋 Detectado: CONSULTA DE RECURSOS")
+            try:
+                from core.master_engine_final import MasterEngineFinal
+                engine = MasterEngineFinal()
+                return engine.process_resource_query_path(decision.user_input)
+            except Exception as e:
+                print(f"⚠️ Fallback query falhou: {e}")
+        
+        # Para comandos de criação, usar executor direto
         try:
             import sys
             sys.path.append('/home/ial')
@@ -155,8 +178,7 @@ class IntelligentMCPRouter:
             from aws_real_server import AWSRealExecutor
             executor = AWSRealExecutor()
             
-            # Para comandos de criação, usar executor direto
-            if any(word in decision.user_input.lower() for word in ['create', 'deploy', 'provision']):
+            if is_create:
                 
                 results = []
                 

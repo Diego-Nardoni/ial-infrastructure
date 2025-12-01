@@ -52,10 +52,15 @@ class MasterEngineFinal:
             print("🏗️ CORE FOUNDATION REQUEST - Execução direta via MCP Infrastructure Manager")
             return self.process_core_foundation_path(nl_intent, config or {})
         
-        # NOVA ARQUITETURA: LLM+MCP SEMPRE PRIMEIRO
+        # LÓGICA 2: CONSULTAS SIMPLES DE RECURSOS - DIRETO VIA BOTO3
+        if self._is_resource_query_request(nl_intent):
+            print("📋 RESOURCE QUERY REQUEST - Consulta direta via boto3")
+            return self.process_resource_query_path(nl_intent)
+        
+        # LÓGICA 3: LLM+MCP PARA OPERAÇÕES COMPLEXAS
         print(f"🧠 INTELLIGENT REQUEST - {'PREVIEW MODE' if preview_mode else 'EXECUTION MODE'}")
         
-        # Tentar LLM+MCP Router primeiro (para TUDO)
+        # Tentar LLM+MCP Router para operações complexas
         try:
             if preview_mode:
                 return self.process_preview_mode(nl_intent)
@@ -64,20 +69,15 @@ class MasterEngineFinal:
         except Exception as e:
             print(f"⚠️ LLM+MCP falhou: {e}")
             
-            # Fallback 1: Verificar se é consulta simples de recursos
-            if self._is_resource_query_request(nl_intent):
-                print("🔄 Fallback: Consulta via boto3 direto")
-                return self.process_resource_query_path(nl_intent)
-            
-            # Fallback 2: Governança complexa
-            elif self._needs_complex_governance(nl_intent):
+            # Fallback 1: Governança complexa
+            if self._needs_complex_governance(nl_intent):
                 print("🔄 Fallback: Cognitive Engine")
                 return self.process_cognitive_engine_path(nl_intent)
             
-            # Fallback 3: CloudFormation básico
+            # Fallback 2: CloudFormation básico
             else:
                 print("🔄 Fallback: CloudFormation básico")
-            return self.process_mcp_router_path(nl_intent)
+                return self.process_mcp_router_path(nl_intent)
     
     def _is_conversational_request(self, nl_intent: str) -> bool:
         """Detecta se é uma solicitação conversacional (não infraestrutura)"""
@@ -706,8 +706,12 @@ Pergunta do usuário: {user_input}"""
         query_patterns = [
             'quais tabelas', 'what tables', 'list tables', 'show tables',
             'quais buckets', 'list buckets', 'show buckets', 'list s3', 'liste todos os buckets',
+            'liste meus buckets', 'meus buckets', 'buckets do s3', 'liste buckets',
             'quais instancias', 'list instances', 'show instances', 'show ec2', 'liste todas as instancias',
-            'recursos existentes', 'existing resources', 'list lambda', 'show lambda', 'liste todos'
+            'liste minhas instancias', 'minhas instancias', 'instancias ec2',
+            'recursos existentes', 'existing resources', 'list lambda', 'show lambda', 'liste todos',
+            'liste minhas', 'meus recursos', 'recursos aws', 'mostrar recursos',
+            'listar', 'mostrar', 'ver recursos', 'consultar recursos'
         ]
         
         nl_lower = nl_intent.lower()
