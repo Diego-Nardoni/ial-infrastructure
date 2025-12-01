@@ -568,16 +568,44 @@ Outputs:
         return metrics
         
     def route_request(self, request: str) -> Dict[str, Any]:
-        """Sync wrapper for backward compatibility"""
+        """Sync wrapper with timeout protection"""
         try:
-            # Run async method in event loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(self.route_request_async(request))
-            loop.close()
-            return result
+            # Use existing event loop if available, otherwise create new one
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If loop is running, use thread executor
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(self._run_async_in_thread, request)
+                        result = future.result(timeout=10)  # 10 second timeout
+                        return result
+                else:
+                    result = loop.run_until_complete(asyncio.wait_for(self.route_request_async(request), timeout=10))
+                    return result
+            except RuntimeError:
+                # No event loop, create new one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    result = loop.run_until_complete(asyncio.wait_for(self.route_request_async(request), timeout=10))
+                    return result
+                finally:
+                    loop.close()
+                    
+        except asyncio.TimeoutError:
+            return self._fallback_response("Router timeout - using fallback", time.time())
         except Exception as e:
-            return self._fallback_response(f"Sync wrapper failed: {str(e)}", time.time())
+            return self._fallback_response(f"Router error: {str(e)}", time.time())
+    
+    def _run_async_in_thread(self, request: str) -> Dict[str, Any]:
+        """Run async method in separate thread"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(asyncio.wait_for(self.route_request_async(request), timeout=10))
+        finally:
+            loop.close()
             
     async def health_check(self) -> Dict[str, Any]:
         """Comprehensive health check"""

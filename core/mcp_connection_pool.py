@@ -13,10 +13,14 @@ class MCPConnectionPool:
         self.max_connections = max_connections
         self.timeout = timeout
         self.pools = {}
-        self.semaphore = asyncio.Semaphore(max_connections)
+        self.semaphore = None  # Initialize later when event loop is available
         
     async def get_connection(self, mcp_name: str) -> aiohttp.ClientSession:
         """Get or create connection for MCP"""
+        # Initialize semaphore if not already done
+        if self.semaphore is None:
+            self.semaphore = asyncio.Semaphore(self.max_connections)
+            
         if mcp_name not in self.pools:
             connector = aiohttp.TCPConnector(
                 limit=self.max_connections,
