@@ -7,6 +7,7 @@ Suporte completo para modo conversacional estilo Amazon Q
 import sys
 import os
 import asyncio
+from typing import Dict, List, Any
 
 # Adicionar diretório do IAL ao path
 sys.path.insert(0, '/home/ial')
