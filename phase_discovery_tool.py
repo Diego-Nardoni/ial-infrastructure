@@ -29,23 +29,27 @@ class PhaseDiscoveryTool:
             # Rodando em desenvolvimento
             self.phases_dir = "/home/ial/phases"
         
-    async def discover_phases(self, repo_path: str = "phases") -> List[Dict]:
+    def discover_phases(self, repo_path: str = "phases") -> List[Dict]:
         """Descobre fases disponíveis no repositório ou filesystem"""
         try:
             # Tentar via MCP GitHub Server primeiro
             if self.mcp_client:
-                phases = await self._discover_phases_via_mcp(repo_path)
-                if phases:
-                    logger.info(f"✅ MCP: Descobertas {len(phases)} fases")
-                    return phases
+                try:
+                    import asyncio
+                    phases = asyncio.run(self._discover_phases_via_mcp(repo_path))
+                    if phases:
+                        logger.info(f"✅ MCP: Descobertas {len(phases)} fases")
+                        return phases
+                except Exception as e:
+                    logger.warning(f"⚠️ MCP falhou, usando filesystem: {e}")
             
             # Fallback para filesystem local
-            phases = await self._discover_phases_via_filesystem()
+            phases = self._discover_phases_via_filesystem()
             if phases:
                 logger.info(f"✅ Filesystem: Descobertas {len(phases)} fases")
                 return phases
             
-            logger.warning("⚠️ Nenhuma fase descoberta em ambos os métodos")
+            logger.warning("⚠️ Nenhuma fase descoberta")
             return []
             
         except Exception as e:
@@ -170,9 +174,9 @@ class PhaseDiscoveryTool:
             return phase_dir.split("-", 1)[1].replace("-", " ").title()
         return phase_dir
 
-    async def get_deployment_order(self) -> List[str]:
+    def get_deployment_order(self) -> List[str]:
         """Retorna ordem recomendada de deployment das fases"""
-        phases = await self.discover_phases()
+        phases = self.discover_phases()
         return [phase["phase_id"] for phase in phases]
 
     def get_phase_summary(self, phases: List[Dict]) -> str:
