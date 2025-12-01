@@ -103,6 +103,18 @@ class IaLNaturalProcessor:
                 print(f"⚠️ Erro inicializando Validation System: {e}")
                 self.validation_system = None
         
+        # Initialize Memory System for conversation tracking
+        try:
+            from core.memory.memory_manager import MemoryManager
+            from core.memory.context_engine import ContextEngine
+            self.memory_manager = MemoryManager()
+            self.context_engine = ContextEngine()
+            ultra_silent_print("✅ Memory System inicializado")
+        except Exception as e:
+            print(f"⚠️ Memory System não disponível: {e}")
+            self.memory_manager = None
+            self.context_engine = None
+        
         # Initialize Enhanced Fallback System
         try:
             from core.enhanced_fallback_system import EnhancedFallbackSystem
@@ -168,6 +180,83 @@ class IaLNaturalProcessor:
         }
 
     def process_command(self, user_input: str, user_id: str = None, session_id: str = None) -> str:
+        """Process user command with memory integration"""
+        
+        # Save user input to memory
+        if self.memory_manager:
+            self.memory_manager.save_message('user', user_input)
+        
+        # Check for conversation history requests
+        if self._is_history_request(user_input):
+            return self._handle_history_request(user_input)
+        
+        # Process normally
+        response = self._process_command_internal(user_input, user_id, session_id)
+        
+        # Save assistant response to memory
+        if self.memory_manager:
+            self.memory_manager.save_message('assistant', response)
+        
+        return response
+    
+    def _is_history_request(self, user_input: str) -> bool:
+        """Check if user is asking for conversation history"""
+        history_keywords = [
+            'ultimas solicitações', 'últimas solicitações', 'last requests',
+            'historico', 'histórico', 'history', 'conversa anterior',
+            'o que perguntei', 'minhas perguntas', 'my questions'
+        ]
+        user_lower = user_input.lower()
+        return any(keyword in user_lower for keyword in history_keywords)
+    
+    def _handle_history_request(self, user_input: str) -> str:
+        """Handle conversation history requests"""
+        if not self.memory_manager:
+            return "⚠️ Sistema de memória não disponível. Use 'ialctl logs' para ver logs do sistema."
+        
+        try:
+            # Get recent conversation history
+            recent_messages = self.memory_manager.get_recent_context(limit=10)
+            
+            if not recent_messages:
+                return "📋 Nenhuma conversa anterior encontrada nesta sessão."
+            
+            # Format conversation history
+            response = "📋 **Suas últimas solicitações:**\n\n"
+            
+            user_messages = [msg for msg in recent_messages if msg.get('role') == 'user'][-5:]
+            
+            for i, msg in enumerate(reversed(user_messages), 1):
+                timestamp = msg.get('timestamp', '')
+                if timestamp:
+                    # Format timestamp
+                    from datetime import datetime
+                    try:
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        time_str = dt.strftime('%H:%M')
+                    except:
+                        time_str = timestamp[:5]
+                else:
+                    time_str = "N/A"
+                
+                content = msg.get('content', '')[:100]
+                if len(msg.get('content', '')) > 100:
+                    content += "..."
+                
+                response += f"   {i}. [{time_str}] {content}\n"
+            
+            # Add session info
+            stats = self.memory_manager.get_user_stats()
+            response += f"\n📊 **Estatísticas:**\n"
+            response += f"   • Total de mensagens: {stats.get('total_messages', 0)}\n"
+            response += f"   • Sessões: {stats.get('sessions', 0)}\n"
+            
+            return response
+            
+        except Exception as e:
+            return f"⚠️ Erro ao recuperar histórico: {e}"
+    
+    def _process_command_internal(self, user_input: str, user_id: str = None, session_id: str = None) -> str:
         """Main processing function with intent validation and intelligent MCP routing"""
         
         if not user_id:
