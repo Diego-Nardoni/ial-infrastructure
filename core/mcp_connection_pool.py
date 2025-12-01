@@ -40,6 +40,10 @@ class MCPConnectionPool:
         
     async def execute_with_connection(self, mcp_name: str, operation: Callable) -> Any:
         """Execute operation with connection pooling and semaphore"""
+        # Initialize semaphore if not already done
+        if self.semaphore is None:
+            self.semaphore = asyncio.Semaphore(self.max_connections)
+            
         async with self.semaphore:
             session = await self.get_connection(mcp_name)
             return await operation(session)

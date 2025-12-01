@@ -568,42 +568,34 @@ Outputs:
         return metrics
         
     def route_request(self, request: str) -> Dict[str, Any]:
-        """Sync wrapper with timeout protection"""
+        """Sync wrapper with proper event loop handling"""
         try:
-            # Use existing event loop if available, otherwise create new one
+            # Check if we're already in an event loop
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # If loop is running, use thread executor
-                    import concurrent.futures
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(self._run_async_in_thread, request)
-                        result = future.result(timeout=10)  # 10 second timeout
-                        return result
-                else:
-                    result = loop.run_until_complete(asyncio.wait_for(self.route_request_async(request), timeout=10))
-                    return result
+                loop = asyncio.get_running_loop()
+                # We're in a running loop, use thread executor
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(self._run_in_new_loop, request)
+                    return future.result(timeout=15)
             except RuntimeError:
-                # No event loop, create new one
+                # No running loop, we can use the current thread
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    result = loop.run_until_complete(asyncio.wait_for(self.route_request_async(request), timeout=10))
-                    return result
+                    return loop.run_until_complete(self.route_request_async(request))
                 finally:
                     loop.close()
                     
-        except asyncio.TimeoutError:
-            return self._fallback_response("Router timeout - using fallback", time.time())
         except Exception as e:
             return self._fallback_response(f"Router error: {str(e)}", time.time())
     
-    def _run_async_in_thread(self, request: str) -> Dict[str, Any]:
-        """Run async method in separate thread"""
+    def _run_in_new_loop(self, request: str) -> Dict[str, Any]:
+        """Run async method in new event loop in separate thread"""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            return loop.run_until_complete(asyncio.wait_for(self.route_request_async(request), timeout=10))
+            return loop.run_until_complete(self.route_request_async(request))
         finally:
             loop.close()
             
