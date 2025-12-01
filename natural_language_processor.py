@@ -532,33 +532,16 @@ class IaLNaturalProcessor:
             except Exception as e:
                 print(f"⚠️ Enhanced Fallback System error: {e}")
         
-        # Try Intelligent MCP Router for infrastructure requests (with timeout protection)
+        # Try Intelligent MCP Router for infrastructure requests
         if self.intelligent_router:
             try:
                 ultra_silent_print("🧠 Iniciando Intelligent MCP Router")
+                result = self.intelligent_router.route_request(user_input)
                 
-                # Usar timeout para evitar travamento
-                import signal
-                
-                def timeout_handler(signum, frame):
-                    raise TimeoutError("Router timeout")
-                
-                signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(8)  # 8 segundos timeout
-                
-                try:
-                    result = self.intelligent_router.route_request(user_input)
-                    signal.alarm(0)  # Cancel timeout
-                    
-                    if result.get('success'):
-                        response = self.format_intelligent_router_response(result, user_input)
-                    else:
-                        print(f"⚠️ Intelligent Router falhou: {result.get('error')}, usando fallback")
-                        response = self._process_fallback_path(user_input, user_id, session_id)
-                        
-                except TimeoutError:
-                    signal.alarm(0)
-                    print("⚠️ Router timeout, usando fallback")
+                if result.get('success'):
+                    response = self.format_intelligent_router_response(result, user_input)
+                else:
+                    print(f"⚠️ Intelligent Router falhou: {result.get('error')}, usando fallback")
                     response = self._process_fallback_path(user_input, user_id, session_id)
                     
             except Exception as e:

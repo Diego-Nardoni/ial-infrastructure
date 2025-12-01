@@ -65,13 +65,35 @@ class MemoryManager:
         return hashlib.md5(f"{self.user_id}-{timestamp}".encode()).hexdigest()[:12]
     
     def _init_aws_resources(self):
-        """Inicializa recursos AWS"""
+        """Inicializa recursos AWS com timeout"""
         try:
-            self.dynamodb = boto3.resource('dynamodb')
-            self.table_name = self._get_table_name()
-            self.embeddings_table_name = self._get_embeddings_table_name()
+            # Usar timeout para evitar travamento
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("AWS initialization timeout")
+            
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(3)  # 3 segundos timeout
+            
+            try:
+                self.dynamodb = boto3.resource('dynamodb')
+                self.table_name = self._get_table_name()
+                self.embeddings_table_name = self._get_embeddings_table_name()
+                signal.alarm(0)  # Cancel timeout
+            except TimeoutError:
+                print("Warning: AWS initialization timeout - using local cache only")
+                self.dynamodb = None
+                self.table_name = None
+                self.embeddings_table_name = None
+            finally:
+                signal.alarm(0)
+                
         except Exception as e:
             print(f"Warning: Could not initialize AWS resources: {e}")
+            self.dynamodb = None
+            self.table_name = None
+            self.embeddings_table_name = None
     
     def _get_table_name(self) -> str:
         """Obtém nome da tabela DynamoDB"""
