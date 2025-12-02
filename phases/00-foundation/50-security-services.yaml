@@ -1,0 +1,75 @@
+phase: "02-security-services"
+description: "Inspector, GuardDuty, Security Hub, Access Analyzer, Macie, EBS Encryption"
+depends_on: ["01-kms-security"]
+estimated_cost_monthly: 24
+resource_count: 6
+
+resources:
+  - name: "amazon-inspector"
+    resource_name: "02-inspector"
+    type: "AWS::Inspector::Assessment"
+    dynamodb_tracking: true
+    mcp_workflow:
+      generate: {resource_type: "AWS::Inspector::Assessment"}
+      explain: {wait_confirmation: true}
+      create: {tool: "create_resource"}
+    verification: "aws inspector2 batch-get-account-status --query 'accounts[0].resourceState.ecr.status'"
+    expected: "ENABLED"
+
+  - name: "amazon-guardduty"
+    resource_name: "02-guardduty"
+    type: "AWS::GuardDuty::Detector"
+    dynamodb_tracking: true
+    mcp_workflow:
+      generate: {resource_type: "AWS::GuardDuty::Detector", properties: {Enable: true, Features: [{Name: "RUNTIME_MONITORING", Status: "ENABLED"}]}}
+      explain: {wait_confirmation: true}
+      create: {tool: "create_resource"}
+    verification: "aws guardduty list-detectors --query 'DetectorIds[0]'"
+
+  - name: "security-hub"
+    resource_name: "02-securityhub"
+    type: "AWS::SecurityHub::Hub"
+    dynamodb_tracking: true
+    mcp_workflow:
+      generate: {resource_type: "AWS::SecurityHub::Hub", properties: {EnableDefaultStandards: true}}
+      explain: {wait_confirmation: true}
+      create: {tool: "create_resource"}
+    verification: "aws securityhub describe-hub --query 'HubArn'"
+
+  - name: "access-analyzer"
+    resource_name: "02-accessanalyzer"
+    type: "AWS::AccessAnalyzer::Analyzer"
+    dynamodb_tracking: true
+    mcp_workflow:
+      generate: {resource_type: "AWS::AccessAnalyzer::Analyzer", properties: {AnalyzerName: "account-security-analyzer", Type: "ACCOUNT"}}
+      explain: {wait_confirmation: true}
+      create: {tool: "create_resource"}
+    verification: "aws accessanalyzer list-analyzers --query 'analyzers[0].status'"
+    expected: "ACTIVE"
+
+  - name: "amazon-macie"
+    resource_name: "02-macie"
+    type: "AWS::Macie::Session"
+    dynamodb_tracking: true
+    mcp_workflow:
+      generate: {resource_type: "AWS::Macie::Session", properties: {Status: "ENABLED", FindingPublishingFrequency: "FIFTEEN_MINUTES"}}
+      explain: {wait_confirmation: true}
+      create: {tool: "create_resource"}
+    verification: "aws macie2 get-macie-session --query 'status'"
+    expected: "ENABLED"
+
+  - name: "ebs-encryption"
+    resource_name: "02-ebs-encryption"
+    type: "AWS::EC2::EBSEncryption"
+    dynamodb_tracking: true
+    aws_cli_command: "aws ec2 enable-ebs-encryption-by-default"
+    verification: "aws ec2 get-ebs-encryption-by-default --query 'EbsEncryptionByDefault'"
+    expected: true
+
+outputs:
+  inspector_enabled: true
+  guardduty_detector_id: "[DYNAMIC]"
+  security_hub_arn: "[DYNAMIC]"
+  access_analyzer_arn: "[DYNAMIC]"
+  macie_enabled: true
+  ebs_encryption_enabled: true

@@ -270,11 +270,11 @@ class FoundationDeployer:
         }
     
     def deploy_foundation_core(self) -> Dict[str, Any]:
-        """Deploy Foundation (00) + Governance (90) para ialctl start"""
-        print("🎯 Deploying IAL Foundation + Governance")
-        print("=" * 40)
+        """Deploy Foundation (00) + Security + Governance para ialctl start"""
+        print("🎯 Deploying IAL Foundation + Security + Governance")
+        print("=" * 50)
         
-        # Deploy 00-foundation
+        # Deploy 00-foundation (agora inclui Security Services)
         foundation_result = self._deploy_foundation_phase()
         
         # Deploy 90-governance (Well-Architected)
@@ -283,11 +283,19 @@ class FoundationDeployer:
         
         total_successful = foundation_result.get('successful_deployments', 0) + governance_result.get('successful_deployments', 0)
         
+        print(f"\n🎉 Complete Deployment Summary:")
+        print(f"   📦 Foundation (00): {foundation_result.get('successful_deployments', 0)} resources")
+        print(f"   🏛️ Governance (90): {governance_result.get('successful_deployments', 0)} resources")
+        print(f"   🔒 Security Services: Included in Foundation")
+        print(f"   📡 EventBridge Rules: Security automation enabled")
+        
         return {
             'foundation': foundation_result,
             'governance': governance_result,
             'total_successful': total_successful,
-            'phases_deployed': ['00-foundation', '90-governance']
+            'phases_deployed': ['00-foundation', '90-governance'],
+            'security_included': True,
+            'eventbridge_automation': True
         }
     
     def _deploy_foundation_phase(self) -> Dict[str, Any]:

@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Native AWS Security Automation (Better than Custom Security Sentinel)'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+
+Resources:
+  # 1. Security Hub Custom Actions (Native Remediation)
+  SecurityHubCustomAction:
+    Type: AWS::SecurityHub::CustomAction
+    Properties:
+      Name: !Sub '${ProjectName}-auto-remediate'
+      Description: 'Auto-remediate security findings'
+      Id: 'auto-remediate-action'
+
+  # 2. EventBridge Rule for Security Hub Findings
+  SecurityHubEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-security-findings'
+      EventPattern:
+        source: ['aws.securityhub']
+        detail-type: ['Security Hub Findings - Imported']
+        detail:
+          findings:
+            Severity:
+              Label: ['HIGH', 'CRITICAL']
+      Targets:
+        - Arn: !Ref SecurityRemediationTopic
+          Id: 'SecurityAlert'
+
+  # 3. SNS Topic for Security Alerts (Native Alerting)
+  SecurityRemediationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-security-alerts'
+      DisplayName: 'IAL Security Alerts'
+
+  # 4. Config Remediation (Native Auto-Fix)
+  ConfigRemediationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-config-remediation'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/ConfigRole
+        - arn:aws:iam::aws:policy/SecurityAudit
+
+  # 5. GuardDuty Threat Intel (Native Threat Detection)
+  GuardDutyThreatIntelSet:
+    Type: AWS::GuardDuty::ThreatIntelSet
+    Properties:
+      Activate: true
+      DetectorId: !Ref GuardDutyDetector
+      Format: TXT
+      Location: !Sub 's3://${ProjectName}-security-intel/threat-intel.txt'
+      Name: !Sub '${ProjectName}-threat-intel'
+
+  GuardDutyDetector:
+    Type: AWS::GuardDuty::Detector
+    Properties:
+      Enable: true
+      FindingPublishingFrequency: FIFTEEN_MINUTES
+
+Outputs:
+  SecurityAutomationStatus:
+    Description: 'Native AWS Security Automation Deployed'
+    Value: 'ACTIVE - Using AWS Native Tools Instead of Custom Security Sentinel'
+    Export:
+      Name: !Sub '${ProjectName}-security-automation'

@@ -64,6 +64,55 @@ Resources:
         - Arn: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:ial-health-monitor'
           Id: HealthCheckTarget
 
+  # SECURITY AUTOMATION RULES
+  SecurityHubFindingsRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ial-security-hub-findings
+      Description: Security Hub findings automation
+      EventPattern:
+        source: ['aws.securityhub']
+        detail-type: ['Security Hub Findings - Imported']
+        detail:
+          findings:
+            Severity:
+              Label: ['HIGH', 'CRITICAL']
+      State: ENABLED
+      Targets:
+        - Arn: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:ial-alerts-critical'
+          Id: SecurityHubAlert
+
+  GuardDutyFindingsRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ial-guardduty-findings
+      Description: GuardDuty findings automation
+      EventPattern:
+        source: ['aws.guardduty']
+        detail-type: ['GuardDuty Finding']
+        detail:
+          severity: [7.0, 8.0, 8.5, 9.0, 10.0]  # High/Critical only
+      State: ENABLED
+      Targets:
+        - Arn: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:ial-alerts-critical'
+          Id: GuardDutyAlert
+
+  ConfigComplianceRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ial-config-compliance
+      Description: Config compliance changes
+      EventPattern:
+        source: ['aws.config']
+        detail-type: ['Config Rules Compliance Change']
+        detail:
+          newEvaluationResult:
+            complianceType: ['NON_COMPLIANT']
+      State: ENABLED
+      Targets:
+        - Arn: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:ial-alerts-critical'
+          Id: ConfigComplianceAlert
+
 Outputs:
   EventBridgeRoleArn:
     Description: EventBridge role ARN
