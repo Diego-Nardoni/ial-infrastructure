@@ -224,6 +224,23 @@ SOLICITAÇÃO DO USUÁRIO: {user_request}
                     'options': ['1 instância (desenvolvimento)', '2-5 instâncias (produção)', 'Auto scaling baseado em CPU']
                 }
             },
+            's3': {
+                'domain_name': {
+                    'question': 'Qual será o domínio do seu site?',
+                    'context': 'Preciso configurar CloudFront e certificado SSL',
+                    'options': ['Domínio próprio (exemplo.com)', 'Subdomínio AWS (bucket.s3-website)', 'Sem domínio personalizado']
+                },
+                'ssl_certificate': {
+                    'question': 'Precisa de HTTPS/SSL?',
+                    'context': 'Certificado SSL é recomendado para sites em produção',
+                    'options': ['Sim, certificado AWS (ACM)', 'Sim, certificado próprio', 'Não, apenas HTTP']
+                },
+                'cache_behavior': {
+                    'question': 'Como configurar o cache do CloudFront?',
+                    'context': 'Define performance e custos de distribuição',
+                    'options': ['Cache agressivo (TTL longo)', 'Cache moderado (TTL médio)', 'Sem cache (sempre buscar origem)']
+                }
+            },
             'rds': {
                 'database_engine': {
                     'question': 'Qual engine de banco você prefere?',

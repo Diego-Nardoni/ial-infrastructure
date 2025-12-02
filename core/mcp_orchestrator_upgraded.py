@@ -72,6 +72,16 @@ class MCPOrchestratorUpgraded:
                 if 'scale' not in request_lower and 'replica' not in request_lower:
                     missing_info.append('scaling')
             
+            elif primary_service == 's3':
+                # S3 + CloudFront para site precisa de informações específicas
+                if 'cloudfront' in request_lower or 'site' in request_lower or 'website' in request_lower:
+                    if 'domain' not in request_lower and 'dominio' not in request_lower:
+                        missing_info.append('domain_name')
+                    if 'ssl' not in request_lower and 'https' not in request_lower and 'certificate' not in request_lower:
+                        missing_info.append('ssl_certificate')
+                    if 'cache' not in request_lower and 'ttl' not in request_lower:
+                        missing_info.append('cache_behavior')
+            
             elif primary_service == 'rds':
                 if not any(db in request_lower for db in ['mysql', 'postgres', 'aurora']):
                     missing_info.append('database_engine')

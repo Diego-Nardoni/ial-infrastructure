@@ -271,29 +271,9 @@ class IaLNaturalProcessor:
         if not session_id:
             session_id = f"session-{int(time.time())}"
         
-        # Detectar tipo de intent: create vs query
-        intent_type = self._detect_intent_type(user_input)
-        
-        if intent_type == 'create':
-            # USAR Step Functions para criação/deploy
-            try:
-                from core.ial_orchestrator_stepfunctions import IALOrchestratorStepFunctions
-                orchestrator = IALOrchestratorStepFunctions()
-                result = orchestrator.process_nl_intent(user_input)
-                
-                if result['status'] == 'success':
-                    return f"✅ {result.get('response', 'Processamento concluído')}\n🔗 Execução: {result.get('execution_arn', 'N/A')}"
-                else:
-                    return f"❌ {result.get('message', 'Erro no processamento')}"
-                    
-            except Exception as e:
-                print(f"⚠️ Erro no Step Functions: {e}")
-                # Fallback para processamento normal
-                return self._process_fallback_path(user_input, user_id, session_id)
-        
-        else:
-            # Consultas via Intelligent Router (atual)
-            return self._process_query_intent(user_input, user_id, session_id)
+        # USAR SEMPRE Intelligent MCP Router (com sistema conversacional)
+        # Remove lógica de Step Functions que estava ignorando clarificação
+        return self._process_query_intent(user_input, user_id, session_id)
     
     def _detect_intent_type(self, user_input: str) -> str:
         """Detecta se é consulta ou criação"""
