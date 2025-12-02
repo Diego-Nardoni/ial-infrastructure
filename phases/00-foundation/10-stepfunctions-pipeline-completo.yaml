@@ -1,0 +1,346 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Step Functions Pipeline Completo IAS → Cost → Phase → GitHub → Deploy → Audit'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-fork
+    Description: Project name for resource naming
+
+Resources:
+  # IAM Role for Step Functions Pipeline
+  StepFunctionsPipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-stepfunctions-pipeline-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+      Policies:
+        - PolicyName: StepFunctionsPipelinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: '*'
+
+  # IAL Phase Manager - Pipeline Completo
+  IALPhaseManagerPipelineCompleto:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-pipeline-completo'
+      RoleArn: !GetAtt StepFunctionsPipelineRole.Arn
+      StateMachineType: STANDARD
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL Pipeline Completo: IAS → Cost → Phase → GitHub → Deploy → Audit",
+          "StartAt": "IASValidation",
+          "States": {
+            "IASValidation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-nl-ias-validation",
+                "Payload": {
+                  "nl_intent.$": "$.nl_intent",
+                  "correlation_id.$": "$.correlation_id",
+                  "timestamp.$": "$.timestamp"
+                }
+              },
+              "ResultPath": "$.ias_result",
+              "Next": "CheckIASApproval",
+              "TimeoutSeconds": 60,
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed", "States.Timeout"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "IASValidationFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "CheckIASApproval": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.ias_result.Payload.body.safe",
+                  "BooleanEquals": true,
+                  "Next": "CostGuardrails"
+                },
+                {
+                  "Variable": "$.ias_result.Payload.body.safe",
+                  "BooleanEquals": false,
+                  "Next": "IASBlocked"
+                }
+              ],
+              "Default": "IASValidationFailed"
+            },
+            "CostGuardrails": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-nl-cost-estimation",
+                "Payload": {
+                  "nl_intent.$": "$.nl_intent",
+                  "correlation_id.$": "$.correlation_id",
+                  "ias_result.$": "$.ias_result"
+                }
+              },
+              "ResultPath": "$.cost_result",
+              "Next": "CheckCostApproval",
+              "TimeoutSeconds": 120,
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed", "States.Timeout"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "CostEstimationFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "CheckCostApproval": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.cost_result.Payload.body.within_budget",
+                  "BooleanEquals": true,
+                  "Next": "PhaseBuilder"
+                },
+                {
+                  "Variable": "$.cost_result.Payload.body.within_budget",
+                  "BooleanEquals": false,
+                  "Next": "CostExceeded"
+                }
+              ],
+              "Default": "CostEstimationFailed"
+            },
+            "PhaseBuilder": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-nl-phase-builder",
+                "Payload": {
+                  "nl_intent.$": "$.nl_intent",
+                  "correlation_id.$": "$.correlation_id",
+                  "ias_result.$": "$.ias_result",
+                  "cost_result.$": "$.cost_result"
+                }
+              },
+              "ResultPath": "$.phase_result",
+              "Next": "GitHubPRCreation",
+              "TimeoutSeconds": 300,
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed", "States.Timeout"],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "PhaseBuilderFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "GitHubPRCreation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-nl-git-commit-pr",
+                "Payload": {
+                  "nl_intent.$": "$.nl_intent",
+                  "correlation_id.$": "$.correlation_id",
+                  "phase_result.$": "$.phase_result"
+                }
+              },
+              "ResultPath": "$.pr_result",
+              "Next": "CloudFormationDeploy",
+              "TimeoutSeconds": 180,
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed", "States.Timeout"],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "GitHubPRFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "CloudFormationDeploy": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-nl-deploy-cfn",
+                "Payload": {
+                  "phase_result.$": "$.phase_result",
+                  "pr_result.$": "$.pr_result",
+                  "correlation_id.$": "$.correlation_id"
+                }
+              },
+              "ResultPath": "$.deploy_result",
+              "Next": "AuditValidation",
+              "TimeoutSeconds": 900,
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed", "States.Timeout"],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "DeploymentFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "AuditValidation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-nl-proof-of-creation",
+                "Payload": {
+                  "deploy_result.$": "$.deploy_result",
+                  "correlation_id.$": "$.correlation_id"
+                }
+              },
+              "ResultPath": "$.audit_result",
+              "Next": "CheckAuditCompleteness",
+              "TimeoutSeconds": 300,
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed", "States.Timeout"],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "AuditValidationFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "CheckAuditCompleteness": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.audit_result.Payload.body.completeness",
+                  "NumericEquals": 100,
+                  "Next": "PipelineSuccess"
+                },
+                {
+                  "Variable": "$.audit_result.Payload.statusCode",
+                  "NumericEquals": 200,
+                  "Next": "PipelineSuccess"
+                }
+              ],
+              "Default": "AuditIncomplete"
+            },
+            "PipelineSuccess": {
+              "Type": "Succeed"
+            },
+            "IASBlocked": {
+              "Type": "Fail",
+              "Cause": "🛡️ IAS Validation BLOQUEOU a solicitação por motivos de segurança. Intent considerado perigoso.",
+              "Error": "IAS_SECURITY_BLOCK"
+            },
+            "CostExceeded": {
+              "Type": "Fail",
+              "Cause": "💰 Cost Guardrails BLOQUEARAM a solicitação - custo estimado excede o orçamento aprovado.",
+              "Error": "COST_BUDGET_EXCEEDED"
+            },
+            "AuditIncomplete": {
+              "Type": "Fail",
+              "Cause": "🔍 Audit Validation FALHOU - completeness menor que 100%. Recursos não foram criados corretamente.",
+              "Error": "AUDIT_INCOMPLETE"
+            },
+            "IASValidationFailed": {
+              "Type": "Fail",
+              "Cause": "⚠️ IAS Validation service falhou - erro interno no sistema de validação de segurança.",
+              "Error": "IAS_SERVICE_FAILED"
+            },
+            "CostEstimationFailed": {
+              "Type": "Fail",
+              "Cause": "⚠️ Cost Estimation service falhou - erro interno no sistema de estimativa de custos.",
+              "Error": "COST_SERVICE_FAILED"
+            },
+            "PhaseBuilderFailed": {
+              "Type": "Fail",
+              "Cause": "⚠️ Phase Builder falhou ao gerar YAML - erro na geração de infraestrutura como código.",
+              "Error": "PHASE_BUILDER_FAILED"
+            },
+            "GitHubPRFailed": {
+              "Type": "Fail",
+              "Cause": "⚠️ GitHub PR creation falhou - erro na criação do Pull Request GitOps.",
+              "Error": "GITHUB_PR_FAILED"
+            },
+            "DeploymentFailed": {
+              "Type": "Fail",
+              "Cause": "⚠️ CloudFormation deployment falhou - erro na criação dos recursos AWS.",
+              "Error": "DEPLOYMENT_FAILED"
+            },
+            "AuditValidationFailed": {
+              "Type": "Fail",
+              "Cause": "⚠️ Audit Validation service falhou - erro interno no sistema de auditoria.",
+              "Error": "AUDIT_SERVICE_FAILED"
+            }
+          }
+        }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Pipeline-Completo
+        - Key: Purpose
+          Value: ControlPlaneCognitivo
+
+Outputs:
+  IALPipelineCompletoArn:
+    Description: ARN do IAL Pipeline Completo (Control Plane Cognitivo)
+    Value: !Ref IALPhaseManagerPipelineCompleto
+    Export:
+      Name: !Sub '${ProjectName}-PipelineCompletoArn'

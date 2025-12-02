@@ -15,7 +15,7 @@ class IALOrchestratorStepFunctions:
     def __init__(self):
         self.stepfunctions = boto3.client('stepfunctions')
         self.state_machines = {
-            'phase_pipeline': self._get_state_machine_arn('ial-fork-phase-manager'),
+            'phase_pipeline': self._get_state_machine_arn('ial-fork-pipeline-completo'),
             'audit_validator': self._get_state_machine_arn('ial-fork-audit-validator'),
             'drift_autoheal': self._get_state_machine_arn('ial-fork-healing-orchestrator')
         }

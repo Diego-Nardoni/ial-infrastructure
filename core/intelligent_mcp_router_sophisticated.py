@@ -134,20 +134,57 @@ class IntelligentMCPRouterSophisticated:
                 # For queries, execute MCP tools directly
                 return await self._execute_query_mcps(loaded_mcps, request)
             else:
-                # For infrastructure creation, use GitOps workflow
+                # Check if dangerous intent - force Step Functions
+                dangerous_keywords = [
+                    'delete', 'remove', 'destroy', 'terminate', 'drop', 'kill', 'stop',
+                    'deletar', 'remover', 'destruir', 'terminar', 'parar', 'matar',
+                    'all', 'everything', 'todos', 'todas', 'tudo', '*'
+                ]
+                
+                request_lower = request.lower()
+                has_dangerous = any(keyword in request_lower for keyword in dangerous_keywords)
+                
+                if has_dangerous:
+                    print(f"🛡️ DANGEROUS INTENT - BLOCKING GitOps, FORCING Step Functions")
+                    return {
+                        'status': 'security_blocked',
+                        'response': f"🚨 INTENT PERIGOSO DETECTADO: '{request}'\n\n🛡️ Por motivos de segurança, esta solicitação foi BLOQUEADA pelo sistema IAS.\n\n✅ Para prosseguir com segurança, use: 'ialctl create' que passará por validação completa.",
+                        'security_reason': 'dangerous_keywords_detected',
+                        'blocked_keywords': [kw for kw in dangerous_keywords if kw in request_lower]
+                    }
+                
+                # For safe infrastructure creation, use GitOps workflow
                 return await self._execute_infrastructure_mcps(loaded_mcps, request)
                 
         except Exception as e:
             return {'status': 'execution_failed', 'error': str(e)}
     
     def _is_query_request(self, request: str) -> bool:
-        """Detect if request is a query vs infrastructure creation"""
+        """Detect if request is a query vs infrastructure creation with SECURITY VALIDATION"""
+        
+        # SECURITY FIRST: Check for dangerous intents
+        dangerous_keywords = [
+            'delete', 'remove', 'destroy', 'terminate', 'drop', 'kill', 'stop',
+            'deletar', 'remover', 'destruir', 'terminar', 'parar', 'matar',
+            'all', 'everything', 'todos', 'todas', 'tudo', '*'
+        ]
+        
+        # If contains dangerous keywords, FORCE to Step Functions for IAS validation
+        request_lower = request.lower()
+        has_dangerous = any(keyword in request_lower for keyword in dangerous_keywords)
+        
+        if has_dangerous:
+            print(f"🚨 DANGEROUS INTENT DETECTED: {request}")
+            print(f"🛡️ FORCING to Step Functions for IAS validation")
+            return False  # Force to infrastructure pipeline for security validation
+        
+        # Normal query detection
         query_keywords = [
             'quantas', 'quantos', 'quanto', 'qual', 'quais', 'como', 'onde', 'quando',
             'mostrar', 'listar', 'ver', 'status', 'info', 'liste', 'mostre',
             'possuo', 'tenho', 'existe', 'existem', 'há', 'show', 'list', 'describe'
         ]
-        return any(keyword in request.lower() for keyword in query_keywords)
+        return any(keyword in request_lower for keyword in query_keywords)
     
     async def _execute_query_mcps(self, loaded_mcps: Dict, request: str) -> Dict:
         """Execute MCP tools directly for queries - Enhanced with RAG and recommendations"""
