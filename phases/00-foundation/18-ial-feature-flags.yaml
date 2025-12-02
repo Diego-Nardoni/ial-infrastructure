@@ -1,21 +1,102 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'IAL Foundation - 18 IAL feature flags'
+Description: 'IAL Foundation - Feature Flags DynamoDB Table'
 
 Parameters:
   ProjectName:
     Type: String
-    Default: ial-fork
+    Default: ial
     Description: Project name for resource naming
+  
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment (dev, staging, prod)
 
 Resources:
-  # Placeholder resource - will be implemented based on original requirements
-  PlaceholderResource:
-    Type: AWS::CloudFormation::WaitConditionHandle
-    Properties: {}
+  # DynamoDB Table for Feature Flags
+  FeatureFlagsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-feature-flags-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: scope
+          AttributeType: S
+        - AttributeName: flag_name
+          AttributeType: S
+        - AttributeName: created_timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: scope
+          KeyType: HASH
+        - AttributeName: flag_name
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expire_at
+        Enabled: true
+      GlobalSecondaryIndexes:
+        - IndexName: flag-history-index
+          KeySchema:
+            - AttributeName: flag_name
+              KeyType: HASH
+            - AttributeName: created_timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: ial:managed
+          Value: 'true'
+        - Key: Component
+          Value: FeatureFlags
+        - Key: Environment
+          Value: !Ref Environment
+
+  # IAM Role for Lambda access to Feature Flags
+  FeatureFlagsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-feature-flags-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: FeatureFlagsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: 
+                  - !GetAtt FeatureFlagsTable.Arn
+                  - !Sub '${FeatureFlagsTable.Arn}/index/*'
 
 Outputs:
-  PlaceholderOutput:
-    Description: Placeholder output for 18-ial-feature-flags
-    Value: !Ref PlaceholderResource
+  FeatureFlagsTableName:
+    Description: Feature Flags DynamoDB Table Name
+    Value: !Ref FeatureFlagsTable
     Export:
-      Name: !Sub '${ProjectName}-18-ial-feature-flags-Output'
+      Name: !Sub '${ProjectName}-feature-flags-table-${Environment}'
+  
+  FeatureFlagsTableArn:
+    Description: Feature Flags DynamoDB Table ARN
+    Value: !GetAtt FeatureFlagsTable.Arn
+    Export:
+      Name: !Sub '${ProjectName}-feature-flags-table-arn-${Environment}'
+  
+  FeatureFlagsRoleArn:
+    Description: Feature Flags IAM Role ARN
+    Value: !GetAtt FeatureFlagsRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-feature-flags-role-arn-${Environment}'

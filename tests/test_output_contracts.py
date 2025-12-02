@@ -38,7 +38,7 @@ class TestOutputContractValidator:
         assert len(errors) == 1
         assert 'está vazio' in errors[0]
     
-    @patch('boto3.client')
+    @patch('core.validators.output_contract_validator.boto3.client')
     def test_s3_encryption_validation(self, mock_boto):
         """Teste: Validação de criptografia S3"""
         # Mock S3 client
@@ -48,10 +48,14 @@ class TestOutputContractValidator:
             'ServerSideEncryptionConfiguration': {}
         }
         
-        result = self.validator._validate_s3_encryption('test-bucket')
+        # Criar novo validator com mock
+        validator = OutputContractValidator()
+        validator.s3_client = mock_s3
+        
+        result = validator._validate_s3_encryption('test-bucket')
         assert result == True
     
-    @patch('boto3.client')
+    @patch('core.validators.output_contract_validator.boto3.client')
     def test_s3_no_encryption(self, mock_boto):
         """Teste: S3 sem criptografia"""
         mock_s3 = Mock()
@@ -64,7 +68,11 @@ class TestOutputContractValidator:
             'GetBucketEncryption'
         )
         
-        result = self.validator._validate_s3_encryption('test-bucket')
+        # Criar novo validator com mock
+        validator = OutputContractValidator()
+        validator.s3_client = mock_s3
+        
+        result = validator._validate_s3_encryption('test-bucket')
         assert result == False
 
 if __name__ == '__main__':

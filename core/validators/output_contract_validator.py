@@ -115,10 +115,12 @@ class OutputContractValidator:
         try:
             response = self.s3_client.get_bucket_encryption(Bucket=bucket_name)
             return 'ServerSideEncryptionConfiguration' in response
-        except self.s3_client.exceptions.ClientError as e:
-            if e.response['Error']['Code'] == 'ServerSideEncryptionConfigurationNotFoundError':
+        except Exception as e:
+            # Check if it's the specific "not found" error
+            if hasattr(e, 'response') and e.response.get('Error', {}).get('Code') == 'ServerSideEncryptionConfigurationNotFoundError':
                 return False
-            raise
+            # For any other error, assume not encrypted
+            return False
     
     def _validate_rds_encryption(self, db_endpoint: str) -> bool:
         """Verifica se RDS instance tem encryption at rest"""
