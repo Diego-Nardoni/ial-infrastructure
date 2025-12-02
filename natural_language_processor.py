@@ -128,10 +128,14 @@ class IaLNaturalProcessor:
         self.intelligent_router = None
         if INTELLIGENT_ROUTER_AVAILABLE:
             try:
+                print("🔧 Inicializando Intelligent MCP Router...")
                 self.intelligent_router = IntelligentMCPRouterSophisticated()
+                print("✅ Intelligent MCP Router inicializado com sucesso")
             except Exception as e:
                 print(f"⚠️ Erro inicializando Intelligent Router: {e}")
                 self.intelligent_router = None
+        else:
+            print("⚠️ Intelligent MCP Router não disponível")
         
         if MASTER_ENGINE_AVAILABLE:
             try:
@@ -507,7 +511,24 @@ class IaLNaturalProcessor:
         if is_simple_greeting:
             return self._process_fallback_path(user_input, user_id, session_id)
         
-        # Try Enhanced Fallback System first (Agent Core → NLP → Sandbox)
+        # Try Intelligent MCP Router FIRST for ALL requests (not just infrastructure)
+        if self.intelligent_router:
+            try:
+                print("🧠 Iniciando Intelligent MCP Router")  # Debug visível
+                result = self.intelligent_router.route_request(user_input)
+                print(f"🧠 Router result: {result.get('status')}")  # Debug
+                
+                if result.get('status') == 'success':
+                    return self.format_intelligent_router_response(result, user_input)
+                else:
+                    print(f"⚠️ Intelligent Router falhou: {result.get('error')}, tentando fallback")
+                    
+            except Exception as e:
+                print(f"⚠️ Erro no Intelligent Router: {e}, tentando fallback")
+        else:
+            print("⚠️ Intelligent Router não disponível, usando fallback")
+
+        # Try Enhanced Fallback System second (Agent Core → NLP → Sandbox)
         if self.fallback_system:
             try:
                 ultra_silent_print("🔄 Using Enhanced Fallback System")
@@ -532,24 +553,7 @@ class IaLNaturalProcessor:
             except Exception as e:
                 print(f"⚠️ Enhanced Fallback System error: {e}")
         
-        # Try Intelligent MCP Router FIRST for ALL requests (not just infrastructure)
-        if self.intelligent_router:
-            try:
-                print("🧠 Iniciando Intelligent MCP Router")  # Debug visível
-                result = self.intelligent_router.route_request(user_input)
-                print(f"🧠 Router result: {result.get('status')}")  # Debug
-                
-                if result.get('status') == 'success':
-                    return self.format_intelligent_router_response(result, user_input)
-                else:
-                    print(f"⚠️ Intelligent Router falhou: {result.get('error')}, tentando fallback")
-                    
-            except Exception as e:
-                print(f"⚠️ Erro no Intelligent Router: {e}, tentando fallback")
-        else:
-            print("⚠️ Intelligent Router não disponível, usando fallback")
-        
-        # Only use fallback path if Intelligent Router fails or is not available
+        # Only use fallback path if both Intelligent Router and Enhanced Fallback fail
         return self._process_fallback_path(user_input, user_id, session_id)
         
         # Adicionar avisos de validacao à resposta final
