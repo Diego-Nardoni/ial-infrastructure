@@ -105,6 +105,11 @@ class IntelligentMCPRouterSophisticated:
             
             self.routing_circuit.record_success()
             
+            # CRITICAL: Preserve clarification status if it was returned
+            if execution_results.get('status') == 'needs_clarification':
+                print(f"🔍 DEBUG FINAL: Preservando status needs_clarification")
+                return execution_results
+            
             return {
                 'status': 'success',
                 'request': request,
@@ -179,13 +184,18 @@ class IntelligentMCPRouterSophisticated:
                     }
                 
                 # For safe infrastructure creation, use LLM+MCP for intelligent clarification
+                print(f"🔍 DEBUG: Iniciando análise de clarificação para: {request}")
                 analysis = await self.clarification_engine.analyze_and_clarify(request)
+                print(f"🔍 DEBUG: Resultado da análise: {analysis.get('status')}")
                 
                 if analysis.get('status') == 'needs_clarification':
                     # Return clarification questions from LLM
+                    print(f"🔍 DEBUG: Retornando perguntas de clarificação")
+                    print(f"🔍 DEBUG: Status sendo retornado: {analysis.get('status')}")
                     return analysis
                 
                 # Requirements are clear or clarified, proceed with GitOps workflow
+                print(f"🔍 DEBUG: Prosseguindo com GitOps workflow")
                 final_request = analysis.get('combined_requirement', request)
                 return await self._execute_infrastructure_mcps(loaded_mcps, final_request)
                 
