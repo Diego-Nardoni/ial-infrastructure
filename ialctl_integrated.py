@@ -212,6 +212,18 @@ def main():
         # CLI Commands explícitos
         if command == 'start':
             return run_foundation_deploy()
+        elif command == 'config':
+            # Feature flags management
+            from ialctl_config import main as config_main
+            # Remove 'config' from sys.argv and call config main
+            sys.argv = ['ialctl'] + sys.argv[2:]
+            return config_main()
+        elif command == 'destroy':
+            # Resource destruction
+            from ialctl_destroy import main as destroy_main
+            # Remove 'destroy' from sys.argv and call destroy main
+            sys.argv = ['ialctl'] + sys.argv[2:]
+            return destroy_main()
         elif command == 'ci':
             # IAL CI Mode
             from core.ci_mode import main as ci_main

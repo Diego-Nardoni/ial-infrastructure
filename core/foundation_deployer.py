@@ -270,37 +270,44 @@ class FoundationDeployer:
         }
     
     def deploy_foundation_core(self) -> Dict[str, Any]:
-        """Deploy Foundation (00) + Security + Governance para ialctl start"""
-        print("🎯 Deploying IAL Foundation + Security + Governance")
+        """Deploy Foundation (00) + Security apenas - Governance quando necessário"""
+        print("🎯 Deploying IAL Foundation + Security")
         print("=" * 50)
         
-        # Deploy 00-foundation (agora inclui Security Services)
+        # Deploy 00-foundation (inclui Security Services)
         foundation_result = self._deploy_foundation_phase()
         
-        # Deploy 90-governance (Well-Architected)
-        print("\n🏛️ Deploying Governance Phase (Well-Architected)...")
-        governance_result = self._deploy_governance_phase()
-        
-        total_successful = foundation_result.get('successful_deployments', 0) + governance_result.get('successful_deployments', 0)
-        
-        print(f"\n🎉 Complete Deployment Summary:")
-        print(f"   📦 Foundation (00): {foundation_result.get('successful_deployments', 0)} resources")
-        print(f"   🏛️ Governance (90): {governance_result.get('successful_deployments', 0)} resources")
-        print(f"   🔒 Security Services: Included in Foundation")
-        print(f"   📡 EventBridge Rules: Security automation enabled")
+        print(f"\n🎉 Foundation Deployment Complete!")
+        print(f"   📦 Foundation: {foundation_result.get('successful_deployments', 0)} resources")
+        print(f"   🔒 Security Services: Included")
+        print(f"   📡 EventBridge Automation: Enabled")
+        print(f"   🏛️ Governance: Available via 'ialctl deploy governance' when needed")
         
         return {
             'foundation': foundation_result,
-            'governance': governance_result,
-            'total_successful': total_successful,
-            'phases_deployed': ['00-foundation', '90-governance'],
+            'total_successful': foundation_result.get('successful_deployments', 0),
+            'phases_deployed': ['00-foundation'],
             'security_included': True,
-            'eventbridge_automation': True
+            'governance_available': True,
+            'governance_command': 'ialctl deploy governance'
         }
     
     def _deploy_foundation_phase(self) -> Dict[str, Any]:
-        """Deploy apenas fase 00-foundation"""
+        """Deploy apenas fase 00-foundation com feature flags"""
+        from core.feature_flags import feature_flags
+        
         phase_path = os.path.join(self.phases_dir, '00-foundation')
+        
+        # Check security services feature flag
+        security_enabled = feature_flags.get_flag('SECURITY_SERVICES_ENABLED')
+        
+        print(f"🔒 Security Services: {'ENABLED' if security_enabled else 'DISABLED'}")
+        if security_enabled:
+            print(f"   💰 Estimated cost: ~$24/month")
+            print(f"   📋 Services: GuardDuty, Security Hub, Inspector, Access Analyzer, Macie")
+        else:
+            print(f"   💰 Cost savings: ~$24/month")
+            print(f"   ⚠️  Security services disabled - reduced protection")
         
         # Templates que são duplicados mas recursos já existem (contar como sucesso)
         duplicate_but_existing = [
@@ -308,6 +315,11 @@ class FoundationDeployer:
             '41-rag-storage.yaml',             # S3 Buckets já existem em stack 08
             '43-circuit-breaker-metrics.yaml'  # Circuit breaker já funcional via Lambda existente
         ]
+        
+        if not security_enabled:
+            # Skip security services if disabled
+            duplicate_but_existing.append('50-security-services.yaml')
+            print(f"   ⏭️  Skipping security services (feature flag disabled)")
         
         # Templates prioritários (devem ser deployados primeiro)
         priority_templates = [
