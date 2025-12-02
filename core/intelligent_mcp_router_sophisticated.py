@@ -386,8 +386,11 @@ class IntelligentMCPRouterSophisticated:
             }
             
     def _generate_yaml_from_mcps(self, loaded_mcps: Dict, request: str) -> Dict[str, str]:
-        """Generate optimized YAML templates from loaded MCPs"""
+        """Generate optimized YAML templates from loaded MCPs with workload separation"""
         templates = {}
+        
+        # Extract workload name from request context (if available)
+        workload_name = self._extract_workload_name(request)
         
         # Generate phase-based templates
         for mcp_name, mcp_instance in loaded_mcps.items():
@@ -401,12 +404,41 @@ class IntelligentMCPRouterSophisticated:
             yaml_content = self._generate_yaml_for_mcp(mcp_name, domain, capabilities, request)
             
             if yaml_content:
-                # Determine phase directory
-                phase_dir = self._get_phase_directory(domain)
+                # Determine phase directory with workload support
+                phase_dir = self._get_phase_directory(domain, workload_name)
+                
+                # Ensure directory exists if using workload structure
+                if 'workloads/' in phase_dir:
+                    self._ensure_workload_directory(phase_dir)
+                
                 filename = f"{mcp_name.replace('-', '_')}_generated.yaml"
                 templates[f"{phase_dir}/{filename}"] = yaml_content
                 
         return templates
+
+    def _extract_workload_name(self, request: str) -> str:
+        """Extract workload name from request or conversation context"""
+        # Try to extract from conversation memory first
+        try:
+            if hasattr(self, 'conversation_context') and self.conversation_context:
+                for key, value in self.conversation_context.items():
+                    if 'workload' in key.lower() and value:
+                        return value
+        except:
+            pass
+            
+        # Fallback: generate from request content
+        words = request.lower().split()
+        if 'api' in words:
+            return 'api-service'
+        elif 'web' in words or 'site' in words:
+            return 'web-application'
+        elif 'data' in words or 'analytics' in words:
+            return 'data-pipeline'
+        elif 'ml' in words or 'ai' in words:
+            return 'ml-workload'
+        else:
+            return None  # Use default structure
         
     def _generate_yaml_for_mcp(self, mcp_name: str, domain: str, capabilities: List[str], request: str) -> str:
         """Generate YAML content for specific MCP"""
@@ -441,8 +473,41 @@ class IntelligentMCPRouterSophisticated:
         else:
             return f'user-{domain}-resource'
             
-    def _get_phase_directory(self, domain: str) -> str:
-        """Get phase directory for domain"""
+    def _ensure_workload_directory(self, workload_path: str):
+        """Ensure workload directory structure exists"""
+        import os
+        try:
+            os.makedirs(workload_path, exist_ok=True)
+            
+            # Criar .gitkeep para preservar estrutura no Git
+            gitkeep_path = os.path.join(workload_path, '.gitkeep')
+            if not os.path.exists(gitkeep_path):
+                with open(gitkeep_path, 'w') as f:
+                    f.write('# Workload directory structure\n')
+                    
+            print(f"📁 Diretório criado: {workload_path}")
+        except Exception as e:
+            print(f"⚠️ Erro ao criar diretório {workload_path}: {e}")
+
+    def _get_phase_directory(self, domain: str, workload: str = None) -> str:
+        """Get phase directory for domain with optional workload separation"""
+        if workload and workload.lower() not in ['gerar automaticamente', 'usar estrutura atual', '99-misc']:
+            # Workload-based structure
+            domain_mapping = {
+                'compute': '30-compute',
+                'data': '40-data',
+                'storage': '40-data', 
+                'networking': '20-network',
+                'security': '10-security',
+                'serverless': '50-application',
+                'observability': '60-observability',
+                'ai-ml': '70-ai-ml'
+            }
+            phase_subdir = domain_mapping.get(domain, '99-misc')
+            workload_clean = workload.lower().replace(' ', '-').replace('_', '-')
+            return f'phases/workloads/{workload_clean}/{phase_subdir}'
+        
+        # Fallback para estrutura atual
         phase_mapping = {
             'compute': 'phases/01-compute',
             'data': 'phases/02-data',

@@ -3,10 +3,14 @@ name: IAL Step Functions Pipeline
 on:
   push:
     branches: [main]
-    paths: ['phases/**']
+    paths: 
+      - 'phases/**'
+      - 'phases/workloads/**'
   pull_request:
     branches: [main]
-    paths: ['phases/**']
+    paths: 
+      - 'phases/**'
+      - 'phases/workloads/**'
 
 env:
   AWS_REGION: us-east-1

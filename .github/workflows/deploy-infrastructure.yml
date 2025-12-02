@@ -3,7 +3,9 @@ name: 'IaL Infrastructure Deployment'
 on:
   push:
     branches: [ main, master ]
-    paths: [ 'phases/**' ]
+    paths: 
+      - 'phases/**'
+      - 'phases/workloads/**'
   workflow_dispatch:
     inputs:
       domain:

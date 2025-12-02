@@ -225,6 +225,11 @@ SOLICITAÇÃO DO USUÁRIO: {user_request}
                 }
             },
             's3': {
+                'workload_name': {
+                    'question': 'Qual o nome do workload/projeto?',
+                    'context': 'Usado para organizar arquivos em /phases/workloads/{nome}',
+                    'options': ['Nome personalizado (ex: ecommerce-api)', 'Gerar automaticamente', 'Usar estrutura atual (99-misc)']
+                },
                 'domain_name': {
                     'question': 'Qual será o domínio do seu site?',
                     'context': 'Preciso configurar CloudFront e certificado SSL',
