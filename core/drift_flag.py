@@ -23,7 +23,8 @@ class DriftFlag:
     def __init__(self, region: str = "us-east-1"):
         self.region = region
         self.dynamodb = boto3.resource("dynamodb", region_name=region)
-        self.table_name = os.getenv("IAL_FEATURE_FLAGS_TABLE", "ial_feature_flags")
+        # CORREÇÃO: Usar tabela já criada pelo foundation deployer
+        self.table_name = "ial-feature-flags"  # Tabela já existe!
         
         try:
             self.table = self.dynamodb.Table(self.table_name)

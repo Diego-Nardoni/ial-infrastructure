@@ -21,7 +21,8 @@ class FeatureFlagsManager:
     def __init__(self, region: str = "us-east-1"):
         self.region = region
         self.dynamodb = boto3.resource("dynamodb", region_name=region)
-        self.table_name = os.getenv("IAL_FEATURE_FLAGS_TABLE", "ial-feature-flags-dev")
+        # CORREÇÃO: Usar tabela já criada pelo foundation deployer
+        self.table_name = "ial-feature-flags"  # Tabela já existe!
         self.drift_flag = DriftFlag(region)
         
         try:
@@ -36,8 +37,9 @@ class FeatureFlagsManager:
             if not self.table:
                 return self._get_default_state(feature_name)
             
+            # CORREÇÃO: Usar schema do foundation deployer (pk: flag_name, sk: environment)
             response = self.table.get_item(
-                Key={"scope": scope, "flag_name": feature_name}
+                Key={"flag_name": feature_name, "environment": scope}
             )
             
             item = response.get("Item")
@@ -60,9 +62,10 @@ class FeatureFlagsManager:
         state = "enabled" if enabled else "disabled"
         current_time = int(time.time())
         
+        # CORREÇÃO: Usar schema do foundation deployer
         item = {
-            "scope": scope,
             "flag_name": feature_name,
+            "environment": scope,
             "state": state,
             "reason": reason,
             "created_at": datetime.utcnow().isoformat(),

@@ -46,7 +46,7 @@ class TestFeatureFlagsManager:
         
         assert result["flag_name"] == "test_feature"
         assert result["state"] == "enabled"
-        assert result["scope"] == "test_scope"
+        assert result["environment"] == "test_scope"  # CORREÇÃO: environment em vez de scope
         mock_table.put_item.assert_called_once()
 
 class TestDriftIntegration:
