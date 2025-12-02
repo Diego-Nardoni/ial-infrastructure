@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Budget Audit Infrastructure'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial
+    Description: Project name for resource naming
+
+Resources:
+  # DynamoDB Table for Budget Audit Trail
+  BudgetAuditTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ial-budget-audit-trail
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: audit_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: audit_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expire_at
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - Key: ial:managed
+          Value: 'true'
+        - Key: Component
+          Value: BudgetAudit
+
+  # SNS Topic for Budget Alerts
+  BudgetAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ial-alerts-critical
+      DisplayName: IAL Critical Alerts
+      Tags:
+        - Key: ial:managed
+          Value: 'true'
+        - Key: Component
+          Value: BudgetAlerts
+
+  # CloudWatch Log Group for Budget Events
+  BudgetAuditLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ial/budget-audit
+      RetentionInDays: 90
+      Tags:
+        - Key: ial:managed
+          Value: 'true'
+        - Key: Component
+          Value: BudgetAudit
+
+  # EventBridge Rule for Budget Changes
+  BudgetChangeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ial-budget-changes
+      Description: Capture budget configuration changes
+      EventPattern:
+        source: ['ial.budget']
+        detail-type: ['Budget Configuration Change']
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt BudgetAuditLogGroup.Arn
+          Id: LogGroupTarget
+        - Arn: !Ref BudgetAlertsTopic
+          Id: SNSTarget
+
+  # IAM Role for Budget Audit
+  BudgetAuditRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ial-budget-audit-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: BudgetAuditPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource: !GetAtt BudgetAuditTable.Arn
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref BudgetAlertsTopic
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt BudgetAuditLogGroup.Arn
+
+Outputs:
+  BudgetAuditTableName:
+    Description: Budget Audit DynamoDB Table Name
+    Value: !Ref BudgetAuditTable
+    Export:
+      Name: !Sub '${ProjectName}-budget-audit-table'
+  
+  BudgetAlertsTopicArn:
+    Description: Budget Alerts SNS Topic ARN
+    Value: !Ref BudgetAlertsTopic
+    Export:
+      Name: !Sub '${ProjectName}-budget-alerts-topic'
+  
+  BudgetAuditLogGroupName:
+    Description: Budget Audit Log Group Name
+    Value: !Ref BudgetAuditLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-budget-audit-logs'

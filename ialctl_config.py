@@ -31,11 +31,36 @@ def handle_config_command(args):
                     print("❌ Cancelled")
                     return
         
+        # Special handling for budget enforcement
+        elif flag_name == 'BUDGET_ENFORCEMENT_ENABLED':
+            if not enabled:
+                print("⚠️  WARNING: Disabling Budget Enforcement")
+                print("   💰 This will disable automatic cost protection")
+                print("   🚨 Deployments will proceed without budget checks")
+                print("   📊 You may exceed configured budget limits")
+                print("")
+                print("   This change will be audited and may trigger alerts.")
+                print("")
+                
+                confirm = input("Continue? (y/N): ").lower()
+                if confirm != 'y':
+                    print("❌ Cancelled")
+                    return
+            else:
+                print("✅ Enabling Budget Enforcement")
+                print("   💰 Automatic cost protection will be active")
+                print("   🔒 Deployments will be blocked if over budget")
+        
         success = feature_flags.set_flag(flag_name, enabled)
         if success:
             print(f"✅ {flag_name} = {enabled}")
+            if flag_name in ['BUDGET_ENFORCEMENT_ENABLED', 'COST_MONITORING_ENABLED']:
+                print("📝 Change logged to audit trail")
         else:
             print(f"❌ Failed to set {flag_name}")
+            if 'BUDGET' in flag_name.upper():
+                print("   This may be due to insufficient IAM permissions")
+                print("   Required permission: ial:ModifyBudget")
     
     elif args.action == 'get':
         if args.flag_name:

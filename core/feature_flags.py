@@ -45,7 +45,19 @@ class FeatureFlagsManager:
             return self.defaults.get(flag_name, False)
     
     def set_flag(self, flag_name: str, enabled: bool, description: str = "") -> bool:
-        """Set feature flag value"""
+        """Set feature flag value with IAM protection and audit trail"""
+        from core.iam_budget_protection import iam_protection
+        from core.budget_audit_trail import audit_trail
+        
+        # Check if this is a budget-related flag that needs protection
+        if self._is_budget_flag(flag_name):
+            # Enforce IAM permission
+            if not iam_protection.enforce_budget_permission(f"Modify {flag_name}"):
+                return False
+        
+        # Get current value for audit trail
+        old_value = self.get_flag(flag_name)
+        
         try:
             self.dynamodb.put_item(
                 TableName=self.table_name,
@@ -57,11 +69,31 @@ class FeatureFlagsManager:
                     'updated_at': {'S': boto3.Session().region_name}  # Timestamp placeholder
                 }
             )
+            
+            # Log to audit trail if budget-related
+            if self._is_budget_flag(flag_name):
+                user_info = iam_protection.get_current_user_info()
+                audit_trail.log_budget_change(
+                    action=f"set_flag",
+                    flag_name=flag_name,
+                    old_value=old_value,
+                    new_value=enabled,
+                    user_info=user_info
+                )
+            
             return True
             
         except ClientError as e:
             print(f"❌ Error setting feature flag {flag_name}: {e}")
             return False
+    
+    def _is_budget_flag(self, flag_name: str) -> bool:
+        """Check if flag is budget-related and needs protection"""
+        budget_flags = [
+            'BUDGET_ENFORCEMENT_ENABLED',
+            'COST_MONITORING_ENABLED'
+        ]
+        return flag_name in budget_flags or 'BUDGET' in flag_name.upper()
     
     def get_all_flags(self) -> Dict[str, bool]:
         """Get all feature flags"""
