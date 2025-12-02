@@ -18,6 +18,11 @@ class IntelligentMCPRouterSophisticated:
     def __init__(self):
         # Initialize all components
         self.llm_provider = LLMProvider()
+        
+        # Import and initialize clarification engine
+        from core.conversational_clarification_engine import ConversationalClarificationEngine
+        self.clarification_engine = ConversationalClarificationEngine()
+        
         self.mesh_loader = MCPMeshLoader()
         self.service_detector = ServiceDetectorEnhanced(self.mesh_loader)
         self.domain_mapper = DomainMapperSophisticated(self.mesh_loader)
@@ -174,7 +179,21 @@ class IntelligentMCPRouterSophisticated:
                         'blocked_keywords': [kw for kw in dangerous_keywords if kw in request_lower]
                     }
                 
-                # For safe infrastructure creation, use GitOps workflow
+                # For safe infrastructure creation, check if needs clarification first
+                analysis = self.clarification_engine.analyze_requirements(request)
+                
+                if not analysis.ready_to_generate and analysis.questions:
+                    # Need clarification - return questions instead of generating templates
+                    clarification_response = self.clarification_engine.format_clarification_response(analysis)
+                    return {
+                        'status': 'needs_clarification',
+                        'response': clarification_response,
+                        'service_type': analysis.service_type,
+                        'questions': [q.__dict__ for q in analysis.questions],
+                        'session_context': 'awaiting_clarification'
+                    }
+                
+                # Requirements are clear, proceed with GitOps workflow
                 return await self._execute_infrastructure_mcps(loaded_mcps, request)
                 
         except Exception as e:
