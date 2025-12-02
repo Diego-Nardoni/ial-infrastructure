@@ -1,0 +1,15 @@
+Package: ialctl
+Version: 3.16.0-BUDGET-ENTERPRISE
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: IAL Team <ial@aws.com>
+Description: Infrastructure Assistant Layer Control
+ IAL Control - Infrastructure Assistant Layer with Enterprise Budget Management
+ .
+ Features:
+ - Budget enforcement with IAM protection
+ - Audit trail completo
+ - Security services management
+ - Feature flags with enterprise controls
+ - Cost monitoring and alerts
