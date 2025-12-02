@@ -15,9 +15,9 @@ class IALOrchestratorStepFunctions:
     def __init__(self):
         self.stepfunctions = boto3.client('stepfunctions')
         self.state_machines = {
-            'phase_pipeline': self._get_state_machine_arn('IAL-Phase-Pipeline'),
-            'audit_validator': self._get_state_machine_arn('IAL-Audit-Validator'),
-            'drift_autoheal': self._get_state_machine_arn('IAL-Drift-AutoHeal')
+            'phase_pipeline': self._get_state_machine_arn('ial-fork-phase-manager'),
+            'audit_validator': self._get_state_machine_arn('ial-fork-audit-validator'),
+            'drift_autoheal': self._get_state_machine_arn('ial-fork-healing-orchestrator')
         }
         
         # Fallback para Python (apenas se Step Functions falhar)
@@ -39,6 +39,7 @@ class IALOrchestratorStepFunctions:
             'nl_intent': nl_intent,
             'timestamp': int(time.time()),
             'execution_id': f"ial-{int(time.time())}",
+            'correlation_id': f"ial-{int(time.time())}",  # Adicionar correlation_id
             'mcp_first': True,
             'python_fallback_available': self.python_fallback is not None
         }
