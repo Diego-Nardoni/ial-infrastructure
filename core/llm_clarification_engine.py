@@ -348,35 +348,27 @@ SOLICITAÇÃO DO USUÁRIO: {user_request}
         """Check if request has sufficient details to bypass clarification"""
         request_lower = request.lower()
         
-        # S3 patterns with sufficient details
-        s3_sufficient_patterns = [
-            # Has bucket name + purpose
-            ('bucket' in request_lower and 'chamado' in request_lower),
-            ('s3' in request_lower and 'site' in request_lower and ('cloudfront' in request_lower or 'cdn' in request_lower)),
-            ('bucket' in request_lower and 'website' in request_lower),
-            ('s3' in request_lower and 'static' in request_lower),
+        # APENAS comandos MUITO específicos com TODOS os detalhes necessários
+        ultra_specific_patterns = [
+            # EC2 com TODOS os detalhes
+            ('ec2' in request_lower and 'ubuntu' in request_lower and 
+             ('t3.micro' in request_lower or 't2.micro' in request_lower) and
+             'vpc' in request_lower and 'security' in request_lower),
+            
+            # Lambda com runtime + código específico
+            ('lambda' in request_lower and 'python3.11' in request_lower and 
+             'zip' in request_lower and 'role' in request_lower),
         ]
         
-        # EC2 patterns with sufficient details  
-        ec2_sufficient_patterns = [
-            ('ec2' in request_lower and 'ubuntu' in request_lower and ('t3' in request_lower or 't2' in request_lower)),
-            ('instancia' in request_lower and 'web' in request_lower and 'nginx' in request_lower),
-        ]
+        # S3 + CloudFront SEMPRE precisa clarificação (muitas configurações)
+        # RDS SEMPRE precisa clarificação (engine, size, security)
+        # ECS SEMPRE precisa clarificação (task def, networking, scaling)
         
-        # Lambda patterns with sufficient details
-        lambda_sufficient_patterns = [
-            ('lambda' in request_lower and 'python' in request_lower and 'api' in request_lower),
-            ('function' in request_lower and 'nodejs' in request_lower),
-        ]
-        
-        # Check if any pattern matches
-        all_patterns = s3_sufficient_patterns + ec2_sufficient_patterns + lambda_sufficient_patterns
-        
-        for pattern in all_patterns:
+        for pattern in ultra_specific_patterns:
             if pattern:
                 return True
                 
-        return False
+        return False  # Por padrão, SEMPRE fazer clarificação
 
     def _format_clarification_questions(self, questions: List[Dict[str, Any]], user_request: str) -> str:
         """Formata perguntas para exibição ao usuário"""
