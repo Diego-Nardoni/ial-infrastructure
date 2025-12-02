@@ -308,6 +308,12 @@ def show_help():
 
 COMANDOS CLI:
   ialctl start              Deploy foundation com conversão IAL→CF
+  ialctl config <ação>      Gerenciar feature flags
+    ialctl config get      Ver todos os feature flags
+    ialctl config set FLAG=VALUE  Configurar feature flag
+    ialctl config reset    Resetar para defaults
+  ialctl destroy <recurso>  Remover recursos específicos
+    ialctl destroy security-services  Remover security services
   ialctl ci <subcomando>    Modo CI/CD profissional
     ialctl ci validate      Validar phases YAML e DAG
     ialctl ci governance    Validar governança e segurança
@@ -324,14 +330,25 @@ COMANDOS CLI:
 
 MODO INTERATIVO:
   ialctl                    Interface conversacional Amazon Q-like
+  ialctl chat               Interface conversacional (alias)
+  ialctl conversational     Interface conversacional (alias)
 
 EXEMPLOS:
-  ialctl start                    # Deploy foundation
-  ialctl list-phases              # Ver fases disponíveis
-  ialctl deploy 20-network        # Deploy fase de rede (IAL→CF)
-  ialctl delete 20-network        # Excluir fase de rede
-  ialctl deploy 30-compute        # Deploy fase de compute (IAL→CF)
-  ialctl delete 30-compute        # Excluir fase de compute
+  ialctl start                           # Deploy foundation
+  ialctl config get                      # Ver feature flags
+  ialctl config set SECURITY_SERVICES_ENABLED=false  # Desabilitar security (~$24/mês)
+  ialctl destroy security-services       # Remover security services existentes
+  ialctl list-phases                     # Ver fases disponíveis
+  ialctl deploy 20-network               # Deploy fase de rede (IAL→CF)
+  ialctl delete 20-network               # Excluir fase de rede
+  ialctl deploy 30-compute               # Deploy fase de compute (IAL→CF)
+  ialctl delete 30-compute               # Excluir fase de compute
+
+FEATURE FLAGS:
+  SECURITY_SERVICES_ENABLED=true        # Security services (~$24/mês)
+  WELL_ARCHITECTED_ENABLED=true         # Well-Architected assessment
+  COST_MONITORING_ENABLED=true          # Cost monitoring
+  DRIFT_DETECTION_ENABLED=true          # Drift detection
     """)
     return 0
 
