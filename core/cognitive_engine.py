@@ -11,67 +11,142 @@ from datetime import datetime
 
 class CognitiveEngine:
     def __init__(self):
-        """Inicializar todos os componentes existentes"""
+        """Inicializar com lazy loading para evitar travamentos"""
+        # Inicializar apenas atributos, componentes carregados sob demanda
+        self._ias = None
+        self._cost_guardrails = None
+        self._phase_builder = None
+        self._github_integration = None
+        self._audit_validator = None
+        self._auto_healer = None
+        self._rag_engine = None
+        self._mcp_orchestrator = None
+        self._memory_manager = None
+        self._context_engine = None
         
-        # Importar componentes existentes
-        try:
-            from core.ias_corrected import IASCorrected
-            self.ias = IASCorrected()
-        except ImportError as e:
-            self.ias = None
-        
-        try:
-            from core.intent_cost_guardrails import IntentCostGuardrails
-            self.cost_guardrails = IntentCostGuardrails()
-        except ImportError as e:
-            self.cost_guardrails = None
-        
-        try:
-            from core.desired_state import DesiredStateBuilder
-            self.phase_builder = DesiredStateBuilder()
-        except ImportError as e:
-            self.phase_builder = None
-        
-        try:
-            from core.github_integration import GitHubIntegration
-            self.github_integration = GitHubIntegration()
-        except ImportError as e:
-            self.github_integration = None
-        
-        try:
-            from core.audit_validator import AuditValidator
-            self.audit_validator = AuditValidator()
-        except ImportError as e:
-            self.audit_validator = None
-        
-        try:
-            from core.drift.auto_healer import AutoHealer
-            self.auto_healer = AutoHealer()
-        except ImportError as e:
-            self.auto_healer = None
-        
-        try:
-            from lib.knowledge_base_engine import KnowledgeBaseEngine
-            self.rag_engine = KnowledgeBaseEngine()
-        except ImportError as e:
-            self.rag_engine = None
-        
-        # MCP AWS Official Integration
-        try:
-            from mcp_orchestrator import MCPOrchestrator
-            self.mcp_orchestrator = MCPOrchestrator()
-        except ImportError as e:
-            self.mcp_orchestrator = None
-        
-        # Memory System Integration
-        try:
-            from core.memory.memory_manager import MemoryManager
-            from core.memory.context_engine import ContextEngine
-            self.memory_manager = MemoryManager()
-            self.context_engine = ContextEngine()
-        except ImportError as e:
-            self.memory_manager = None
-            self.context_engine = None
+        # Flags para controlar carregamento
+        self._components_loaded = {
+            'ias': False,
+            'cost_guardrails': False,
+            'phase_builder': False,
+            'github_integration': False,
+            'audit_validator': False,
+            'auto_healer': False,
+            'rag_engine': False,
+            'mcp_orchestrator': False,
+            'memory_manager': False,
+            'context_engine': False
+        }
+    
+    @property
+    def ias(self):
+        if not self._components_loaded['ias']:
+            try:
+                from core.ias_corrected import IASCorrected
+                self._ias = IASCorrected()
+            except ImportError:
+                self._ias = None
+            self._components_loaded['ias'] = True
+        return self._ias
+    
+    @property
+    def cost_guardrails(self):
+        if not self._components_loaded['cost_guardrails']:
+            try:
+                from core.intent_cost_guardrails import IntentCostGuardrails
+                self._cost_guardrails = IntentCostGuardrails()
+            except ImportError:
+                self._cost_guardrails = None
+            self._components_loaded['cost_guardrails'] = True
+        return self._cost_guardrails
+    
+    @property
+    def phase_builder(self):
+        if not self._components_loaded['phase_builder']:
+            try:
+                from core.desired_state import DesiredStateBuilder
+                self._phase_builder = DesiredStateBuilder()
+            except ImportError:
+                self._phase_builder = None
+            self._components_loaded['phase_builder'] = True
+        return self._phase_builder
+    
+    @property
+    def github_integration(self):
+        if not self._components_loaded['github_integration']:
+            try:
+                from core.github_integration import GitHubIntegration
+                self._github_integration = GitHubIntegration()
+            except ImportError:
+                self._github_integration = None
+            self._components_loaded['github_integration'] = True
+        return self._github_integration
+    
+    @property
+    def audit_validator(self):
+        if not self._components_loaded['audit_validator']:
+            try:
+                from core.audit_validator import AuditValidator
+                self._audit_validator = AuditValidator()
+            except ImportError:
+                self._audit_validator = None
+            self._components_loaded['audit_validator'] = True
+        return self._audit_validator
+    
+    @property
+    def auto_healer(self):
+        if not self._components_loaded['auto_healer']:
+            try:
+                from core.drift.auto_healer import AutoHealer
+                self._auto_healer = AutoHealer()
+            except ImportError:
+                self._auto_healer = None
+            self._components_loaded['auto_healer'] = True
+        return self._auto_healer
+    
+    @property
+    def rag_engine(self):
+        if not self._components_loaded['rag_engine']:
+            try:
+                from lib.knowledge_base_engine import KnowledgeBaseEngine
+                self._rag_engine = KnowledgeBaseEngine()
+            except ImportError:
+                self._rag_engine = None
+            self._components_loaded['rag_engine'] = True
+        return self._rag_engine
+    
+    @property
+    def mcp_orchestrator(self):
+        if not self._components_loaded['mcp_orchestrator']:
+            try:
+                from mcp_orchestrator import MCPOrchestrator
+                self._mcp_orchestrator = MCPOrchestrator()
+            except ImportError:
+                self._mcp_orchestrator = None
+            self._components_loaded['mcp_orchestrator'] = True
+        return self._mcp_orchestrator
+    
+    @property
+    def memory_manager(self):
+        if not self._components_loaded['memory_manager']:
+            try:
+                from core.memory.memory_manager import MemoryManager
+                self._memory_manager = MemoryManager()
+            except ImportError:
+                self._memory_manager = None
+            self._components_loaded['memory_manager'] = True
+        return self._memory_manager
+    
+    @property
+    def context_engine(self):
+        if not self._components_loaded['context_engine']:
+            try:
+                from core.memory.context_engine import ContextEngine
+                self._context_engine = ContextEngine()
+            except ImportError:
+                self._context_engine = None
+            self._components_loaded['context_engine'] = True
+        return self._context_engine
     
     async def fetch_docs_for_intent(self, intent: str) -> Dict[str, Any]:
         """
