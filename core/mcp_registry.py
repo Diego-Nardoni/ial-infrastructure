@@ -38,10 +38,14 @@ class MCPRegistry:
             with open(self.config_path) as f:
                 cfg = json.load(f)
             
-            # Carregar servidores configurados
-            for s in cfg.get("servers", []):
-                self.servers[s["name"]] = {
-                    **s,
+            # Carregar servidores configurados (corrigido para mcpServers)
+            for name, config in cfg.get("mcpServers", {}).items():
+                self.servers[name] = {
+                    "name": name,
+                    "command": config.get("command"),
+                    "args": config.get("args", []),
+                    "env": config.get("env", {}),
+                    "description": config.get("description", ""),
                     'status': MCPStatus.CONFIGURED,
                     'configured_at': time.time()
                 }
