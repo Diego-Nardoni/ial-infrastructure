@@ -6,6 +6,7 @@ import os
 import sys
 import json
 import boto3
+import asyncio
 from typing import Dict, List, Any
 from datetime import datetime
 from core.phase_parser import PhaseParser, deploy_phase_resources
@@ -25,6 +26,38 @@ class FoundationDeployer:
             phases_dir = get_resource_path("phases")
         self.phases_dir = phases_dir
         self.parser = PhaseParser(phases_dir)
+        
+        # AWS clients for validations
+        self.sts = boto3.client('sts')
+        self.bedrock = boto3.client('bedrock-runtime')
+        self.dynamodb = boto3.client('dynamodb')
+        self.s3 = boto3.client('s3')
+        self.iam = boto3.client('iam')
+        self.kms = boto3.client('kms')
+        self.logs = boto3.client('logs')
+        
+        # Get account ID
+        try:
+            identity = self.sts.get_caller_identity()
+            self.account_id = identity['Account']
+        except Exception:
+            self.account_id = None
+        
+        # AWS clients for validations
+        self.sts = boto3.client('sts')
+        self.bedrock = boto3.client('bedrock-runtime')
+        self.dynamodb = boto3.client('dynamodb')
+        self.s3 = boto3.client('s3')
+        self.iam = boto3.client('iam')
+        self.kms = boto3.client('kms')
+        self.logs = boto3.client('logs')
+        
+        # Get account ID
+        try:
+            identity = self.sts.get_caller_identity()
+            self.account_id = identity['Account']
+        except Exception:
+            self.account_id = None
         
         # Ordem de deployment das fases
         self.phase_order = [
@@ -519,6 +552,59 @@ class FoundationDeployer:
                 'error': str(e),
                 'fallback_mode': True
             }
+    
+    async def _validate_aws_credentials(self) -> Dict:
+        """Valida credenciais AWS"""
+        try:
+            identity = self.sts.get_caller_identity()
+            self.account_id = identity['Account']
+            return {
+                "account_id": self.account_id,
+                "user_arn": identity['Arn']
+            }
+        except Exception as e:
+            raise Exception(f"Invalid AWS credentials: {e}")
+    
+    async def _validate_bedrock_access(self) -> Dict:
+        """Valida acesso ao Bedrock"""
+        try:
+            response = self.bedrock.invoke_model(
+                modelId='anthropic.claude-3-haiku-20240307-v1:0',
+                body=json.dumps({
+                    'anthropic_version': 'bedrock-2023-05-31',
+                    'max_tokens': 10,
+                    'messages': [{'role': 'user', 'content': 'test'}]
+                })
+            )
+            return {"bedrock_access": True}
+        except Exception as e:
+            return {"bedrock_access": False, "error": str(e)}
+    
+    async def _validate_system_health(self) -> Dict:
+        """Valida saúde do sistema após deployment"""
+        try:
+            # Lista tabelas DynamoDB
+            tables_response = self.dynamodb.list_tables()
+            ial_tables = [t for t in tables_response.get('TableNames', []) if t.startswith('ial-')]
+            
+            # Lista buckets S3
+            buckets_response = self.s3.list_buckets()
+            ial_buckets = [b['Name'] for b in buckets_response.get('Buckets', []) if b['Name'].startswith('ial-')]
+            
+            checks = {
+                "dynamodb_tables": len(ial_tables) >= 11,
+                "s3_buckets": len(ial_buckets) >= 3,
+                "account_id": self.account_id is not None
+            }
+            
+            return {
+                "system_ready": all(checks.values()),
+                "checks": checks,
+                "ial_tables_count": len(ial_tables),
+                "ial_buckets_count": len(ial_buckets)
+            }
+        except Exception as e:
+            return {"system_ready": False, "error": str(e)}
     
     def save_agent_config(self, agent_config: Dict[str, Any]) -> Dict[str, Any]:
         """Salva configuração do agente em arquivo local"""
