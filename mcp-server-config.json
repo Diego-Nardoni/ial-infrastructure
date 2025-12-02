@@ -107,6 +107,12 @@
       "args": ["-m", "mcp_aws_config"],
       "env": {},
       "description": "AWS Config MCP Server - Compliance and governance"
+    },
+    "aws-well-architected": {
+      "command": "python",
+      "args": ["-m", "awslabs.well_architected_security_mcp_server"],
+      "env": {},
+      "description": "AWS Well-Architected Security Assessment - Automated compliance and security posture evaluation"
     }
   },
   "defaultServers": [

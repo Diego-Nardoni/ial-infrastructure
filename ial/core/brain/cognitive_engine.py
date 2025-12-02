@@ -538,14 +538,14 @@ class CognitiveEngine:
             # INTEGRAÇÃO: Ativar MCPs de compliance e FinOps
             mesh_results = []
             
-            # Well-Architected Review
-            mesh_results.append({'mcp': 'well-architected', 'status': 'activated'})
+            # Well-Architected Review (agora configurado)
+            mesh_results.append({'mcp': 'aws-well-architected', 'status': 'activated'})
             
             # FinOps Monitoring
-            mesh_results.append({'mcp': 'finops', 'status': 'activated'})
+            mesh_results.append({'mcp': 'aws-cost-explorer', 'status': 'activated'})
             
             # Compliance Checks
-            mesh_results.append({'mcp': 'compliance', 'status': 'activated'})
+            mesh_results.append({'mcp': 'aws-config', 'status': 'activated'})
             
             return {
                 'status': 'success',

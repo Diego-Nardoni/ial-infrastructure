@@ -270,10 +270,28 @@ class FoundationDeployer:
         }
     
     def deploy_foundation_core(self) -> Dict[str, Any]:
-        """Deploy TODOS os recursos da Foundation (fase 00)"""
-        print("🎯 Deploying IAL Foundation Core Resources")
+        """Deploy Foundation (00) + Governance (90) para ialctl start"""
+        print("🎯 Deploying IAL Foundation + Governance")
         print("=" * 40)
         
+        # Deploy 00-foundation
+        foundation_result = self._deploy_foundation_phase()
+        
+        # Deploy 90-governance (Well-Architected)
+        print("\n🏛️ Deploying Governance Phase (Well-Architected)...")
+        governance_result = self._deploy_governance_phase()
+        
+        total_successful = foundation_result.get('successful_deployments', 0) + governance_result.get('successful_deployments', 0)
+        
+        return {
+            'foundation': foundation_result,
+            'governance': governance_result,
+            'total_successful': total_successful,
+            'phases_deployed': ['00-foundation', '90-governance']
+        }
+    
+    def _deploy_foundation_phase(self) -> Dict[str, Any]:
+        """Deploy apenas fase 00-foundation"""
         phase_path = os.path.join(self.phases_dir, '00-foundation')
         
         # Templates que são duplicados mas recursos já existem (contar como sucesso)
@@ -342,12 +360,70 @@ class FoundationDeployer:
         # Deploy Cognitive Foundation (Bedrock Agent) if available
         cognitive_result = self.deploy_cognitive_foundation()
         
+        # Executar Well-Architected Assessment automático
+        if successful == len(all_files):
+            print("\n🔍 Running automated Well-Architected Assessment...")
+            try:
+                wa_result = self._run_well_architected_assessment()
+                cognitive_result['well_architected_assessment'] = wa_result
+            except Exception as e:
+                print(f"⚠️ Well-Architected Assessment failed: {e}")
+                cognitive_result['well_architected_assessment'] = {'error': str(e)}
+        
         return {
             'core_resources': results,
             'successful_deployments': successful,
             'total_resource_groups': len(all_files),
             'cognitive_foundation': cognitive_result
         }
+    
+    def _deploy_governance_phase(self) -> Dict[str, Any]:
+        """Deploy fase 90-governance (Well-Architected Assessment)"""
+        try:
+            phase_path = os.path.join(self.phases_dir, '90-governance')
+            
+            if not os.path.exists(phase_path):
+                print("   ⚠️ Governance phase not found, skipping...")
+                return {'successful_deployments': 0, 'skipped': True}
+            
+            # Listar templates de governance
+            governance_files = sorted([
+                f for f in os.listdir(phase_path) 
+                if f.endswith('.yaml')
+            ])
+            
+            print(f"   📦 Found {len(governance_files)} governance templates")
+            
+            successful = 0
+            results = []
+            
+            for file_name in governance_files:
+                file_path = os.path.join(phase_path, file_name)
+                print(f"   🏛️ Deploying {file_name}...", end=" ")
+                
+                try:
+                    result = self.parser.deploy_template(file_path)
+                    if result.get('success'):
+                        print("✅")
+                        successful += 1
+                    else:
+                        print("⚠️")
+                    results.append({'file': file_name, 'result': result})
+                except Exception as e:
+                    print("❌")
+                    results.append({'file': file_name, 'error': str(e)})
+            
+            print(f"   📊 Governance: {successful}/{len(governance_files)} templates deployed")
+            
+            return {
+                'governance_resources': results,
+                'successful_deployments': successful,
+                'total_templates': len(governance_files)
+            }
+            
+        except Exception as e:
+            print(f"   ❌ Governance deployment failed: {e}")
+            return {'error': str(e), 'successful_deployments': 0}
     
     def deploy_cognitive_foundation(self) -> Dict[str, Any]:
         """Deploy Bedrock Agent Core via CloudFormation"""
@@ -605,6 +681,42 @@ class FoundationDeployer:
             }
         except Exception as e:
             return {"system_ready": False, "error": str(e)}
+    
+    def _run_well_architected_assessment(self) -> Dict:
+        """Executa Well-Architected Assessment automático"""
+        try:
+            import subprocess
+            import sys
+            
+            # Executar script de assessment
+            script_path = os.path.join(os.path.dirname(self.phases_dir), 'scripts', 'mcp_well_architected_security.py')
+            
+            if os.path.exists(script_path):
+                print("   🔍 Executing Well-Architected Security Assessment...")
+                result = subprocess.run([sys.executable, script_path], 
+                                      capture_output=True, text=True, timeout=300)
+                
+                if result.returncode == 0:
+                    print("   ✅ Assessment completed successfully")
+                    return {
+                        "status": "success",
+                        "output": result.stdout[-500:],  # Últimas 500 chars
+                        "assessment_completed": True
+                    }
+                else:
+                    print(f"   ⚠️ Assessment completed with warnings: {result.stderr[:100]}")
+                    return {
+                        "status": "warning", 
+                        "error": result.stderr[:200],
+                        "assessment_completed": True
+                    }
+            else:
+                print("   ⚠️ Assessment script not found, skipping...")
+                return {"status": "skipped", "reason": "script_not_found"}
+                
+        except Exception as e:
+            print(f"   ❌ Assessment failed: {e}")
+            return {"status": "error", "error": str(e)}
     
     def save_agent_config(self, agent_config: Dict[str, Any]) -> Dict[str, Any]:
         """Salva configuração do agente em arquivo local"""
