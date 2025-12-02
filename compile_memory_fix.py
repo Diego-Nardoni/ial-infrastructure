@@ -15,8 +15,8 @@ def main():
     
     os.chdir('/home/ial')
     
-    # Update version
-    version = f"3.14.2-MEMORY-{datetime.now().strftime('%Y%m%d')}"
+    # Update version following semantic versioning (SemVer)
+    version = f"3.14.2+memory.{datetime.now().strftime('%Y%m%d')}"
     
     # Create spec file with memory integration
     spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
@@ -111,7 +111,7 @@ Priority: optional
 Architecture: amd64
 Maintainer: IAL Team <ial@example.com>
 Description: IAL Infrastructure Assistant with Infinite Memory
- v3.14.2-MEMORY Implementation - Complete Memory Integration
+ v3.14.2+memory Implementation - Complete Memory Integration
  .
  Features:
  - Infinite conversation memory with DynamoDB + S3
