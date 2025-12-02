@@ -268,45 +268,75 @@ class IaLNaturalProcessor:
         if not user_id:
             user_id = "anonymous-user"
         
-        # ===== NOVA INSERÇÃO: SISTEMA DE VALIDAÇÃO DE INTENÇÃO =====
-        pending_warnings = []
-        cost_info = ""
-        if self.validation_system:
-            try:
-                validation_context = {
-                    'user_id': user_id,
-                    'session_id': session_id,
-                    'timestamp': __import__('time').time()
-                }
-                
-                validation_result = self.validation_system.validate_intent(user_input, validation_context)
-                
-                # Verificar se deve bloquear
-                if validation_result.should_block:
-                    return f"{validation_result.block_message}\n\nClipboard Para prosseguir, entre em contato com o administrador."
-                
-                # Preparar avisos para adicionar à resposta final
-                pending_warnings = validation_result.warnings if validation_result.has_warnings else []
-                
-                # NOVO: Preparar informacoes de custo
-                if validation_result.cost_estimation_used and validation_result.estimated_cost:
-                    cost_info = f"\n💰 Custo estimado: ${validation_result.estimated_cost:.2f}/mês"
-                    
-                    if validation_result.cost_breakdown and len(validation_result.cost_breakdown) > 1:
-                        breakdown = ", ".join([
-                            f"{k}: ${v:.2f}" 
-                            for k, v in validation_result.cost_breakdown.items()
-                        ])
-                        cost_info += f" ({breakdown})"
-                
-            except Exception as e:
-                # Fallback silencioso - nao quebrar sistema existente
-                print(f"⚠️ Erro na validacao de intencao: {e}")
-                pending_warnings = []
-                cost_info = ""
-        # ===== FIM DA INSERÇÃO =====
+        if not session_id:
+            session_id = f"session-{int(time.time())}"
         
-        # ===== NOVA INSERÇÃO: DETECÇÃO DE COMANDOS DRIFT =====
+        # Detectar tipo de intent: create vs query
+        intent_type = self._detect_intent_type(user_input)
+        
+        if intent_type == 'create':
+            # USAR Step Functions para criação/deploy
+            try:
+                from core.ial_orchestrator_stepfunctions import IALOrchestratorStepFunctions
+                orchestrator = IALOrchestratorStepFunctions()
+                result = orchestrator.process_nl_intent(user_input)
+                
+                if result['status'] == 'success':
+                    return f"✅ {result.get('response', 'Processamento concluído')}\n🔗 Execução: {result.get('execution_arn', 'N/A')}"
+                else:
+                    return f"❌ {result.get('message', 'Erro no processamento')}"
+                    
+            except Exception as e:
+                print(f"⚠️ Erro no Step Functions: {e}")
+                # Fallback para processamento normal
+                return self._process_fallback_path(user_input, user_id, session_id)
+        
+        else:
+            # Consultas via Intelligent Router (atual)
+            return self._process_query_intent(user_input, user_id, session_id)
+    
+    def _detect_intent_type(self, user_input: str) -> str:
+        """Detecta se é consulta ou criação"""
+        create_keywords = [
+            'create', 'deploy', 'provision', 'setup', 'configure',
+            'quero', 'preciso', 'criar', 'deployar', 'provisionar',
+            'build', 'install', 'launch', 'start'
+        ]
+        
+        user_lower = user_input.lower()
+        return 'create' if any(keyword in user_lower for keyword in create_keywords) else 'query'
+    
+    def _process_query_intent(self, user_input: str, user_id: str, session_id: str) -> str:
+        """Processar consultas via Intelligent Router"""
+        
+        # Comandos conversacionais simples (apenas saudações isoladas)
+        simple_commands = ['oi', 'olá', 'hello', 'hi', 'help', 'ajuda', 'beleza', 'opa', 'tudo bem', 'e ai']
+        # Verificar se é APENAS saudação (não contém termos técnicos AWS)
+        aws_terms = ['ec2', 's3', 'lambda', 'rds', 'vpc', 'iam', 'cloudformation', 'bucket', 'instance', 'aws', 'infraestrutura', 'deploy', 'create', 'list', 'show', 'quantas', 'quais', 'liste', 'listar', 'meus', 'minhas']
+        is_simple_greeting = (any(keyword == user_input.lower().strip() for keyword in simple_commands) or 
+                             (any(keyword in user_input.lower() for keyword in simple_commands) and 
+                              not any(term in user_input.lower() for term in aws_terms)))
+        
+        if is_simple_greeting:
+            return self._process_fallback_path(user_input, user_id, session_id)
+        
+        # Try Intelligent MCP Router FIRST for ALL requests (not just infrastructure)
+        if self.intelligent_router:
+            try:
+                print("🧠 Iniciando Intelligent MCP Router")  # Debug visível
+                result = self.intelligent_router.route_request(user_input)
+                print(f"🧠 Router result: {result.get('status')}")  # Debug
+                
+                if result.get('status') == 'success':
+                    return self.format_intelligent_router_response(result, user_input)
+                else:
+                    print(f"⚠️ Intelligent Router falhou: {result.get('error')}, tentando fallback")
+                    
+            except Exception as e:
+                print(f"⚠️ Erro no Intelligent Router: {e}, tentando fallback")
+        
+        # Fallback para processamento normal
+        return self._process_fallback_path(user_input, user_id, session_id)
         drift_result = self._detect_drift_commands(user_input)
         if drift_result:
             return drift_result
@@ -500,33 +530,8 @@ class IaLNaturalProcessor:
             except Exception as e:
                 return f"⚠️ Erro ao processar criação de fase: {e}"
         
-        # Comandos conversacionais simples (apenas saudações isoladas)
-        simple_commands = ['oi', 'olá', 'hello', 'hi', 'help', 'ajuda']
-        # Verificar se é APENAS saudação (não contém termos técnicos AWS)
-        aws_terms = ['ec2', 's3', 'lambda', 'rds', 'vpc', 'iam', 'cloudformation', 'bucket', 'instance', 'aws', 'infraestrutura', 'deploy', 'create', 'list', 'show', 'quantas', 'quais']
-        is_simple_greeting = (any(keyword == user_input.lower().strip() for keyword in simple_commands) or 
-                             (any(keyword in user_input.lower() for keyword in simple_commands) and 
-                              not any(term in user_input.lower() for term in aws_terms)))
-        
-        if is_simple_greeting:
-            return self._process_fallback_path(user_input, user_id, session_id)
-        
-        # Try Intelligent MCP Router FIRST for ALL requests (not just infrastructure)
-        if self.intelligent_router:
-            try:
-                print("🧠 Iniciando Intelligent MCP Router")  # Debug visível
-                result = self.intelligent_router.route_request(user_input)
-                print(f"🧠 Router result: {result.get('status')}")  # Debug
-                
-                if result.get('status') == 'success':
-                    return self.format_intelligent_router_response(result, user_input)
-                else:
-                    print(f"⚠️ Intelligent Router falhou: {result.get('error')}, tentando fallback")
-                    
-            except Exception as e:
-                print(f"⚠️ Erro no Intelligent Router: {e}, tentando fallback")
-        else:
-            print("⚠️ Intelligent Router não disponível, usando fallback")
+        # Fallback para processamento normal se não for criação
+        return self._process_fallback_path(user_input, user_id, session_id)
 
         # Try Enhanced Fallback System second (Agent Core → NLP → Sandbox)
         if self.fallback_system:

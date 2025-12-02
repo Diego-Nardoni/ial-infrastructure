@@ -163,7 +163,7 @@ class IntelligentMCPRouterSophisticated:
             if any(term in request_lower for term in ['ec2', 'instanc', 'servidor', 'vm']):
                 aws_command = 'aws ec2 describe-instances --query "Reservations[*].Instances[*].[InstanceId,State.Name,InstanceType]" --output table'
                 service_name = "EC2"
-            elif any(term in request_lower for term in ['s3', 'bucket']):
+            elif any(term in request_lower for term in ['s3', 'bucket', 'liste meus s3', 'listar s3', 'meus s3']):
                 aws_command = 'aws s3api list-buckets --query "Buckets[*].[Name,CreationDate]" --output table'
                 service_name = "S3"
             elif any(term in request_lower for term in ['lambda', 'função', 'funcao', 'function']):

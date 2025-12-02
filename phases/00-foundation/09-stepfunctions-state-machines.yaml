@@ -1,0 +1,533 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAL Foundation - Step Functions State Machines (Idempotent with Real Lambdas)'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ial-fork
+    Description: Project name for resource naming
+
+Resources:
+  # IAM Role for Step Functions (reference existing)
+  StepFunctionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-stepfunctions-role-v2'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+      Policies:
+        - PolicyName: StepFunctionsExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource: '*'
+
+  # IAL Phase Manager State Machine (IDEMPOTENT)
+  IALPhaseManagerStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-phase-manager-v2'
+      RoleArn: !GetAtt StepFunctionsRole.Arn
+      StateMachineType: STANDARD
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL Phase Manager - Complete Pipeline (IDEMPOTENT)",
+          "StartAt": "DiscoverPhases",
+          "States": {
+            "DiscoverPhases": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectName}-phase-discoverer",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.phases",
+              "Next": "IASValidation",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "PipelineFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "IASValidation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-nl-ias-validation",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.ias_result",
+              "Next": "CheckIASResult",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "IASFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "CheckIASResult": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.ias_result.Payload.approved",
+                  "BooleanEquals": true,
+                  "Next": "CostGuardrails"
+                }
+              ],
+              "Default": "IASFailed"
+            },
+            "CostGuardrails": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-nl-cost-estimation",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.cost_result",
+              "Next": "CheckCostResult",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "CostFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "CheckCostResult": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.cost_result.Payload.approved",
+                  "BooleanEquals": true,
+                  "Next": "PhaseBuilder"
+                }
+              ],
+              "Default": "CostExceeded"
+            },
+            "PhaseBuilder": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-nl-phase-builder",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.phase_result",
+              "Next": "GitHubPR",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "PhaseFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "GitHubPR": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-nl-git-commit-pr",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.pr_result",
+              "Next": "Success",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "GitHubFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "Success": {
+              "Type": "Succeed",
+              "OutputPath": "$"
+            },
+            "IASFailed": {
+              "Type": "Fail",
+              "Cause": "IAS validation failed - intent not approved for security reasons"
+            },
+            "CostExceeded": {
+              "Type": "Fail",
+              "Cause": "Cost guardrails failed - estimated cost exceeds budget limit"
+            },
+            "CostFailed": {
+              "Type": "Fail",
+              "Cause": "Cost estimation service failed"
+            },
+            "PhaseFailed": {
+              "Type": "Fail",
+              "Cause": "Phase builder failed to generate infrastructure phases"
+            },
+            "GitHubFailed": {
+              "Type": "Fail",
+              "Cause": "GitHub PR creation failed"
+            },
+            "PipelineFailed": {
+              "Type": "Fail",
+              "Cause": "Pipeline initialization failed"
+            }
+          }
+        }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Pipeline
+        - Key: Purpose
+          Value: PhaseManager
+
+  # IAL Audit Validator State Machine (IDEMPOTENT)
+  IALAuditValidatorStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-audit-validator-v2'
+      RoleArn: !GetAtt StepFunctionsRole.Arn
+      StateMachineType: STANDARD
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL Audit Validator - 100% Completeness Check (IDEMPOTENT)",
+          "StartAt": "GetDesiredState",
+          "States": {
+            "GetDesiredState": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectName}-audit-initializer",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.desired_state",
+              "Next": "GetAWSRealState",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "AuditFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "GetAWSRealState": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectName}-aws-validator",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.aws_state",
+              "Next": "CompareStates",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "AWSStateFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "CompareStates": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-audit-validator-lambda",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.comparison",
+              "Next": "CheckCompleteness",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "ComparisonFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "CheckCompleteness": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.comparison.Payload.completeness",
+                  "NumericEquals": 100,
+                  "Next": "AuditSuccess"
+                }
+              ],
+              "Default": "AuditIncomplete"
+            },
+            "AuditSuccess": {
+              "Type": "Succeed",
+              "OutputPath": "$"
+            },
+            "AuditIncomplete": {
+              "Type": "Fail",
+              "Cause": "Audit validation failed - completeness less than 100%"
+            },
+            "AuditFailed": {
+              "Type": "Fail",
+              "Cause": "Failed to get desired state for audit"
+            },
+            "AWSStateFailed": {
+              "Type": "Fail",
+              "Cause": "Failed to get AWS real state for audit"
+            },
+            "ComparisonFailed": {
+              "Type": "Fail",
+              "Cause": "Failed to compare desired vs real state"
+            }
+          }
+        }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Audit
+        - Key: Purpose
+          Value: Validator
+
+  # IAL Healing Orchestrator State Machine (IDEMPOTENT)
+  IALHealingOrchestratorStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-healing-orchestrator-v2'
+      RoleArn: !GetAtt StepFunctionsRole.Arn
+      StateMachineType: STANDARD
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAL Healing Orchestrator - Drift Detection & Auto-Heal (IDEMPOTENT)",
+          "StartAt": "DetectDrift",
+          "States": {
+            "DetectDrift": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-drift-detect-lambda",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.drift_detection",
+              "Next": "CheckDriftDetected",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "DriftDetectionFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "CheckDriftDetected": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.drift_detection.Payload.drift_detected",
+                  "BooleanEquals": true,
+                  "Next": "ClassifyDrift"
+                }
+              ],
+              "Default": "NoDriftDetected"
+            },
+            "ClassifyDrift": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.drift_detection.Payload.drift_type",
+                  "StringEquals": "safe",
+                  "Next": "AutoHeal"
+                },
+                {
+                  "Variable": "$.drift_detection.Payload.drift_type",
+                  "StringEquals": "risky",
+                  "Next": "CreatePR"
+                }
+              ],
+              "Default": "UnknownDriftType"
+            },
+            "AutoHeal": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectName}-resource-healer",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.healing_result",
+              "Next": "HealingComplete",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "HealingFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "CreatePR": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "ial-reverse-sync-lambda",
+                "Payload.$": "$"
+              },
+              "ResultPath": "$.pr_result",
+              "Next": "HealingComplete",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "PRCreationFailed",
+                  "ResultPath": "$.error"
+                }
+              ]
+            },
+            "HealingComplete": {
+              "Type": "Succeed",
+              "OutputPath": "$"
+            },
+            "NoDriftDetected": {
+              "Type": "Succeed",
+              "Result": {
+                "message": "No drift detected - system is in sync"
+              }
+            },
+            "UnknownDriftType": {
+              "Type": "Fail",
+              "Cause": "Unknown drift type detected"
+            },
+            "DriftDetectionFailed": {
+              "Type": "Fail",
+              "Cause": "Drift detection service failed"
+            },
+            "HealingFailed": {
+              "Type": "Fail",
+              "Cause": "Auto-healing process failed"
+            },
+            "PRCreationFailed": {
+              "Type": "Fail",
+              "Cause": "PR creation for risky drift failed"
+            }
+          }
+        }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Component
+          Value: IAL-Healing
+        - Key: Purpose
+          Value: DriftOrchestrator
+
+Outputs:
+  IALPhaseManagerArn:
+    Description: ARN of the IAL Phase Manager state machine (IDEMPOTENT)
+    Value: !Ref IALPhaseManagerStateMachine
+    Export:
+      Name: !Sub '${ProjectName}-IALPhaseManagerArn-v2'
+
+  IALAuditValidatorArn:
+    Description: ARN of the IAL Audit Validator state machine (IDEMPOTENT)
+    Value: !Ref IALAuditValidatorStateMachine
+    Export:
+      Name: !Sub '${ProjectName}-IALAuditValidatorArn-v2'
+
+  IALHealingOrchestratorArn:
+    Description: ARN of the IAL Healing Orchestrator state machine (IDEMPOTENT)
+    Value: !Ref IALHealingOrchestratorStateMachine
+    Export:
+      Name: !Sub '${ProjectName}-IALHealingOrchestratorArn-v2'
