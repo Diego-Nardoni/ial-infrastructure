@@ -78,10 +78,14 @@ class IntelligentMCPRouterSophisticated:
             detection_result = self.service_detector.detect_services(processed_text)
             detection_time = time.time() - detection_start
             
+            print(f"🔍 DEBUG: Services detected: {detection_result.get('detected_services', [])}")
+            
             # Step 3: Domain Mapping (sync, fast)
             mapping_start = time.time()
             domains = self.domain_mapper.map_to_domains(detection_result['detected_services'])
             required_mcps = self.domain_mapper.get_required_mcps(domains)
+            
+            print(f"🔍 DEBUG: Required MCPs: {required_mcps}")
             
             # Apply pattern optimizations and store pattern
             pattern = detection_result.get('architecture_pattern')
@@ -95,6 +99,8 @@ class IntelligentMCPRouterSophisticated:
             loading_start = time.time()
             loaded_mcps = await self.orchestrator.lazy_load_mcps_async(required_mcps)
             loading_time = time.time() - loading_start
+            
+            print(f"🔍 DEBUG: Loaded MCPs: {list(loaded_mcps.keys())}")
             
             # Step 5: Execution (async, parallel)
             execution_start = time.time()
@@ -194,10 +200,30 @@ class IntelligentMCPRouterSophisticated:
                     print(f"🔍 DEBUG: Status sendo retornado: {analysis.get('status')}")
                     return analysis
                 
-                # Requirements are clear or clarified, proceed with GitOps workflow
-                print(f"🔍 DEBUG: Prosseguindo com GitOps workflow")
+                # Requirements are clear or clarified, proceed with YAML generation
+                print(f"🔍 DEBUG: Prosseguindo com geração de YAML")
                 final_request = analysis.get('combined_requirement', request)
-                return await self._execute_infrastructure_mcps(loaded_mcps, final_request)
+                
+                # Generate YAML templates directly
+                templates = self._generate_yaml_from_mcps(loaded_mcps, final_request)
+                
+                if templates:
+                    print(f"📝 Generated {len(templates)} YAML templates")
+                    # Commit to GitHub
+                    github_result = await self._commit_templates_to_github(templates, final_request)
+                    
+                    return {
+                        'status': 'success',
+                        'templates_generated': len(templates),
+                        'templates': templates,
+                        'github_result': github_result,
+                        'response': f"✅ {len(templates)} templates YAML gerados e commitados!\n\n📁 **Arquivos Criados:**\n" + 
+                                  "\n".join([f"   • {path}" for path in templates.keys()]) +
+                                  f"\n\n🔗 **GitHub:** {github_result.get('commit_url', 'Commit realizado')}"
+                    }
+                else:
+                    # Fallback to Step Functions if no templates generated
+                    return await self._execute_infrastructure_mcps(loaded_mcps, final_request)
                 
         except Exception as e:
             return {'status': 'execution_failed', 'error': str(e)}
@@ -385,6 +411,44 @@ class IntelligentMCPRouterSophisticated:
                 'fallback_available': True
             }
             
+    async def _commit_templates_to_github(self, templates: Dict[str, str], request: str) -> Dict:
+        """Commit generated templates to GitHub repository"""
+        try:
+            import os
+            import subprocess
+            
+            # Write templates to files
+            for file_path, content in templates.items():
+                full_path = f"/home/ial/{file_path}"
+                os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                
+                with open(full_path, 'w') as f:
+                    f.write(content)
+                print(f"📁 Arquivo criado: {full_path}")
+            
+            # Git commit
+            os.chdir("/home/ial")
+            subprocess.run(["git", "add", "."], check=True)
+            
+            commit_msg = f"🎯 WORKLOAD: {request[:50]}...\n\n✅ Templates gerados:\n" + \
+                        "\n".join([f"- {path}" for path in templates.keys()])
+            
+            subprocess.run(["git", "commit", "-m", commit_msg], check=True)
+            subprocess.run(["git", "push", "origin", "main"], check=True)
+            
+            return {
+                'status': 'success',
+                'files_created': len(templates),
+                'commit_message': commit_msg
+            }
+            
+        except Exception as e:
+            print(f"⚠️ GitHub commit error: {e}")
+            return {
+                'status': 'failed',
+                'error': str(e)
+            }
+
     def _generate_yaml_from_mcps(self, loaded_mcps: Dict, request: str) -> Dict[str, str]:
         """Generate optimized YAML templates from loaded MCPs with workload separation"""
         templates = {}
@@ -421,9 +485,17 @@ class IntelligentMCPRouterSophisticated:
         # Try to extract from conversation memory first
         try:
             if hasattr(self, 'conversation_context') and self.conversation_context:
+                # Look for workload in previous inputs
                 for key, value in self.conversation_context.items():
                     if 'workload' in key.lower() and value:
                         return value
+                    # Check if any previous input looks like a workload name
+                    if 'previous_input' in key and value:
+                        # Simple heuristic: if it's not a number and not too long, might be workload name
+                        if not value.isdigit() and len(value.split()) <= 3 and len(value) > 2:
+                            # Avoid common words that aren't workload names
+                            if value.lower() not in ['criar', 'create', 'fazer', 'build', 'deploy', 'site', 'api', 'web']:
+                                return value.lower().replace(' ', '-').replace('_', '-')
         except:
             pass
             
@@ -850,9 +922,12 @@ Outputs:
             
         return metrics
         
-    def route_request(self, request: str) -> Dict[str, Any]:
-        """Sync wrapper with proper event loop handling"""
+    def route_request(self, request: str, conversation_context: Dict = None) -> Dict[str, Any]:
+        """Sync wrapper with proper event loop handling and conversation context"""
         try:
+            # Store conversation context for use in processing
+            self.conversation_context = conversation_context or {}
+            
             # Check if we're already in an event loop
             try:
                 loop = asyncio.get_running_loop()

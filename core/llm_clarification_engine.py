@@ -48,6 +48,17 @@ SOLICITAÇÃO DO USUÁRIO: {user_request}
     async def analyze_and_clarify(self, user_request: str) -> Dict[str, Any]:
         """Usa LLM para analisar requisitos e gerar perguntas inteligentes"""
         
+        print(f"🔍 DEBUG: Iniciando análise de clarificação para: {user_request}")
+        
+        # PRIMEIRO: Verificar se é uma resposta a pergunta anterior
+        if self._is_answer_to_question(user_request):
+            print(f"🔍 DEBUG: Detectada resposta a pergunta anterior")
+            return {
+                'status': 'ready_to_generate',
+                'confidence': 0.8,
+                'reasoning': 'User provided answer to clarification question'
+            }
+        
         print(f"🔍 DEBUG LLM: Analisando requisito: {user_request}")
         
         # Verificar se LLM provider está disponível
@@ -160,6 +171,11 @@ SOLICITAÇÃO DO USUÁRIO: {user_request}
             gaps = mcp_analysis.get('missing_info', [])
             primary_service = mcp_analysis.get('primary_service', 'unknown')
             
+            # SEMPRE adicionar workload_name como primeira pergunta para organização
+            if 'workload_name' not in gaps:
+                gaps.insert(0, 'workload_name')
+                print(f"🔍 DEBUG MCP: Adicionando workload_name aos gaps")
+            
             if not gaps:
                 print(f"🔍 DEBUG MCP: Nenhum gap detectado, prosseguindo com geração")
                 return {
@@ -208,6 +224,11 @@ SOLICITAÇÃO DO USUÁRIO: {user_request}
         # Mapeamento de gaps para perguntas por serviço
         service_gap_questions = {
             'ecs': {
+                'workload_name': {
+                    'question': 'Qual o nome do workload/projeto?',
+                    'context': 'Usado para organizar arquivos em /phases/workloads/{nome}',
+                    'options': ['Nome personalizado (ex: api-backend)', 'Gerar automaticamente', 'Usar estrutura atual (99-misc)']
+                },
                 'task_definition': {
                     'question': 'Qual aplicação você quer containerizar?',
                     'context': 'Preciso saber a imagem Docker, CPU, memória e portas',

@@ -103,6 +103,15 @@ class IaLNaturalProcessor:
                 print(f"⚠️ Erro inicializando Validation System: {e}")
                 self.validation_system = None
         
+        # Initialize Conversation State Manager for multi-turn conversations
+        try:
+            from core.conversation_state_manager import ConversationStateManager
+            self.conversation_state = ConversationStateManager()
+            ultra_silent_print("✅ Conversation State Manager inicializado")
+        except Exception as e:
+            print(f"⚠️ Conversation State Manager não disponível: {e}")
+            self.conversation_state = None
+        
         # Initialize Memory System for conversation tracking
         try:
             from core.memory.memory_manager import MemoryManager
@@ -304,7 +313,55 @@ class IaLNaturalProcessor:
         if self.intelligent_router:
             try:
                 print("🧠 Iniciando Intelligent MCP Router")  # Debug visível
-                result = self.intelligent_router.route_request(user_input)
+                
+                # Check if we have an active conversation session
+                if self.conversation_state:
+                    response_result = self.conversation_state.process_user_response(user_input)
+                    
+                    if response_result.get('status') == 'ready_to_generate':
+                        # User completed all clarifications, proceed with generation
+                        print("✅ All clarifications completed, generating infrastructure")
+                        original_request = response_result.get('original_request')
+                        answers = response_result.get('answers', {})
+                        
+                        # Pass answers as conversation context
+                        conversation_context = {'clarification_answers': answers}
+                        result = self.intelligent_router.route_request(original_request, conversation_context)
+                        
+                    elif response_result.get('status') == 'needs_more_clarification':
+                        # Show next question
+                        next_q = response_result.get('next_question')
+                        progress = response_result.get('progress', '')
+                        return f"""🤔 **Pergunta {progress}:**
+
+**{next_q['question']}**
+{chr(10).join([f"   {i+1}) {opt}" for i, opt in enumerate(next_q['options'])])}
+   💡 *{next_q['context']}*
+
+📝 **Responda com o número da opção ou digite sua resposta:**"""
+                        
+                    elif response_result.get('status') == 'no_active_session':
+                        # No active session, start new conversation
+                        pass  # Continue with normal flow
+                    else:
+                        # Continue with normal flow
+                        pass
+                
+                # Get conversation context from memory
+                conversation_context = {}
+                if self.memory_manager:
+                    recent_messages = self.memory_manager.get_recent_context(limit=5)
+                    for i, msg in enumerate(recent_messages):
+                        if msg.get('role') == 'user':
+                            conversation_context[f'previous_input_{i}'] = msg.get('content', '')
+                        elif msg.get('role') == 'assistant' and 'workload' in msg.get('content', '').lower():
+                            # Extract workload name from previous responses
+                            content = msg.get('content', '')
+                            if 'workload' in content.lower():
+                                conversation_context['workload_context'] = content
+                
+                # Pass context to router
+                result = self.intelligent_router.route_request(user_input, conversation_context)
                 print(f"🧠 Router result: {result.get('status')}")  # Debug
                 
                 if result.get('status') == 'success':
@@ -313,6 +370,19 @@ class IaLNaturalProcessor:
                     # Exibir mensagem de bloqueio de segurança
                     return result.get('response', '🚨 Solicitação bloqueada por motivos de segurança')
                 elif result.get('status') == 'needs_clarification':
+                    # Start conversation session and show questions
+                    if self.conversation_state:
+                        questions_data = result.get('questions', [])
+                        service_type = result.get('service_type', 'unknown')
+                        
+                        session_id = self.conversation_state.start_conversation(
+                            user_id or 'default',
+                            user_input,
+                            service_type
+                        )
+                        
+                        self.conversation_state.add_clarification_questions(session_id, questions_data)
+                    
                     # Exibir perguntas de clarificação
                     return result.get('response', '🤔 Preciso de mais informações para prosseguir')
                 else:
