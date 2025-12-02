@@ -652,7 +652,12 @@ class CognitiveEngine:
     
     def _is_query_request(self, nl_intent: str) -> bool:
         """Detectar se é solicitação de consulta/informação"""
-        query_keywords = ['qual', 'quais', 'como', 'onde', 'quando', 'mostrar', 'listar', 'ver', 'status', 'info', 'últimas', 'ultimas', 'histórico', 'historico', 'logs']
+        query_keywords = [
+            'qual', 'quais', 'como', 'onde', 'quando', 'quantas', 'quantos', 'quanto',
+            'mostrar', 'listar', 'ver', 'status', 'info', 'liste', 'mostre',
+            'últimas', 'ultimas', 'histórico', 'historico', 'logs',
+            'possuo', 'tenho', 'existe', 'existem', 'há'
+        ]
         return any(keyword in nl_intent.lower() for keyword in query_keywords)
     
     def _handle_query_request(self, nl_intent: str) -> Dict[str, Any]:

@@ -532,23 +532,25 @@ class IaLNaturalProcessor:
             except Exception as e:
                 print(f"⚠️ Enhanced Fallback System error: {e}")
         
-        # Try Intelligent MCP Router for infrastructure requests
+        # Try Intelligent MCP Router FIRST for ALL requests (not just infrastructure)
         if self.intelligent_router:
             try:
-                ultra_silent_print("🧠 Iniciando Intelligent MCP Router")
+                print("🧠 Iniciando Intelligent MCP Router")  # Debug visível
                 result = self.intelligent_router.route_request(user_input)
+                print(f"🧠 Router result: {result.get('status')}")  # Debug
                 
-                if result.get('success'):
-                    response = self.format_intelligent_router_response(result, user_input)
+                if result.get('status') == 'success':
+                    return self.format_intelligent_router_response(result, user_input)
                 else:
-                    print(f"⚠️ Intelligent Router falhou: {result.get('error')}, usando fallback")
-                    response = self._process_fallback_path(user_input, user_id, session_id)
+                    print(f"⚠️ Intelligent Router falhou: {result.get('error')}, tentando fallback")
                     
             except Exception as e:
-                print(f"⚠️ Erro no Intelligent Router: {e}, usando fallback")
-                response = self._process_fallback_path(user_input, user_id, session_id)
+                print(f"⚠️ Erro no Intelligent Router: {e}, tentando fallback")
         else:
-            response = self._process_fallback_path(enriched_input, user_id, session_id)
+            print("⚠️ Intelligent Router não disponível, usando fallback")
+        
+        # Only use fallback path if Intelligent Router fails or is not available
+        return self._process_fallback_path(user_input, user_id, session_id)
         
         # Adicionar avisos de validacao à resposta final
         if pending_warnings:
@@ -849,6 +851,11 @@ Use essas informacoes para responder perguntas sobre data e hora atual."""
                 return f"⚠️ {error_msg}\n🔄 Usando modo básico para processar sua solicitacao."
             else:
                 return f"❌ {error_msg}"
+        
+        # Check if this is a direct query response
+        execution_results = result.get('execution_results', {})
+        if execution_results.get('type') == 'query' and execution_results.get('response'):
+            return execution_results['response']
         
         # Check if GitOps was triggered
         execution_results = result.get('execution_results', {})

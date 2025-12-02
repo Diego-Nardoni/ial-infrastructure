@@ -122,21 +122,91 @@ class IntelligentMCPRouterSophisticated:
             return self._fallback_response(f"Routing failed: {str(e)}", start_time)
             
     async def _execute_mcps_async(self, loaded_mcps: Dict, request: str) -> Dict:
-        """Execute MCPs via GitOps workflow (not direct execution)"""
+        """Execute MCPs - direct execution for queries, GitOps for infrastructure creation"""
         if not loaded_mcps:
             return {'status': 'no_mcps_loaded'}
             
         try:
-            # Generate optimized YAML templates from MCPs
-            yaml_templates = self._generate_yaml_from_mcps(loaded_mcps, request)
+            # Detect if this is a query vs infrastructure creation
+            is_query = self._is_query_request(request)
             
-            if not yaml_templates:
-                return {'status': 'no_templates_generated'}
-            
+            if is_query:
+                # For queries, execute MCP tools directly
+                return await self._execute_query_mcps(loaded_mcps, request)
+            else:
+                # For infrastructure creation, use GitOps workflow
+                return await self._execute_infrastructure_mcps(loaded_mcps, request)
+                
+        except Exception as e:
+            return {'status': 'execution_failed', 'error': str(e)}
+    
+    def _is_query_request(self, request: str) -> bool:
+        """Detect if request is a query vs infrastructure creation"""
+        query_keywords = [
+            'quantas', 'quantos', 'quanto', 'qual', 'quais', 'como', 'onde', 'quando',
+            'mostrar', 'listar', 'ver', 'status', 'info', 'liste', 'mostre',
+            'possuo', 'tenho', 'existe', 'existem', 'há', 'show', 'list', 'describe'
+        ]
+        return any(keyword in request.lower() for keyword in query_keywords)
+    
+    async def _execute_query_mcps(self, loaded_mcps: Dict, request: str) -> Dict:
+        """Execute MCP tools directly for queries"""
+        results = {}
+        
+        # For EC2 queries, use AWS API MCP Server
+        if 'ec2' in request.lower():
+            try:
+                # Use awslabs.aws-api-mcp-server for EC2 queries
+                from mcp import ClientSession, StdioServerParameters
+                import subprocess
+                
+                # Execute AWS CLI command to list EC2 instances
+                cmd = ["aws", "ec2", "describe-instances", "--query", "Reservations[*].Instances[*].[InstanceId,State.Name,InstanceType]", "--output", "table"]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                
+                if result.returncode == 0:
+                    results['ec2_instances'] = result.stdout
+                    return {
+                        'status': 'success',
+                        'type': 'query',
+                        'results': results,
+                        'response': f"📊 **Suas instâncias EC2:**\n\n```\n{result.stdout}\n```"
+                    }
+                else:
+                    return {
+                        'status': 'error',
+                        'error': f"AWS CLI error: {result.stderr}",
+                        'response': "❌ Erro ao consultar instâncias EC2. Verifique suas credenciais AWS."
+                    }
+                    
+            except Exception as e:
+                return {
+                    'status': 'error',
+                    'error': str(e),
+                    'response': f"❌ Erro ao executar consulta EC2: {str(e)}"
+                }
+        
+        # Default response for other queries
+        return {
+            'status': 'success',
+            'type': 'query',
+            'results': {'message': 'Query processed'},
+            'response': f"📋 Consulta processada: {request}"
+        }
+    
+    async def _execute_infrastructure_mcps(self, loaded_mcps: Dict, request: str) -> Dict:
+        """Execute GitOps workflow for infrastructure creation"""
+        # Generate optimized YAML templates from MCPs
+        yaml_templates = self._generate_yaml_from_mcps(loaded_mcps, request)
+        
+        if not yaml_templates:
+            return {'status': 'no_templates_generated'}
+        
+        try:
             # Use GitHub Integration for GitOps workflow
             from core.github_integration import GitHubIntegration
             github_integration = GitHubIntegration()
-            
+                
             # Create intent for GitHub integration
             intent = {
                 'request': request,
