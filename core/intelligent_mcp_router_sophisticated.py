@@ -190,14 +190,33 @@ class IntelligentMCPRouterSophisticated:
                 }
             
             # Execute AWS CLI command
-            cmd = aws_command.split()
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            print(f"🔍 Comando original: {aws_command}")  # Debug
+            
+            # Usar shlex para parsing correto de comandos com aspas
+            import shlex
+            cmd = shlex.split(aws_command)
+            print(f"🔍 Comando parseado: {cmd}")  # Debug
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)  # Aumentar timeout
+            
+            print(f"🔍 Return code: {result.returncode}")  # Debug
+            print(f"🔍 Stdout length: {len(result.stdout)}")  # Debug
+            print(f"🔍 Stderr: {result.stderr}")  # Debug
             
             if result.returncode != 0:
                 return {
                     'status': 'error',
                     'error': f"AWS CLI error: {result.stderr}",
                     'response': f"❌ Erro ao consultar recursos {service_name}: {result.stderr}"
+                }
+            
+            # Verificar se stdout está vazio
+            if not result.stdout or result.stdout.strip() == "":
+                return {
+                    'status': 'success',
+                    'type': 'query',
+                    'results': {'output': 'Nenhum recurso encontrado'},
+                    'response': f"📊 **Seus recursos {service_name}:**\n\n```\nNenhum recurso {service_name} encontrado na região atual.\n```"
                 }
             
             # Basic response with data
