@@ -20,7 +20,7 @@ class FeatureFlagsManager:
             'WELL_ARCHITECTED_ENABLED': True,
             'COST_MONITORING_ENABLED': True,
             'DRIFT_DETECTION_ENABLED': True,
-            'BUDGET_ENFORCEMENT_ENABLED': False  # Disabled by default
+            'BUDGET_ENFORCEMENT_ENABLED': True  # Enabled by default with IAM protection
         }
     
     def get_flag(self, flag_name: str) -> bool:
@@ -101,7 +101,7 @@ class FeatureFlagsManager:
                 'WELL_ARCHITECTED_ENABLED': 'Enable Well-Architected Assessment automation',
                 'COST_MONITORING_ENABLED': 'Enable cost monitoring and alerting',
                 'DRIFT_DETECTION_ENABLED': 'Enable infrastructure drift detection',
-                'BUDGET_ENFORCEMENT_ENABLED': 'Enable budget enforcement blocking (disabled by default for safety)'
+                'BUDGET_ENFORCEMENT_ENABLED': 'Enable budget enforcement blocking (enabled by default with IAM protection)'
             }
             
             self.set_flag(

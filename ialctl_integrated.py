@@ -380,7 +380,7 @@ FEATURE FLAGS:
   WELL_ARCHITECTED_ENABLED=true         # Well-Architected assessment
   COST_MONITORING_ENABLED=true          # Cost monitoring
   DRIFT_DETECTION_ENABLED=true          # Drift detection
-  BUDGET_ENFORCEMENT_ENABLED=false      # Budget enforcement blocking (disabled by default)
+  BUDGET_ENFORCEMENT_ENABLED=true       # Budget enforcement blocking (with IAM protection)
 
 BUDGET LIMITS (per phase):
   00-foundation: $50/month              # DynamoDB, S3, Lambda básico
