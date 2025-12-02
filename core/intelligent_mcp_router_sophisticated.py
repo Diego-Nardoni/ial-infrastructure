@@ -150,49 +150,104 @@ class IntelligentMCPRouterSophisticated:
         return any(keyword in request.lower() for keyword in query_keywords)
     
     async def _execute_query_mcps(self, loaded_mcps: Dict, request: str) -> Dict:
-        """Execute MCP tools directly for queries"""
-        results = {}
+        """Execute MCP tools directly for queries - Enhanced with RAG and recommendations"""
+        import subprocess
         
-        # For EC2 queries, use AWS API MCP Server
-        if 'ec2' in request.lower():
-            try:
-                # Use awslabs.aws-api-mcp-server for EC2 queries
-                from mcp import ClientSession, StdioServerParameters
-                import subprocess
-                
-                # Execute AWS CLI command to list EC2 instances
-                cmd = ["aws", "ec2", "describe-instances", "--query", "Reservations[*].Instances[*].[InstanceId,State.Name,InstanceType]", "--output", "table"]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-                
-                if result.returncode == 0:
-                    results['ec2_instances'] = result.stdout
-                    return {
-                        'status': 'success',
-                        'type': 'query',
-                        'results': results,
-                        'response': f"📊 **Suas instâncias EC2:**\n\n```\n{result.stdout}\n```"
-                    }
-                else:
-                    return {
-                        'status': 'error',
-                        'error': f"AWS CLI error: {result.stderr}",
-                        'response': "❌ Erro ao consultar instâncias EC2. Verifique suas credenciais AWS."
-                    }
-                    
-            except Exception as e:
+        try:
+            # Execute basic AWS CLI query first
+            request_lower = request.lower()
+            aws_command = None
+            service_name = "AWS"
+            
+            # Smart mapping of common AWS services to CLI commands
+            if any(term in request_lower for term in ['ec2', 'instanc', 'servidor', 'vm']):
+                aws_command = 'aws ec2 describe-instances --query "Reservations[*].Instances[*].[InstanceId,State.Name,InstanceType]" --output table'
+                service_name = "EC2"
+            elif any(term in request_lower for term in ['s3', 'bucket']):
+                aws_command = 'aws s3api list-buckets --query "Buckets[*].[Name,CreationDate]" --output table'
+                service_name = "S3"
+            elif any(term in request_lower for term in ['lambda', 'função', 'funcao', 'function']):
+                aws_command = 'aws lambda list-functions --query "Functions[*].[FunctionName,Runtime,LastModified]" --output table'
+                service_name = "Lambda"
+            elif any(term in request_lower for term in ['vpc', 'rede', 'network']):
+                aws_command = 'aws ec2 describe-vpcs --query "Vpcs[*].[VpcId,State,CidrBlock]" --output table'
+                service_name = "VPC"
+            elif any(term in request_lower for term in ['rds', 'database', 'banco', 'db']):
+                aws_command = 'aws rds describe-db-instances --query "DBInstances[*].[DBInstanceIdentifier,DBInstanceStatus,Engine]" --output table'
+                service_name = "RDS"
+            elif any(term in request_lower for term in ['iam', 'user', 'usuario', 'usuário']):
+                aws_command = 'aws iam list-users --query "Users[*].[UserName,CreateDate]" --output table'
+                service_name = "IAM"
+            elif any(term in request_lower for term in ['stack', 'cloudformation', 'cfn']):
+                aws_command = 'aws cloudformation list-stacks --query "StackSummaries[?StackStatus!=`DELETE_COMPLETE`].[StackName,StackStatus,CreationTime]" --output table'
+                service_name = "CloudFormation"
+            
+            if not aws_command:
                 return {
                     'status': 'error',
-                    'error': str(e),
-                    'response': f"❌ Erro ao executar consulta EC2: {str(e)}"
+                    'error': 'Service not supported',
+                    'response': f"❌ Serviço não suportado ainda. Tente: EC2, S3, Lambda, VPC, RDS, IAM, CloudFormation"
                 }
-        
-        # Default response for other queries
-        return {
-            'status': 'success',
-            'type': 'query',
-            'results': {'message': 'Query processed'},
-            'response': f"📋 Consulta processada: {request}"
-        }
+            
+            # Execute AWS CLI command
+            cmd = aws_command.split()
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            
+            if result.returncode != 0:
+                return {
+                    'status': 'error',
+                    'error': f"AWS CLI error: {result.stderr}",
+                    'response': f"❌ Erro ao consultar recursos {service_name}: {result.stderr}"
+                }
+            
+            # Basic response with data
+            response = f"📊 **Seus recursos {service_name}:**\n\n```\n{result.stdout}\n```"
+            
+            # Add enhanced features using existing components
+            try:
+                # Add RAG-based insights using real methods
+                from lib.knowledge_base_engine import KnowledgeBaseEngine
+                rag_engine = KnowledgeBaseEngine()
+                insights = rag_engine.get_troubleshooting_guide(service_name.lower())
+                if insights and len(str(insights)) > 10:
+                    response += f"\n\n💡 **Guia de Troubleshooting:**\n{str(insights)[:200]}..."
+            except Exception as e:
+                print(f"RAG error: {e}")
+            
+            try:
+                # Add cost validation using real methods
+                from core.intent_cost_guardrails import IntentCostGuardrails
+                cost_guardrails = IntentCostGuardrails()
+                cost_estimate = cost_guardrails.estimate_intent_cost(f"list {service_name.lower()} resources")
+                if cost_estimate:
+                    cost_value = cost_estimate if isinstance(cost_estimate, (int, float)) else cost_estimate.get('estimated_cost', 'N/A')
+                    response += f"\n\n💰 **Estimativa de Custo:** ${cost_value}"
+            except Exception as e:
+                print(f"Cost error: {e}")
+            
+            try:
+                # Add memory context using real methods
+                from core.memory.memory_manager import MemoryManager
+                memory_manager = MemoryManager()
+                recent_context = memory_manager.get_recent_context(limit=3)
+                if recent_context:
+                    response += f"\n\n🧠 **Contexto Recente:** {len(recent_context)} conversas relacionadas"
+            except Exception as e:
+                print(f"Memory error: {e}")
+            
+            return {
+                'status': 'success',
+                'type': 'query',
+                'results': {'output': result.stdout},
+                'response': response
+            }
+                
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e),
+                'response': f"❌ Erro ao executar consulta AWS: {str(e)}"
+            }
     
     async def _execute_infrastructure_mcps(self, loaded_mcps: Dict, request: str) -> Dict:
         """Execute GitOps workflow for infrastructure creation"""
