@@ -14,6 +14,7 @@ class IALOrchestratorStepFunctions:
     
     def __init__(self):
         self.stepfunctions = boto3.client('stepfunctions')
+        self.dynamodb = boto3.resource('dynamodb')
         self.state_machines = {
             'phase_pipeline': self._get_state_machine_arn('ial-fork-pipeline-completo'),
             'audit_validator': self._get_state_machine_arn('ial-fork-audit-validator'),
@@ -27,6 +28,42 @@ class IALOrchestratorStepFunctions:
         except ImportError:
             self.python_fallback = None
     
+    def _generate_execution_hash(self, nl_intent: str) -> str:
+        """Generate deterministic hash from input for deduplication"""
+        import hashlib
+        content = f"{nl_intent.strip().lower()}"
+        return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+    def _check_duplicate_execution(self, execution_hash: str) -> Dict:
+        """Check if execution already exists in DynamoDB"""
+        try:
+            table = self.dynamodb.Table('ial-state')
+            response = table.get_item(Key={'system_id': f'execution-{execution_hash}'})
+            
+            if 'Item' in response:
+                return {
+                    'is_duplicate': True,
+                    'existing_execution': response['Item']
+                }
+            return {'is_duplicate': False}
+        except Exception as e:
+            print(f"⚠️ Error checking duplicates: {e}")
+            return {'is_duplicate': False}
+
+    def _store_execution_tracking(self, execution_hash: str, nl_intent: str, execution_arn: str = None):
+        """Store execution for deduplication with TTL"""
+        try:
+            table = self.dynamodb.Table('ial-state')
+            table.put_item(Item={
+                'system_id': f'execution-{execution_hash}',
+                'nl_intent': nl_intent,
+                'execution_arn': execution_arn,
+                'timestamp': int(time.time()),
+                'ttl': int(time.time()) + 3600  # 1 hour TTL for cleanup
+            })
+        except Exception as e:
+            print(f"⚠️ Error storing execution tracking: {e}")
+
     def process_nl_intent(self, nl_intent: str) -> Dict[str, Any]:
         """
         Processar via Step Functions (ELIMINA lambda cola)
@@ -34,28 +71,50 @@ class IALOrchestratorStepFunctions:
         
         print(f"🔄 Processando via Step Functions: {nl_intent[:50]}...")
         
-        # Preparar input para Step Functions
+        # STEP 1: Generate deterministic hash for deduplication
+        execution_hash = self._generate_execution_hash(nl_intent)
+        print(f"🔍 Execution hash: {execution_hash}")
+        
+        # STEP 2: Check for duplicate executions
+        duplicate_check = self._check_duplicate_execution(execution_hash)
+        if duplicate_check['is_duplicate']:
+            existing = duplicate_check['existing_execution']
+            print(f"⚠️ Duplicate execution detected")
+            return {
+                'status': 'duplicate',
+                'message': f'Execution already processed at {existing.get("timestamp")}',
+                'execution_hash': execution_hash,
+                'existing_execution_arn': existing.get('execution_arn'),
+                'original_timestamp': existing.get('timestamp')
+            }
+        
+        # STEP 3: Preparar input para Step Functions
         execution_input = {
             'nl_intent': nl_intent,
+            'execution_hash': execution_hash,
             'timestamp': int(time.time()),
-            'execution_id': f"ial-{int(time.time())}",
-            'correlation_id': f"ial-{int(time.time())}",  # Adicionar correlation_id
+            'execution_id': f"ial-{execution_hash}",
+            'correlation_id': f"ial-{execution_hash}",
             'mcp_first': True,
             'python_fallback_available': self.python_fallback is not None
         }
         
         try:
-            # EXECUTAR via Step Functions (SEM lambda cola)
+            # STEP 4: EXECUTAR via Step Functions (SEM lambda cola)
             response = self.stepfunctions.start_execution(
                 stateMachineArn=self.state_machines['phase_pipeline'],
                 name=execution_input['execution_id'],
                 input=json.dumps(execution_input)
             )
             
-            print(f"✅ Step Functions iniciado: {response['executionArn']}")
+            execution_arn = response['executionArn']
+            print(f"✅ Step Functions iniciado: {execution_arn}")
             
-            # Aguardar conclusão (ou retornar para async)
-            return self._wait_for_execution(response['executionArn'])
+            # STEP 5: Store execution tracking for future deduplication
+            self._store_execution_tracking(execution_hash, nl_intent, execution_arn)
+            
+            # STEP 6: Aguardar conclusão (ou retornar para async)
+            return self._wait_for_execution(execution_arn)
             
         except Exception as e:
             print(f"⚠️ Step Functions falhou: {e}")

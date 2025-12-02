@@ -272,7 +272,7 @@ class IaLNaturalProcessor:
             session_id = f"session-{int(time.time())}"
         
         # USAR SEMPRE Intelligent MCP Router (com sistema conversacional)
-        # Remove lógica de Step Functions que estava ignorando clarificação
+        # Que internamente chama Step Functions para infrastructure creation
         return self._process_query_intent(user_input, user_id, session_id)
     
     def _detect_intent_type(self, user_input: str) -> str:

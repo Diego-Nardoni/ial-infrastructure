@@ -23,6 +23,9 @@ Resources:
           KeyType: HASH
         - AttributeName: component
           KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
       Tags:
         - Key: Project
           Value: !Ref ProjectName

@@ -82,6 +82,48 @@ class IntentCostGuardrails:
         }
         
     
+    def estimate_infrastructure_cost(self, request: str, loaded_mcps: Dict) -> Dict:
+        """Estimate cost for infrastructure creation before YAML generation"""
+        try:
+            # Analyze request for cost-impacting services
+            cost_factors = {
+                's3': {'base_cost': 5, 'storage_gb': 10},
+                'cloudfront': {'base_cost': 10, 'requests_million': 1},
+                'ecs': {'base_cost': 50, 'instance_hours': 24 * 30},
+                'rds': {'base_cost': 100, 'instance_hours': 24 * 30},
+                'lambda': {'base_cost': 5, 'invocations_million': 1}
+            }
+            
+            total_cost = 0
+            cost_breakdown = {}
+            
+            request_lower = request.lower()
+            
+            # Detect services and estimate costs
+            for service, factors in cost_factors.items():
+                if service in request_lower or any(service in mcp for mcp in loaded_mcps.keys()):
+                    service_cost = factors['base_cost']
+                    cost_breakdown[service] = service_cost
+                    total_cost += service_cost
+            
+            # Special case: S3 + CloudFront website
+            if 's3' in cost_breakdown and ('cloudfront' in request_lower or 'site' in request_lower):
+                if 'cloudfront' not in cost_breakdown:
+                    cost_breakdown['cloudfront'] = cost_factors['cloudfront']['base_cost']
+                    total_cost += cost_factors['cloudfront']['base_cost']
+            
+            return {
+                'estimated_cost': total_cost,
+                'cost_breakdown': cost_breakdown,
+                'currency': 'USD',
+                'period': 'monthly',
+                'confidence': 0.7
+            }
+            
+        except Exception as e:
+            print(f"Cost estimation error: {e}")
+            return {'estimated_cost': 0, 'error': str(e)}
+    
     def estimate_intent_cost(self, parsed_intent: Dict) -> float:
         """
         CORREÇÃO: Método faltante para estimativa de custo

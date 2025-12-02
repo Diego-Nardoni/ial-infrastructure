@@ -351,42 +351,34 @@ class IntelligentMCPRouterSophisticated:
             }
     
     async def _execute_infrastructure_mcps(self, loaded_mcps: Dict, request: str) -> Dict:
-        """Execute GitOps workflow for infrastructure creation"""
-        # Generate optimized YAML templates from MCPs
-        yaml_templates = self._generate_yaml_from_mcps(loaded_mcps, request)
+        """Execute via Step Functions pipeline-completo (após sistema conversacional)"""
         
-        if not yaml_templates:
-            return {'status': 'no_templates_generated'}
-        
+        print(f"🔄 Executando via Step Functions pipeline-completo...")
         try:
-            # Use GitHub Integration for GitOps workflow
-            from core.github_integration import GitHubIntegration
-            github_integration = GitHubIntegration()
+            from core.ial_orchestrator_stepfunctions import IALOrchestratorStepFunctions
+            orchestrator = IALOrchestratorStepFunctions()
+            
+            # Execute Step Functions pipeline-completo
+            # Fluxo: IAS → Cost → Phase → GitHub → Deploy → Audit
+            stepfunctions_result = orchestrator.process_nl_intent(request)
+            
+            if stepfunctions_result.get('status') == 'success':
+                return {
+                    'status': 'success',
+                    'stepfunctions_execution': stepfunctions_result.get('execution_arn'),
+                    'response': f"✅ Step Functions iniciado: {stepfunctions_result.get('execution_arn')}\n⏳ Pipeline: IAS → Cost → Phase → GitHub → Deploy → Audit",
+                    'deployment_method': 'stepfunctions_pipeline_completo'
+                }
+            else:
+                return stepfunctions_result
                 
-            # Create intent for GitHub integration
-            intent = {
-                'request': request,
-                'mcps_used': list(loaded_mcps.keys()),
-                'architecture_pattern': getattr(self, '_detected_pattern', None),
-                'timestamp': time.time(),
-                'intent': 'create_infrastructure'  # Default intent for now
-            }
-            
-            # Execute GitOps workflow
-            github_result = github_integration.execute_infrastructure_deployment(
-                yaml_templates, intent
-            )
-            
-            return {
-                'status': 'gitops_triggered',
-                'github_status': github_result['status'],
-                'github_response': github_result['response'],
-                'templates_generated': len(yaml_templates),
-                'pr_url': github_result.get('github_url'),
-                'deployment_method': 'gitops'
-            }
-            
         except Exception as e:
+            print(f"⚠️ Step Functions error: {e}")
+            return {
+                'status': 'stepfunctions_failed',
+                'error': str(e),
+                'response': f"❌ Erro no Step Functions: {str(e)}"
+            }
             return {
                 'status': 'gitops_failed',
                 'error': str(e),
