@@ -304,12 +304,14 @@ class IntelligentMCPRouterSophisticated:
             
             # Add enhanced features using existing components
             try:
-                # Add RAG-based insights using real methods
-                from lib.knowledge_base_engine import KnowledgeBaseEngine
-                rag_engine = KnowledgeBaseEngine()
-                insights = rag_engine.get_troubleshooting_guide(service_name.lower())
-                if insights and len(str(insights)) > 10:
-                    response += f"\n\n💡 **Guia de Troubleshooting:**\n{str(insights)[:200]}..."
+                # Only add troubleshooting for complex queries, not simple listings
+                if not any(word in request.lower() for word in ['list', 'listar', 'mostrar', 'ver', 'describe']):
+                    # Add RAG-based insights using real methods
+                    from lib.knowledge_base_engine import KnowledgeBaseEngine
+                    rag_engine = KnowledgeBaseEngine()
+                    insights = rag_engine.get_troubleshooting_guide(service_name.lower())
+                    if insights and len(str(insights)) > 10:
+                        response += f"\n\n💡 **Guia de Troubleshooting:**\n{str(insights)[:200]}..."
             except Exception as e:
                 print(f"RAG error: {e}")
             
