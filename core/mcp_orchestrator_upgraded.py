@@ -25,6 +25,90 @@ class MCPOrchestratorUpgraded:
         self.cache_settings = mesh_loader.get_cache_settings()
         self.health_settings = mesh_loader.get_health_check_settings()
         
+    async def analyze_requirements(self, user_request: str) -> Dict[str, Any]:
+        """Analyze user requirements using MCP capabilities to detect missing information"""
+        try:
+            # Get all available MCPs and their capabilities
+            all_domains = self.mesh_loader.get_all_domains()
+            
+            # Detect which services are mentioned in the request
+            request_lower = user_request.lower()
+            detected_services = []
+            
+            # Service detection patterns
+            service_patterns = {
+                'ecs': ['ecs', 'container', 'fargate', 'task'],
+                'rds': ['rds', 'database', 'mysql', 'postgres'],
+                'lambda': ['lambda', 'function', 'serverless'],
+                's3': ['s3', 'bucket', 'storage'],
+                'api_gateway': ['api', 'gateway', 'rest', 'endpoint'],
+                'vpc': ['vpc', 'network', 'subnet', 'security'],
+                'ec2': ['ec2', 'instance', 'server', 'vm']
+            }
+            
+            for service, patterns in service_patterns.items():
+                if any(pattern in request_lower for pattern in patterns):
+                    detected_services.append(service)
+            
+            if not detected_services:
+                return {
+                    'complete': False,
+                    'missing_info': ['service_type'],
+                    'detected_services': [],
+                    'confidence': 0.1
+                }
+            
+            # Analyze completeness based on detected services
+            missing_info = []
+            primary_service = detected_services[0]
+            
+            # Service-specific requirement analysis
+            if primary_service == 'ecs':
+                required_info = ['task_definition', 'networking', 'scaling']
+                if 'task' not in request_lower and 'definition' not in request_lower:
+                    missing_info.append('task_definition')
+                if 'vpc' not in request_lower and 'subnet' not in request_lower:
+                    missing_info.append('networking')
+                if 'scale' not in request_lower and 'replica' not in request_lower:
+                    missing_info.append('scaling')
+            
+            elif primary_service == 'rds':
+                if not any(db in request_lower for db in ['mysql', 'postgres', 'aurora']):
+                    missing_info.append('database_engine')
+                if not any(size in request_lower for size in ['micro', 'small', 'medium', 'large']):
+                    missing_info.append('instance_size')
+                if 'multi-az' not in request_lower and 'availability' not in request_lower:
+                    missing_info.append('availability')
+            
+            elif primary_service == 'lambda':
+                if 'runtime' not in request_lower and not any(lang in request_lower for lang in ['python', 'node', 'java']):
+                    missing_info.append('runtime')
+                if 'memory' not in request_lower and 'timeout' not in request_lower:
+                    missing_info.append('performance_config')
+            
+            # Calculate completeness
+            is_complete = len(missing_info) == 0
+            confidence = max(0.3, 1.0 - (len(missing_info) * 0.2))
+            
+            return {
+                'complete': is_complete,
+                'missing_info': missing_info,
+                'detected_services': detected_services,
+                'primary_service': primary_service,
+                'confidence': confidence,
+                'analysis_timestamp': time.time()
+            }
+            
+        except Exception as e:
+            print(f"⚠️ Erro na análise de requisitos MCP: {e}")
+            return {
+                'complete': False,
+                'missing_info': ['analysis_error'],
+                'detected_services': [],
+                'confidence': 0.0,
+                'error': str(e)
+            }
+
     async def lazy_load_mcps_async(self, required_mcps: List[Dict]) -> Dict[str, Any]:
         """Async lazy loading with circuit breaker protection"""
         tasks = []

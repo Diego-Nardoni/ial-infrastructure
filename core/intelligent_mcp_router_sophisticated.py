@@ -18,15 +18,14 @@ class IntelligentMCPRouterSophisticated:
     def __init__(self):
         # Initialize all components
         self.llm_provider = LLMProvider()
-        
-        # Import and initialize clarification engine
-        from core.conversational_clarification_engine import ConversationalClarificationEngine
-        self.clarification_engine = ConversationalClarificationEngine()
-        
         self.mesh_loader = MCPMeshLoader()
         self.service_detector = ServiceDetectorEnhanced(self.mesh_loader)
         self.domain_mapper = DomainMapperSophisticated(self.mesh_loader)
         self.orchestrator = MCPOrchestratorUpgraded(self.mesh_loader)
+        
+        # Import LLM-powered clarification engine (after orchestrator)
+        from core.llm_clarification_engine import LLMClarificationEngine
+        self.clarification_engine = LLMClarificationEngine(self.llm_provider, self.orchestrator)
         
         # Circuit breaker for overall routing
         self.routing_circuit = CircuitBreaker(
@@ -179,22 +178,16 @@ class IntelligentMCPRouterSophisticated:
                         'blocked_keywords': [kw for kw in dangerous_keywords if kw in request_lower]
                     }
                 
-                # For safe infrastructure creation, check if needs clarification first
-                analysis = self.clarification_engine.analyze_requirements(request)
+                # For safe infrastructure creation, use LLM+MCP for intelligent clarification
+                analysis = await self.clarification_engine.analyze_and_clarify(request)
                 
-                if not analysis.ready_to_generate and analysis.questions:
-                    # Need clarification - return questions instead of generating templates
-                    clarification_response = self.clarification_engine.format_clarification_response(analysis)
-                    return {
-                        'status': 'needs_clarification',
-                        'response': clarification_response,
-                        'service_type': analysis.service_type,
-                        'questions': [q.__dict__ for q in analysis.questions],
-                        'session_context': 'awaiting_clarification'
-                    }
+                if analysis.get('status') == 'needs_clarification':
+                    # Return clarification questions from LLM
+                    return analysis
                 
-                # Requirements are clear, proceed with GitOps workflow
-                return await self._execute_infrastructure_mcps(loaded_mcps, request)
+                # Requirements are clear or clarified, proceed with GitOps workflow
+                final_request = analysis.get('combined_requirement', request)
+                return await self._execute_infrastructure_mcps(loaded_mcps, final_request)
                 
         except Exception as e:
             return {'status': 'execution_failed', 'error': str(e)}
