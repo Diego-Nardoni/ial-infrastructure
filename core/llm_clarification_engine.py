@@ -50,6 +50,15 @@ SOLICITAÇÃO DO USUÁRIO: {user_request}
         
         print(f"🔍 DEBUG: Iniciando análise de clarificação para: {user_request}")
         
+        # BYPASS: Comandos específicos que não precisam clarificação
+        if self._has_sufficient_details(user_request):
+            print(f"🔍 DEBUG: Comando tem detalhes suficientes, bypass de clarificação")
+            return {
+                'status': 'ready_to_generate',
+                'confidence': 0.9,
+                'reasoning': 'Command has sufficient details for generation'
+            }
+        
         # PRIMEIRO: Verificar se é uma resposta a pergunta anterior
         if self._is_answer_to_question(user_request):
             print(f"🔍 DEBUG: Detectada resposta a pergunta anterior")
@@ -335,6 +344,40 @@ SOLICITAÇÃO DO USUÁRIO: {user_request}
         
         return questions
     
+    def _has_sufficient_details(self, request: str) -> bool:
+        """Check if request has sufficient details to bypass clarification"""
+        request_lower = request.lower()
+        
+        # S3 patterns with sufficient details
+        s3_sufficient_patterns = [
+            # Has bucket name + purpose
+            ('bucket' in request_lower and 'chamado' in request_lower),
+            ('s3' in request_lower and 'site' in request_lower and ('cloudfront' in request_lower or 'cdn' in request_lower)),
+            ('bucket' in request_lower and 'website' in request_lower),
+            ('s3' in request_lower and 'static' in request_lower),
+        ]
+        
+        # EC2 patterns with sufficient details  
+        ec2_sufficient_patterns = [
+            ('ec2' in request_lower and 'ubuntu' in request_lower and ('t3' in request_lower or 't2' in request_lower)),
+            ('instancia' in request_lower and 'web' in request_lower and 'nginx' in request_lower),
+        ]
+        
+        # Lambda patterns with sufficient details
+        lambda_sufficient_patterns = [
+            ('lambda' in request_lower and 'python' in request_lower and 'api' in request_lower),
+            ('function' in request_lower and 'nodejs' in request_lower),
+        ]
+        
+        # Check if any pattern matches
+        all_patterns = s3_sufficient_patterns + ec2_sufficient_patterns + lambda_sufficient_patterns
+        
+        for pattern in all_patterns:
+            if pattern:
+                return True
+                
+        return False
+
     def _format_clarification_questions(self, questions: List[Dict[str, Any]], user_request: str) -> str:
         """Formata perguntas para exibição ao usuário"""
         response = f"🤔 **Preciso de mais detalhes sobre: '{user_request}'**\n\n"
