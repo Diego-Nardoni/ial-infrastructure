@@ -152,8 +152,18 @@ Resources:
                 "Payload": {
                   "nl_intent.$": "$.nl_intent",
                   "correlation_id.$": "$.correlation_id",
-                  "ias_result.$": "$.ias_result",
-                  "cost_result.$": "$.cost_result"
+                  "ias_result": {
+                    "Payload": {
+                      "body.$": "$.ias_result.Payload.body",
+                      "statusCode.$": "$.ias_result.Payload.statusCode"
+                    }
+                  },
+                  "cost_result": {
+                    "Payload": {
+                      "body.$": "$.cost_result.Payload.body",
+                      "statusCode.$": "$.cost_result.Payload.statusCode"
+                    }
+                  }
                 }
               },
               "ResultPath": "$.phase_result",
@@ -183,7 +193,15 @@ Resources:
                 "Payload": {
                   "nl_intent.$": "$.nl_intent",
                   "correlation_id.$": "$.correlation_id",
-                  "phase_result.$": "$.phase_result"
+                  "phase_result": {
+                    "Payload": {
+                      "body": {
+                        "phase_number.$": "$.phase_result.Payload.body.phase_number",
+                        "phase_name.$": "$.phase_result.Payload.body.phase_name",
+                        "yaml_content.$": "$.phase_result.Payload.body.yaml_content"
+                      }
+                    }
+                  }
                 }
               },
               "ResultPath": "$.pr_result",
@@ -211,8 +229,21 @@ Resources:
               "Parameters": {
                 "FunctionName": "ial-nl-deploy-cfn",
                 "Payload": {
-                  "phase_result.$": "$.phase_result",
-                  "pr_result.$": "$.pr_result",
+                  "phase_result": {
+                    "Payload": {
+                      "body": {
+                        "yaml_content.$": "$.phase_result.Payload.body.yaml_content",
+                        "phase_name.$": "$.phase_result.Payload.body.phase_name"
+                      }
+                    }
+                  },
+                  "pr_result": {
+                    "Payload": {
+                      "body": {
+                        "pr_url.$": "$.pr_result.Payload.body.pr_url"
+                      }
+                    }
+                  },
                   "correlation_id.$": "$.correlation_id"
                 }
               },
@@ -284,19 +315,50 @@ Resources:
               "Type": "Succeed"
             },
             "IASBlocked": {
-              "Type": "Fail",
-              "Cause": "🛡️ IAS Validation BLOQUEOU a solicitação por motivos de segurança. Intent considerado perigoso.",
-              "Error": "IAS_SECURITY_BLOCK"
+              "Type": "Pass",
+              "Parameters": {
+                "status": "security_blocked",
+                "message": "🛡️ IAS Validation BLOQUEOU a solicitação por motivos de segurança",
+                "reason": "Intent considerado perigoso pelo sistema de validação",
+                "recommendation": "Revise sua solicitação e tente novamente com intent mais específico e seguro",
+                "blocked_intent.$": "$.nl_intent",
+                "timestamp.$": "$$.State.EnteredTime"
+              },
+              "Next": "SecurityBlockedEnd"
             },
             "CostExceeded": {
-              "Type": "Fail",
-              "Cause": "💰 Cost Guardrails BLOQUEARAM a solicitação - custo estimado excede o orçamento aprovado.",
-              "Error": "COST_BUDGET_EXCEEDED"
+              "Type": "Pass",
+              "Parameters": {
+                "status": "cost_blocked",
+                "message": "💰 Cost Guardrails BLOQUEARAM a solicitação",
+                "reason": "Custo estimado excede o orçamento aprovado",
+                "estimated_cost.$": "$.cost_result.Payload.body.total_monthly_cost",
+                "budget_limit.$": "$.cost_result.Payload.body.monthly_budget",
+                "recommendation": "Considere uma solução mais econômica ou solicite aumento de orçamento",
+                "timestamp.$": "$$.State.EnteredTime"
+              },
+              "Next": "CostBlockedEnd"
             },
             "AuditIncomplete": {
-              "Type": "Fail",
-              "Cause": "🔍 Audit Validation FALHOU - completeness menor que 100%. Recursos não foram criados corretamente.",
-              "Error": "AUDIT_INCOMPLETE"
+              "Type": "Pass",
+              "Parameters": {
+                "status": "audit_failed",
+                "message": "🔍 Audit Validation FALHOU - recursos não foram criados corretamente",
+                "reason": "Completeness menor que 100%",
+                "completeness.$": "$.audit_result.Payload.body.completeness",
+                "recommendation": "Verifique logs de CloudFormation e tente novamente",
+                "timestamp.$": "$$.State.EnteredTime"
+              },
+              "Next": "AuditFailedEnd"
+            },
+            "SecurityBlockedEnd": {
+              "Type": "Succeed"
+            },
+            "CostBlockedEnd": {
+              "Type": "Succeed"
+            },
+            "AuditFailedEnd": {
+              "Type": "Succeed"
             },
             "IASValidationFailed": {
               "Type": "Fail",

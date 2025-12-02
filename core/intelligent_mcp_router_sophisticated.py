@@ -35,8 +35,29 @@ class IntelligentMCPRouterSophisticated:
         print(f"✅ Circuit Breakers: Ativo")
         
     async def route_request_async(self, request: str) -> Dict[str, Any]:
-        """Main async routing method with circuit breaker"""
+        """Main async routing method with circuit breaker and SECURITY VALIDATION"""
         start_time = time.time()
+        
+        # SECURITY FIRST: Check for dangerous intents
+        dangerous_keywords = [
+            'delete', 'remove', 'destroy', 'terminate', 'drop', 'kill', 'stop',
+            'deletar', 'remover', 'destruir', 'terminar', 'parar', 'matar',
+            'all', 'everything', 'todos', 'todas', 'tudo', '*'
+        ]
+        
+        request_lower = request.lower()
+        has_dangerous = any(keyword in request_lower for keyword in dangerous_keywords)
+        
+        if has_dangerous:
+            print(f"🚨 DANGEROUS INTENT DETECTED: {request}")
+            print(f"🛡️ SECURITY BLOCKING - Intent perigoso detectado")
+            return {
+                'status': 'security_blocked',
+                'response': f"🚨 INTENT PERIGOSO DETECTADO: '{request}'\n\n🛡️ Por motivos de segurança, esta solicitação foi BLOQUEADA pelo sistema IAS.\n\n✅ Para prosseguir com segurança, use: 'ialctl create' que passará por validação completa.",
+                'security_reason': 'dangerous_keywords_detected',
+                'blocked_keywords': [kw for kw in dangerous_keywords if kw in request_lower],
+                'execution_time': time.time() - start_time
+            }
         
         if not self.routing_circuit.can_execute():
             return self._fallback_response("Circuit breaker open", start_time)

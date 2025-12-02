@@ -329,6 +329,9 @@ class IaLNaturalProcessor:
                 
                 if result.get('status') == 'success':
                     return self.format_intelligent_router_response(result, user_input)
+                elif result.get('status') == 'security_blocked':
+                    # Exibir mensagem de bloqueio de segurança
+                    return result.get('response', '🚨 Solicitação bloqueada por motivos de segurança')
                 else:
                     print(f"⚠️ Intelligent Router falhou: {result.get('error')}, tentando fallback")
                     
