@@ -19,7 +19,8 @@ class FeatureFlagsManager:
             'SECURITY_SERVICES_ENABLED': True,
             'WELL_ARCHITECTED_ENABLED': True,
             'COST_MONITORING_ENABLED': True,
-            'DRIFT_DETECTION_ENABLED': True
+            'DRIFT_DETECTION_ENABLED': True,
+            'BUDGET_ENFORCEMENT_ENABLED': False  # Disabled by default
         }
     
     def get_flag(self, flag_name: str) -> bool:
@@ -99,7 +100,8 @@ class FeatureFlagsManager:
                 'SECURITY_SERVICES_ENABLED': 'Enable AWS Security Services (GuardDuty, Security Hub, etc.) - ~$24/month',
                 'WELL_ARCHITECTED_ENABLED': 'Enable Well-Architected Assessment automation',
                 'COST_MONITORING_ENABLED': 'Enable cost monitoring and alerting',
-                'DRIFT_DETECTION_ENABLED': 'Enable infrastructure drift detection'
+                'DRIFT_DETECTION_ENABLED': 'Enable infrastructure drift detection',
+                'BUDGET_ENFORCEMENT_ENABLED': 'Enable budget enforcement blocking (disabled by default for safety)'
             }
             
             self.set_flag(

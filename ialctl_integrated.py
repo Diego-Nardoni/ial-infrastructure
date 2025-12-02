@@ -157,7 +157,38 @@ def run_foundation_deploy():
         return 1
 
 def deploy_specific_phase(phase):
-    """Deploy uma fase específica usando CognitiveEngine"""
+    """Deploy uma fase específica usando CognitiveEngine com budget check"""
+    from core.feature_flags import feature_flags
+    from core.budget_config import budget_config
+    
+    # Check budget enforcement
+    budget_enforcement = feature_flags.get_flag('BUDGET_ENFORCEMENT_ENABLED')
+    if budget_enforcement:
+        budget_limit = budget_config.get_phase_limit(phase)
+        print(f"💰 Budget Enforcement: ENABLED (limit: ${budget_limit}/month)")
+        
+        # Check budget before deployment
+        try:
+            from mcp.finops.server import FinOpsMCP
+            finops = FinOpsMCP()
+            budget_result = finops.check_budget(phase, budget_limit)
+            
+            if not budget_result['within_budget']:
+                print(f"❌ BUDGET EXCEEDED FOR PHASE {phase}!")
+                print(f"   Estimated: ${budget_result['estimated_cost']:.2f}/month")
+                print(f"   Limit: ${budget_result['budget_limit']:.2f}/month")
+                print(f"   Overage: ${budget_result['overage']:.2f}/month")
+                print(f"")
+                print(f"   To proceed anyway: ialctl config set BUDGET_ENFORCEMENT_ENABLED=false")
+                print(f"   Or increase limit: ialctl config set PHASE_{phase.upper().replace('-', '_')}_LIMIT={budget_result['estimated_cost']:.0f}")
+                return 1
+            else:
+                print(f"✅ Budget OK: ${budget_result['estimated_cost']:.2f} < ${budget_result['budget_limit']:.2f}")
+                
+        except Exception as e:
+            print(f"⚠️ Budget check failed: {e}")
+            print(f"   Proceeding with deployment...")
+    
     try:
         from core.cognitive_engine import CognitiveEngine
         
@@ -349,6 +380,18 @@ FEATURE FLAGS:
   WELL_ARCHITECTED_ENABLED=true         # Well-Architected assessment
   COST_MONITORING_ENABLED=true          # Cost monitoring
   DRIFT_DETECTION_ENABLED=true          # Drift detection
+  BUDGET_ENFORCEMENT_ENABLED=false      # Budget enforcement blocking (disabled by default)
+
+BUDGET LIMITS (per phase):
+  00-foundation: $50/month              # DynamoDB, S3, Lambda básico
+  10-security: $30/month                # Security services
+  20-network: $20/month                 # VPC, subnets, NAT gateway
+  30-compute: $100/month                # EC2, ECS, ALB
+  40-data: $80/month                    # RDS, DynamoDB workload
+  50-application: $60/month             # Lambda, API Gateway
+  60-observability: $40/month           # CloudWatch, X-Ray
+  70-ai-ml: $150/month                  # Bedrock, SageMaker
+  90-governance: $10/month              # Budgets, Config rules
     """)
     return 0
 
