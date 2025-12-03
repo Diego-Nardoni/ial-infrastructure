@@ -46,6 +46,37 @@ class IntelligentMCPRouterSophisticated:
         """Main async routing method with circuit breaker and SECURITY VALIDATION"""
         start_time = time.time()
         
+        # PHASE DETECTION: Check if user is trying to create/modify existing phase
+        try:
+            from core.phase_detector import PhaseDetector
+            phase_detector = PhaseDetector()
+            phase_detection = phase_detector.detect_phase_intent(request)
+            
+            if phase_detection and phase_detection.get('phase_detected'):
+                print(f"🎯 Phase intent detected: {phase_detection.get('phase_name')}")
+                
+                if phase_detection.get('phase_exists'):
+                    # Phase exists - provide suggestions instead of creating workload
+                    suggestions = phase_detector.format_phase_suggestions(phase_detection)
+                    
+                    return {
+                        'status': 'phase_exists',
+                        'response': suggestions,
+                        'phase_name': phase_detection.get('phase_name'),
+                        'execution_time': time.time() - start_time
+                    }
+                else:
+                    # Phase doesn't exist but similar ones might
+                    if phase_detection.get('suggestion_type') == 'similar_phases':
+                        suggestions = phase_detector.format_phase_suggestions(phase_detection)
+                        return {
+                            'status': 'similar_phases_found',
+                            'response': suggestions,
+                            'execution_time': time.time() - start_time
+                        }
+        except Exception as e:
+            print(f"⚠️ Phase detection error: {e}")
+        
         # SECURITY FIRST: Check for dangerous intents
         dangerous_keywords = [
             'delete', 'remove', 'destroy', 'terminate', 'drop', 'kill', 'stop',

@@ -387,6 +387,12 @@ class IaLNaturalProcessor:
                     
                     # Exibir perguntas de clarificação
                     return result.get('response', '🤔 Preciso de mais informações para prosseguir')
+                elif result.get('status') == 'phase_exists':
+                    # Phase exists - show suggestions
+                    return result.get('response', '🎯 Phase detectada - veja as sugestões acima')
+                elif result.get('status') == 'similar_phases_found':
+                    # Similar phases found - show suggestions
+                    return result.get('response', '🤔 Phases similares encontradas - veja as sugestões acima')
                 else:
                     print(f"⚠️ Intelligent Router falhou: {result.get('error')}, tentando fallback")
                     
