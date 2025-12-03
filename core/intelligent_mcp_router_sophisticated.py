@@ -35,7 +35,11 @@ class IntelligentMCPRouterSophisticated:
         )
         
         print(f"✅ LLM Provider: {self.llm_provider.current_provider}")
-        print(f"✅ MCP Domains: {len(self.mesh_loader.get_all_domains())}")
+        domains_count = len(self.mesh_loader.get_all_domains())
+        print(f"✅ MCP Domains: {domains_count}")
+        if domains_count > 0:
+            domains_list = ", ".join(self.mesh_loader.get_all_domains())
+            print(f"📋 Available domains: {domains_list}")
         print(f"✅ Circuit Breakers: Ativo")
         
     async def route_request_async(self, request: str) -> Dict[str, Any]:
