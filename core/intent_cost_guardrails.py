@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-Intent Cost Guardrails - Pre-YAML Cost Validation
-Estima custos ANTES da geração de YAML usando MCPs FinOps existentes
-Estratégia: Estimativa habilitada por padrão + Enforcement opt-in
+Intent Cost Guardrails - REAL LLM + MCP Cost Analysis
+Custo REAL usando LLM para análise + MCP Cost Server para preços AWS API
 """
 
 import os
@@ -15,18 +14,9 @@ from dataclasses import dataclass, field
 # Add core path for imports
 sys.path.append(os.path.dirname(__file__))
 
-# Import Decision Ledger existente
-try:
-    from decision_ledger import DecisionLedger
-except ImportError:
-    # Fallback se não conseguir importar
-    class DecisionLedger:
-        def log(self, **kwargs):
-            print(f"📝 Decision Log: {kwargs}")
-
 @dataclass
 class CostValidationResult:
-    """Resultado da validação de custo"""
+    """Resultado da validação de custo REAL"""
     estimated_cost: Optional[float] = None
     cost_breakdown: Dict[str, float] = field(default_factory=dict)
     should_block: bool = False
@@ -34,345 +24,357 @@ class CostValidationResult:
     cache_hit: bool = False
     processing_time_ms: int = 0
     services_detected: List[str] = field(default_factory=list)
+    cost_source: str = "unknown"  # "mcp_real", "llm_analysis", "unavailable"
 
 @dataclass
 class CostConfig:
-    """Configuração do sistema de custos"""
+    """Configuração do sistema de custos REAL"""
     estimation_enabled: bool = True
     enforcement_enabled: bool = False
     default_budget: float = 150.0
     cache_ttl_minutes: int = 60
-    timeout_seconds: int = 3
+    timeout_seconds: int = 5
     show_breakdown: bool = True
+    require_real_costs: bool = True  # Não mostrar custos falsos
 
-class IntentCostGuardrails:
+class RealCostGuardrails:
     """
-    Componente principal para validação de custos antes da geração de YAML
+    Sistema de custos REAL usando LLM + MCP Cost Server
     """
     
     def __init__(self):
         self.config = self._load_config()
-        self.cache = {}  # Cache simples de preços
-        self.decision_ledger = DecisionLedger()
+        self.cache = {}
         
-        # Padrões para detectar serviços AWS
-        self.service_patterns = {
-            'ecs': ['ecs', 'container', 'fargate', 'cluster', 'task', 'service'],
-            'rds': ['rds', 'database', 'mysql', 'postgres', 'aurora', 'db'],
-            'redis': ['redis', 'elasticache', 'cache', 'memcached'],
-            'elb': ['elb', 'alb', 'nlb', 'load balancer', 'balancer', 'lb'],
-            's3': ['s3', 'bucket', 'storage', 'object'],
-            'lambda': ['lambda', 'function', 'serverless'],
-            'dynamodb': ['dynamodb', 'nosql', 'table', 'item'],
-            'vpc': ['vpc', 'network', 'subnet', 'security group'],
-            'apigateway': ['api gateway', 'api', 'rest', 'http', 'endpoint']
-        }
-        
-        # Preços heurísticos para fallback (USD/mês)
-        self.fallback_prices = {
-            'ecs': 45.0,
-            'rds': 65.0, 
-            'redis': 25.0,
-            'elb': 20.0,
-            's3': 5.0,
-            'lambda': 10.0,
-            'dynamodb': 15.0,
-            'vpc': 0.0,  # VPC básico é gratuito
-            'apigateway': 12.0
-        }
-        
+        # Initialize LLM and MCP components
+        self.llm_provider = None
+        self.mcp_cost_server = None
+        self._init_components()
     
-    def estimate_infrastructure_cost(self, request: str, loaded_mcps: Dict) -> Dict:
-        """Estimate cost for infrastructure creation before YAML generation"""
+    def _init_components(self):
+        """Initialize LLM and MCP components"""
         try:
-            # Analyze request for cost-impacting services
-            cost_factors = {
-                's3': {'base_cost': 5, 'storage_gb': 10},
-                'cloudfront': {'base_cost': 10, 'requests_million': 1},
-                'ecs': {'base_cost': 50, 'instance_hours': 24 * 30},
-                'rds': {'base_cost': 100, 'instance_hours': 24 * 30},
-                'lambda': {'base_cost': 5, 'invocations_million': 1}
-            }
-            
-            total_cost = 0
-            cost_breakdown = {}
-            
-            request_lower = request.lower()
-            
-            # Detect services and estimate costs
-            for service, factors in cost_factors.items():
-                if service in request_lower or any(service in mcp for mcp in loaded_mcps.keys()):
-                    service_cost = factors['base_cost']
-                    cost_breakdown[service] = service_cost
-                    total_cost += service_cost
-            
-            # Special case: S3 + CloudFront website
-            if 's3' in cost_breakdown and ('cloudfront' in request_lower or 'site' in request_lower):
-                if 'cloudfront' not in cost_breakdown:
-                    cost_breakdown['cloudfront'] = cost_factors['cloudfront']['base_cost']
-                    total_cost += cost_factors['cloudfront']['base_cost']
-            
-            return {
-                'estimated_cost': total_cost,
-                'cost_breakdown': cost_breakdown,
-                'currency': 'USD',
-                'period': 'monthly',
-                'confidence': 0.7
-            }
-            
+            from core.llm_provider import LLMProvider
+            self.llm_provider = LLMProvider()
+            print("✅ LLM Provider initialized for cost analysis")
         except Exception as e:
-            print(f"Cost estimation error: {e}")
-            return {'estimated_cost': 0, 'error': str(e)}
+            print(f"⚠️ LLM Provider not available: {e}")
+        
+        try:
+            from core.mcp_orchestrator import MCPOrchestrator
+            self.mcp_orchestrator = MCPOrchestrator()
+            print("✅ MCP Orchestrator initialized for cost analysis")
+        except Exception as e:
+            print(f"⚠️ MCP Orchestrator not available: {e}")
     
-    def estimate_intent_cost(self, parsed_intent: Dict) -> float:
+    def _load_config(self) -> CostConfig:
+        """Load cost configuration"""
+        try:
+            config_path = "/etc/ial/cost_config.json"
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config_data = json.load(f)
+                return CostConfig(**config_data)
+        except Exception as e:
+            print(f"⚠️ Using default cost config: {e}")
+        
+        return CostConfig()
+    
+    async def estimate_intent_cost(self, user_request: str) -> Optional[float]:
         """
-        CORREÇÃO: Método faltante para estimativa de custo
+        Estima custo REAL usando LLM + MCP Cost Server
         
         Args:
-            parsed_intent: Intent parseado pelo IAS
+            user_request: Requisição do usuário (ex: "listar ec2")
             
         Returns:
-            float: Custo estimado em USD/mês
+            float: Custo real em USD/mês ou None se não disponível
         """
+        
+        if not self.config.estimation_enabled:
+            return None
+        
         try:
-            # Extrair serviços do intent parseado
-            services = []
+            # 1. USAR LLM PARA ANÁLISE INTELIGENTE
+            infrastructure_analysis = await self._analyze_with_llm(user_request)
             
-            if isinstance(parsed_intent, dict):
-                # Tentar extrair serviços de diferentes campos
-                if 'services' in parsed_intent:
-                    services = parsed_intent['services']
-                elif 'resources' in parsed_intent:
-                    services = [r.get('type', '').lower() for r in parsed_intent['resources']]
-                elif 'raw' in parsed_intent:
-                    services = self._detect_services(parsed_intent['raw'])
-                else:
-                    # Fallback: detectar serviços do intent completo
-                    intent_str = str(parsed_intent)
-                    services = self._detect_services(intent_str)
-            else:
-                # Se não for dict, tentar como string
-                services = self._detect_services(str(parsed_intent))
+            if not infrastructure_analysis or not infrastructure_analysis.get('services'):
+                print("🔍 LLM: Nenhum serviço AWS detectado")
+                return None
             
-            if not services:
-                return 0.0
+            # 2. USAR MCP COST SERVER PARA PREÇOS REAIS
+            real_cost = await self._get_real_cost_from_mcp(infrastructure_analysis)
             
-            # Estimar custo dos serviços detectados
-            estimated_cost, _ = self._estimate_cost(services)
-            return estimated_cost
+            if real_cost is not None:
+                print(f"💰 Custo real obtido via MCP: ${real_cost}")
+                return real_cost
+            
+            # 3. SE MCP FALHA, NÃO MOSTRAR CUSTO FALSO
+            if self.config.require_real_costs:
+                print("⚠️ Custo real não disponível, não mostrando estimativa falsa")
+                return None
+            
+            return None
             
         except Exception as e:
-            print(f"⚠️ Erro estimando custo: {e}")
-            return 0.0
+            print(f"⚠️ Erro na estimativa de custo real: {e}")
+            return None
+    
+    async def _analyze_with_llm(self, user_request: str) -> Optional[Dict]:
+        """Usa LLM para análise inteligente da infraestrutura"""
+        
+        if not self.llm_provider:
+            return None
+        
+        try:
+            # Prompt otimizado para análise de infraestrutura
+            analysis_prompt = f"""
+Analise esta requisição de infraestrutura AWS e identifique os serviços e recursos:
 
-    def validate_cost(self, intent: str, context: Optional[Dict] = None) -> CostValidationResult:
-        """
-        Ponto de entrada principal para validação de custo
-        
-        Args:
-            intent: Intenção do usuário em linguagem natural
-            context: Contexto adicional (user_id, session_id, etc.)
+REQUISIÇÃO: "{user_request}"
+
+Identifique:
+1. Serviços AWS mencionados ou implícitos
+2. Tipos de recursos (instâncias, storage, etc.)
+3. Região (se mencionada)
+4. Configurações específicas
+
+Responda em JSON:
+{{
+    "services": ["ec2", "s3", "rds"],
+    "resources": [
+        {{
+            "service": "ec2",
+            "type": "instance",
+            "size": "t2.small",
+            "quantity": 1
+        }}
+    ],
+    "region": "us-east-1",
+    "operation": "list|create|modify"
+}}
+
+ANÁLISE:
+"""
             
-        Returns:
-            CostValidationResult com estimativa e decisão de bloqueio
+            # Usar LLM para análise
+            llm_response = await self.llm_provider.generate_response(analysis_prompt)
+            
+            # Parse resposta do LLM
+            analysis = self._parse_llm_analysis(llm_response)
+            
+            if analysis:
+                print(f"🧠 LLM detectou serviços: {analysis.get('services', [])}")
+                return analysis
+            
+            return None
+            
+        except Exception as e:
+            print(f"⚠️ Erro na análise LLM: {e}")
+            return None
+    
+    def _parse_llm_analysis(self, llm_response: str) -> Optional[Dict]:
+        """Parse robusto da análise do LLM"""
+        
+        try:
+            # Se for dict do LLM Provider, extrair texto
+            if isinstance(llm_response, dict):
+                text = llm_response.get('response', llm_response.get('processed_text', str(llm_response)))
+            else:
+                text = str(llm_response)
+            
+            # Extrair JSON da resposta
+            import re
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group()
+                analysis = json.loads(json_str)
+                
+                # Validar estrutura
+                if 'services' in analysis and isinstance(analysis['services'], list):
+                    return analysis
+            
+            # Fallback: detecção por keywords (mínima)
+            return self._keyword_fallback_analysis(text)
+            
+        except Exception as e:
+            print(f"⚠️ Erro parsing LLM analysis: {e}")
+            return None
+    
+    def _keyword_fallback_analysis(self, text: str) -> Optional[Dict]:
+        """Fallback mínimo por keywords quando LLM parsing falha"""
+        
+        text_lower = text.lower()
+        
+        # Mapeamento mínimo de serviços
+        service_keywords = {
+            'ec2': ['ec2', 'instance', 'virtual machine', 'vm', 'compute'],
+            's3': ['s3', 'bucket', 'storage', 'object'],
+            'rds': ['rds', 'database', 'mysql', 'postgres', 'aurora'],
+            'lambda': ['lambda', 'function', 'serverless'],
+            'dynamodb': ['dynamodb', 'nosql', 'table'],
+            'ecs': ['ecs', 'container', 'fargate', 'docker'],
+            'elasticache': ['redis', 'elasticache', 'cache', 'memcached']
+        }
+        
+        detected_services = []
+        for service, keywords in service_keywords.items():
+            if any(keyword in text_lower for keyword in keywords):
+                detected_services.append(service)
+        
+        if detected_services:
+            return {
+                'services': detected_services,
+                'resources': [{'service': s, 'type': 'unknown', 'quantity': 1} for s in detected_services],
+                'region': 'us-east-1',
+                'operation': 'list'
+            }
+        
+        return None
+    
+    async def _get_real_cost_from_mcp(self, infrastructure_analysis: Dict) -> Optional[float]:
+        """Obtém custo REAL via MCP Cost Server"""
+        
+        if not self.mcp_orchestrator:
+            return None
+        
+        try:
+            services = infrastructure_analysis.get('services', [])
+            resources = infrastructure_analysis.get('resources', [])
+            region = infrastructure_analysis.get('region', 'us-east-1')
+            
+            total_cost = 0.0
+            
+            # Para cada serviço, consultar MCP Cost Server
+            for service in services:
+                service_cost = await self._get_service_cost_via_mcp(service, region, resources)
+                if service_cost is not None:
+                    total_cost += service_cost
+                    print(f"💰 {service}: ${service_cost}/mês")
+                else:
+                    print(f"⚠️ {service}: custo não disponível via MCP")
+                    # Se qualquer serviço falha e require_real_costs=True, retorna None
+                    if self.config.require_real_costs:
+                        return None
+            
+            return total_cost if total_cost > 0 else None
+            
+        except Exception as e:
+            print(f"⚠️ Erro obtendo custo via MCP: {e}")
+            return None
+    
+    async def _get_service_cost_via_mcp(self, service: str, region: str, resources: List[Dict]) -> Optional[float]:
+        """Consulta MCP Cost Server para custo específico do serviço"""
+        
+        try:
+            # Mapear serviços para MCPs específicos
+            cost_mcp_mapping = {
+                'ec2': 'aws-cost-explorer-mcp',
+                's3': 'aws-cost-explorer-mcp',
+                'rds': 'aws-cost-explorer-mcp',
+                'lambda': 'aws-cost-explorer-mcp',
+                'dynamodb': 'aws-cost-explorer-mcp',
+                'ecs': 'aws-cost-explorer-mcp',
+                'elasticache': 'aws-cost-explorer-mcp'
+            }
+            
+            mcp_server = cost_mcp_mapping.get(service, 'aws-cost-explorer-mcp')
+            
+            # Construir query para MCP Cost Server
+            cost_query = f"Calculate monthly cost for {service} service in {region}"
+            
+            # Adicionar detalhes específicos do recurso se disponível
+            service_resources = [r for r in resources if r.get('service') == service]
+            if service_resources:
+                resource = service_resources[0]
+                if resource.get('type') and resource.get('size'):
+                    cost_query += f" with {resource['type']} {resource['size']}"
+                if resource.get('quantity', 1) > 1:
+                    cost_query += f" quantity {resource['quantity']}"
+            
+            # Consultar MCP Cost Server
+            result = self.mcp_orchestrator.orchestrate([mcp_server], cost_query)
+            
+            if result.get('success'):
+                # Extrair custo da resposta MCP
+                cost = self._extract_cost_from_mcp_response(result.get('response', ''))
+                return cost
+            
+            return None
+            
+        except Exception as e:
+            print(f"⚠️ Erro consultando MCP para {service}: {e}")
+            return None
+    
+    def _extract_cost_from_mcp_response(self, mcp_response: str) -> Optional[float]:
+        """Extrai valor de custo da resposta do MCP"""
+        
+        try:
+            import re
+            
+            # Padrões para extrair custos
+            cost_patterns = [
+                r'\$(\d+\.?\d*)',  # $25.50
+                r'(\d+\.?\d*)\s*USD',  # 25.50 USD
+                r'(\d+\.?\d*)\s*dollars?',  # 25.50 dollars
+                r'cost[:\s]*\$?(\d+\.?\d*)',  # cost: $25.50
+                r'price[:\s]*\$?(\d+\.?\d*)',  # price: $25.50
+            ]
+            
+            for pattern in cost_patterns:
+                match = re.search(pattern, mcp_response, re.IGNORECASE)
+                if match:
+                    cost_value = float(match.group(1))
+                    if 0 < cost_value < 10000:  # Sanity check
+                        return cost_value
+            
+            return None
+            
+        except Exception as e:
+            print(f"⚠️ Erro extraindo custo da resposta MCP: {e}")
+            return None
+    
+    async def validate_cost(self, intent: str, context: Optional[Dict] = None) -> CostValidationResult:
+        """
+        Validação de custo REAL com LLM + MCP
         """
         start_time = time.time()
         
-        # Se estimativa desabilitada, retorna resultado vazio
         if not self.config.estimation_enabled:
             return CostValidationResult()
         
         try:
-            # 1. Detectar serviços AWS na intenção
-            services = self._detect_services(intent)
+            # Estimar custo real
+            estimated_cost = await self.estimate_intent_cost(intent)
             
-            if not services:
-                return CostValidationResult()  # Nenhum serviço detectado
+            if estimated_cost is None:
+                return CostValidationResult(
+                    cost_source="unavailable",
+                    processing_time_ms=int((time.time() - start_time) * 1000)
+                )
             
-            # 2. Estimar custo dos serviços
-            estimated_cost, breakdown = self._estimate_cost(services)
-            
-            # 3. Verificar se deve bloquear (só se enforcement habilitado)
+            # Verificar enforcement
             should_block = False
             block_message = ""
             
             if self.config.enforcement_enabled and estimated_cost > self.config.default_budget:
                 should_block = True
-                block_message = (
-                    f"⚠️ Custo estimado ${estimated_cost:.2f}/mês excede o budget "
-                    f"configurado (${self.config.default_budget:.2f}/mês).\n"
-                    f"Deseja continuar mesmo assim? (sim/não)"
-                )
+                block_message = f"⚠️ Custo estimado ${estimated_cost:.2f}/mês excede budget ${self.config.default_budget}"
             
-            # 4. Criar resultado
-            processing_time = int((time.time() - start_time) * 1000)
-            
-            result = CostValidationResult(
+            return CostValidationResult(
                 estimated_cost=estimated_cost,
-                cost_breakdown=breakdown,
                 should_block=should_block,
                 block_message=block_message,
-                cache_hit=False,  # TODO: implementar cache
-                processing_time_ms=processing_time,
-                services_detected=services
+                cost_source="mcp_real",
+                processing_time_ms=int((time.time() - start_time) * 1000)
             )
             
-            # 5. Log da decisão
-            self._log_cost_validation(intent, result, context)
-            
-            return result
-            
         except Exception as e:
-            # Fallback silencioso - nunca quebrar o sistema
-            print(f"⚠️ Erro na validação de custo: {e}")
-            self._log_cost_error(intent, str(e), context)
-            return CostValidationResult()
-    
-    def _detect_services(self, intent: str) -> List[str]:
-        """Detecta serviços AWS mencionados na intenção"""
-        intent_lower = intent.lower()
-        detected_services = []
-        
-        for service, patterns in self.service_patterns.items():
-            if any(pattern in intent_lower for pattern in patterns):
-                detected_services.append(service)
-        
-        return detected_services
-    
-    def _estimate_cost(self, services: List[str]) -> Tuple[float, Dict[str, float]]:
-        """
-        Estima custo dos serviços
-        
-        Estratégia:
-        1. Tentar usar MCP de pricing (TODO: implementar)
-        2. Fallback para preços heurísticos
-        """
-        
-        total_cost = 0.0
-        breakdown = {}
-        
-        for service in services:
-            # Por enquanto usar fallback, depois integrar com MCP
-            service_cost = self._get_service_price_fallback(service)
-            
-            if service_cost > 0:
-                total_cost += service_cost
-                breakdown[service.upper()] = service_cost
-        
-        return total_cost, breakdown
-    
-    def _get_service_price_fallback(self, service: str) -> float:
-        """Obtém preço usando heurística (fallback)"""
-        return self.fallback_prices.get(service, 0.0)
-    
-    def _load_config(self) -> CostConfig:
-        """Carrega configuração do arquivo ial-config.yaml"""
-        
-        config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'ial-config.yaml')
-        
-        # Valores padrão
-        defaults = {
-            'estimation_enabled': True,
-            'enforcement_enabled': False,
-            'default_budget': 150.0,
-            'cache_ttl_minutes': 60,
-            'timeout_seconds': 3,
-            'show_breakdown': True
-        }
-        
-        try:
-            # Tentar carregar YAML
-            import yaml
-            if os.path.exists(config_path):
-                with open(config_path, 'r') as f:
-                    config_data = yaml.safe_load(f)
-                    
-                cost_config = config_data.get('cost_guardrails', {})
-                estimation = cost_config.get('estimation', {})
-                enforcement = cost_config.get('enforcement', {})
-                
-                return CostConfig(
-                    estimation_enabled=estimation.get('enabled', defaults['estimation_enabled']),
-                    enforcement_enabled=enforcement.get('enabled', defaults['enforcement_enabled']),
-                    default_budget=float(enforcement.get('default_monthly_budget_usd', defaults['default_budget'])),
-                    cache_ttl_minutes=int(estimation.get('cache_ttl_minutes', defaults['cache_ttl_minutes'])),
-                    timeout_seconds=int(estimation.get('timeout_seconds', defaults['timeout_seconds'])),
-                    show_breakdown=estimation.get('show_breakdown', defaults['show_breakdown'])
-                )
-        except Exception as e:
-            print(f"⚠️ Erro carregando config, usando padrões: {e}")
-        
-        # Fallback para env vars e depois padrões
-        return CostConfig(
-            estimation_enabled=os.getenv('COST_ESTIMATION_ENABLED', str(defaults['estimation_enabled'])).lower() == 'true',
-            enforcement_enabled=os.getenv('COST_ENFORCEMENT_ENABLED', str(defaults['enforcement_enabled'])).lower() == 'true',
-            default_budget=float(os.getenv('DEFAULT_BUDGET', str(defaults['default_budget']))),
-            cache_ttl_minutes=int(os.getenv('CACHE_TTL_MINUTES', str(defaults['cache_ttl_minutes']))),
-            timeout_seconds=int(os.getenv('TIMEOUT_SECONDS', str(defaults['timeout_seconds']))),
-            show_breakdown=os.getenv('SHOW_COST_BREAKDOWN', str(defaults['show_breakdown'])).lower() == 'true'
-        )
-    
-    def _log_cost_validation(self, intent: str, result: CostValidationResult, context: Optional[Dict]):
-        """Log da validação de custo usando Decision Ledger existente"""
-        
-        metadata = {
-            'estimated_cost': result.estimated_cost,
-            'services_detected': result.services_detected,
-            'cost_breakdown': result.cost_breakdown,
-            'processing_time_ms': result.processing_time_ms,
-            'cache_hit': result.cache_hit,
-            'blocked': result.should_block,
-            'enforcement_enabled': self.config.enforcement_enabled,
-            'estimation_enabled': self.config.estimation_enabled
-        }
-        
-        if context:
-            metadata.update({
-                'user_id': context.get('user_id', 'unknown'),
-                'session_id': context.get('session_id', 'unknown')
-            })
-        
-        status = "blocked" if result.should_block else "estimated"
-        
-        self.decision_ledger.log(
-            phase="cost-validation",
-            mcp="intent-cost-guardrails", 
-            tool="validate_cost",
-            rationale=f"Estimated ${result.estimated_cost:.2f}/mês for services: {', '.join(result.services_detected)}",
-            status=status,
-            metadata=metadata
-        )
-    
-    def _log_cost_error(self, intent: str, error: str, context: Optional[Dict]):
-        """Log de erro na validação de custo"""
-        
-        metadata = {
-            'error': error,
-            'intent_length': len(intent),
-            'fallback_used': True
-        }
-        
-        if context:
-            metadata.update({
-                'user_id': context.get('user_id', 'unknown'),
-                'session_id': context.get('session_id', 'unknown')
-            })
-        
-        self.decision_ledger.log(
-            phase="cost-validation",
-            mcp="intent-cost-guardrails",
-            tool="validate_cost", 
-            rationale=f"Cost validation failed: {error}",
-            status="error_fallback",
-            metadata=metadata
-        )
-    
-    def get_config_status(self) -> Dict:
-        """Retorna status da configuração"""
-        return {
-            'estimation_enabled': self.config.estimation_enabled,
-            'enforcement_enabled': self.config.enforcement_enabled,
-            'default_budget': self.config.default_budget,
-            'services_supported': list(self.service_patterns.keys()),
-            'fallback_prices_available': len(self.fallback_prices)
-        }
+            print(f"⚠️ Erro na validação de custo real: {e}")
+            return CostValidationResult(
+                cost_source="error",
+                processing_time_ms=int((time.time() - start_time) * 1000)
+            )
+
+# Alias para compatibilidade
+IntentCostGuardrails = RealCostGuardrails
