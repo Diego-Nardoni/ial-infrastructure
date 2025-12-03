@@ -339,9 +339,9 @@ def show_help():
 
 COMANDOS CLI:
   ialctl start              Deploy foundation com conversão IAL→CF
-  ialctl config <ação>      Gerenciar feature flags
-    ialctl config get      Ver todos os feature flags
-    ialctl config set FLAG=VALUE  Configurar feature flag
+  ialctl config <ação>      Gerenciar configurações e feature flags
+    ialctl config get [KEY]    Ver configuração(ões) - KEY opcional
+    ialctl config set KEY=VALUE  Configurar valor específico
     ialctl config reset    Resetar para defaults
   ialctl destroy <recurso>  Remover recursos específicos
     ialctl destroy security-services  Remover security services
@@ -366,8 +366,11 @@ MODO INTERATIVO:
 
 EXEMPLOS:
   ialctl start                           # Deploy foundation
-  ialctl config get                      # Ver feature flags
+  ialctl config get                      # Ver toda configuração
+  ialctl config get BUDGET_LIMIT        # Ver limite de budget atual
+  ialctl config set BUDGET_LIMIT=75     # Definir novo limite de budget
   ialctl config set SECURITY_SERVICES_ENABLED=false  # Desabilitar security (~$24/mês)
+  ialctl config set BUDGET_ENFORCEMENT_ENABLED=false # Desabilitar enforcement
   ialctl destroy security-services       # Remover security services existentes
   ialctl list-phases                     # Ver fases disponíveis
   ialctl deploy 20-network               # Deploy fase de rede (IAL→CF)
@@ -375,12 +378,15 @@ EXEMPLOS:
   ialctl deploy 30-compute               # Deploy fase de compute (IAL→CF)
   ialctl delete 30-compute               # Excluir fase de compute
 
+CONFIGURAÇÕES DISPONÍVEIS:
+  BUDGET_LIMIT=50.0                     # Limite de budget mensal (USD)
+  BUDGET_ENFORCEMENT_ENABLED=true       # Budget enforcement blocking (with IAM protection)
+
 FEATURE FLAGS:
   SECURITY_SERVICES_ENABLED=true        # Security services (~$24/mês)
   WELL_ARCHITECTED_ENABLED=true         # Well-Architected assessment
   COST_MONITORING_ENABLED=true          # Cost monitoring
   DRIFT_DETECTION_ENABLED=true          # Drift detection
-  BUDGET_ENFORCEMENT_ENABLED=true       # Budget enforcement blocking (with IAM protection)
 
 BUDGET LIMITS (per phase):
   00-foundation: $50/month              # DynamoDB, S3, Lambda básico
