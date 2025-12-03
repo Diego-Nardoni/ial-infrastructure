@@ -63,6 +63,21 @@ class LLMProvider:
                 name=f"llm-{provider}"
             )
             
+    async def generate_response(self, prompt: str) -> str:
+        """Generate text response from LLM - wrapper for process_natural_language_async"""
+        try:
+            result = await self.process_natural_language_async(prompt)
+            
+            # Extract text response from result
+            if isinstance(result, dict):
+                return result.get('response', result.get('text', str(result)))
+            else:
+                return str(result)
+                
+        except Exception as e:
+            print(f"⚠️ LLM generate_response error: {e}")
+            raise e
+    
     async def process_natural_language_async(self, text: str) -> Dict:
         """Async processing with circuit breaker protection"""
         # Try current provider first

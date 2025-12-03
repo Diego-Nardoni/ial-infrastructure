@@ -40,6 +40,22 @@ class MCPOrchestrator:
         # Organizar MCPs por fases
         phases = self._organize_by_phases(mcps)
         
+    async def query_mcp_for_service_options(self, mcp_server: str, service: str) -> str:
+        """Query specific MCP server for service options and context"""
+        try:
+            # Use existing orchestrate method to query MCP
+            query = f"What are the options and best practices for {service}?"
+            result = self.orchestrate([mcp_server], query)
+            
+            if result.get('success'):
+                return result.get('response', f"Context for {service} from {mcp_server}")
+            else:
+                return f"Service {service} options: consult AWS documentation for specific configurations"
+                
+        except Exception as e:
+            print(f"⚠️ MCP query error: {e}")
+            return f"Service {service} context not available from {mcp_server}"
+    
     def orchestrate(self, mcp_names: List[str], command: str) -> Dict[str, Any]:
         """Orquestra execução de MCPs de forma síncrona para compatibilidade com testes"""
         
