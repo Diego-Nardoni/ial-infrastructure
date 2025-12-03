@@ -198,9 +198,13 @@ class CognitiveEngine:
             return {'pr_created': False, 'rationale': 'GitHub Integration not available'}
         
         try:
-            # Usar GitHubIntegration existente
-            pr_result = self.github_integration.execute_infrastructure_deployment(
-                yaml_phases, {'intent': 'user_request'}
+            # Usar FULL GitOps flow com PR automation
+            pr_result = self.github_integration.execute_full_gitops_flow(
+                yaml_phases, {
+                    'action': 'create',
+                    'domains': ['infrastructure'],
+                    'original_input': 'user_request'
+                }
             )
             
             return {
@@ -590,8 +594,14 @@ class CognitiveEngine:
             templates = {'generated_template': yaml_result.get('template', {})}
             intent = {'operation': operation_type}
             
-            # Usar execute_infrastructure_deployment em vez de create_pr
-            pr_result = self.github_integration.execute_infrastructure_deployment(templates, intent)
+            # Usar FULL GitOps flow com PR automation
+            pr_result = self.github_integration.execute_full_gitops_flow(
+                templates, {
+                    'action': operation_type,
+                    'domains': ['infrastructure'],
+                    'original_input': f'{operation_type} infrastructure'
+                }
+            )
             
             return {
                 'status': 'success',
