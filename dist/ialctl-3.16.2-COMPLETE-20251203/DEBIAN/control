@@ -1,0 +1,18 @@
+Package: ialctl
+Version: 3.16.2-COMPLETE
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: IAL Team <ial@aws.com>
+Description: Infrastructure Assistant Layer Control - Complete System
+ IAL Control with all systems operational and fully documented
+ .
+ Features:
+ - 17 MCP servers (9 core + 8 domain) working
+ - Feature flags table auto-creation
+ - MCP FinOps module for budget enforcement
+ - ialctl config commands fully functional
+ - Complete help documentation
+ - 108 CloudFormation templates (10 phases)
+ - Budget enforcement with real spend tracking
+ - Debug messages removed for clean output
