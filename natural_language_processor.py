@@ -312,7 +312,8 @@ class IaLNaturalProcessor:
         # Try Intelligent MCP Router FIRST for ALL requests (not just infrastructure)
         if self.intelligent_router:
             try:
-                print("🧠 Iniciando Intelligent MCP Router")  # Debug visível
+                # Debug disabled in production
+                # print("🧠 Iniciando Intelligent MCP Router")  # Debug visível
                 
                 # Check if we have an active conversation session
                 if self.conversation_state:
@@ -362,7 +363,8 @@ class IaLNaturalProcessor:
                 
                 # Pass context to router
                 result = self.intelligent_router.route_request(user_input, conversation_context)
-                print(f"🧠 Router result: {result.get('status')}")  # Debug
+                # Debug disabled in production
+                # print(f"🧠 Router result: {result.get('status')}")  # Debug
                 
                 if result.get('status') == 'success':
                     return self.format_intelligent_router_response(result, user_input)

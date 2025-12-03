@@ -82,14 +82,16 @@ class IntelligentMCPRouterSophisticated:
             detection_result = self.service_detector.detect_services(processed_text)
             detection_time = time.time() - detection_start
             
-            print(f"🔍 DEBUG: Services detected: {detection_result.get('detected_services', [])}")
+            # Debug disabled in production
+            # print(f"🔍 DEBUG: Services detected: {detection_result.get('detected_services', [])}")
             
             # Step 3: Domain Mapping (sync, fast)
             mapping_start = time.time()
             domains = self.domain_mapper.map_to_domains(detection_result['detected_services'])
             required_mcps = self.domain_mapper.get_required_mcps(domains)
             
-            print(f"🔍 DEBUG: Required MCPs: {required_mcps}")
+            # Debug disabled in production
+            # print(f"🔍 DEBUG: Required MCPs: {required_mcps}")
             
             # Apply pattern optimizations and store pattern
             pattern = detection_result.get('architecture_pattern')
@@ -104,7 +106,8 @@ class IntelligentMCPRouterSophisticated:
             loaded_mcps = await self.orchestrator.lazy_load_mcps_async(required_mcps)
             loading_time = time.time() - loading_start
             
-            print(f"🔍 DEBUG: Loaded MCPs: {list(loaded_mcps.keys())}")
+            # Debug disabled in production
+            # print(f"🔍 DEBUG: Loaded MCPs: {list(loaded_mcps.keys())}")
             
             # Step 5: Execution (async, parallel)
             execution_start = time.time()
@@ -300,18 +303,21 @@ class IntelligentMCPRouterSophisticated:
                 }
             
             # Execute AWS CLI command
-            print(f"🔍 Comando original: {aws_command}")  # Debug
+            # Debug disabled in production
+            # print(f"🔍 Comando original: {aws_command}")  # Debug
             
             # Usar shlex para parsing correto de comandos com aspas
             import shlex
             cmd = shlex.split(aws_command)
-            print(f"🔍 Comando parseado: {cmd}")  # Debug
+            # Debug disabled in production
+            # print(f"🔍 Comando parseado: {cmd}")  # Debug
             
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)  # Aumentar timeout
             
-            print(f"🔍 Return code: {result.returncode}")  # Debug
-            print(f"🔍 Stdout length: {len(result.stdout)}")  # Debug
-            print(f"🔍 Stderr: {result.stderr}")  # Debug
+            # Debug disabled in production
+            # print(f"🔍 Return code: {result.returncode}")  # Debug
+            # print(f"🔍 Stdout length: {len(result.stdout)}")  # Debug
+            # print(f"🔍 Stderr: {result.stderr}")  # Debug
             
             if result.returncode != 0:
                 return {
