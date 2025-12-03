@@ -25,6 +25,11 @@ class BudgetConfig:
         # Total project budget
         self.total_budget = sum(self.phase_limits.values())  # $540/month
     
+    def set_phase_limit(self, phase: str, limit: float):
+        """Set budget limit for a phase"""
+        self.phase_limits[phase] = limit
+        print(f"✅ Budget limit for {phase} set to ${limit}/month")
+    
     def get_phase_limit(self, phase: str) -> float:
         """Get budget limit for a specific phase"""
         # Extract phase number/name

@@ -1,113 +1,80 @@
 #!/usr/bin/env python3
 """
-IAL Configuration Management - Feature Flags
+IAL Configuration Management
 """
 
 import sys
-import argparse
-from core.feature_flags import feature_flags
-
-def handle_config_command(args):
-    """Handle ialctl config commands"""
-    
-    if args.action == 'set':
-        flag_name, value = args.flag_value.split('=', 1)
-        enabled = value.lower() in ['true', '1', 'yes', 'on']
-        
-        # Special handling for security services
-        if flag_name == 'SECURITY_SERVICES_ENABLED':
-            if not enabled:
-                print("⚠️  WARNING: Disabling Security Services")
-                print("   💰 This will save ~$24/month on future deployments")
-                print("   🔒 Existing security resources will remain active and billing")
-                print("   📋 Affected services: GuardDuty, Security Hub, Inspector, Access Analyzer, Macie")
-                print("")
-                print("   To remove existing security resources:")
-                print("   ialctl destroy security-services")
-                print("")
-                
-                confirm = input("Continue? (y/N): ").lower()
-                if confirm != 'y':
-                    print("❌ Cancelled")
-                    return
-        
-        # Special handling for budget enforcement
-        elif flag_name == 'BUDGET_ENFORCEMENT_ENABLED':
-            if not enabled:
-                print("⚠️  WARNING: Disabling Budget Enforcement")
-                print("   💰 This will disable automatic cost protection")
-                print("   🚨 Deployments will proceed without budget checks")
-                print("   📊 You may exceed configured budget limits")
-                print("")
-                print("   This change will be audited and may trigger alerts.")
-                print("")
-                
-                confirm = input("Continue? (y/N): ").lower()
-                if confirm != 'y':
-                    print("❌ Cancelled")
-                    return
-            else:
-                print("✅ Enabling Budget Enforcement")
-                print("   💰 Automatic cost protection will be active")
-                print("   🔒 Deployments will be blocked if over budget")
-        
-        success = feature_flags.set_flag(flag_name, enabled)
-        if success:
-            print(f"✅ {flag_name} = {enabled}")
-            if flag_name in ['BUDGET_ENFORCEMENT_ENABLED', 'COST_MONITORING_ENABLED']:
-                print("📝 Change logged to audit trail")
-        else:
-            print(f"❌ Failed to set {flag_name}")
-            if 'BUDGET' in flag_name.upper():
-                print("   This may be due to insufficient IAM permissions")
-                print("   Required permission: ial:ModifyBudget")
-    
-    elif args.action == 'get':
-        if args.flag_name:
-            value = feature_flags.get_flag(args.flag_name)
-            print(f"{args.flag_name} = {value}")
-        else:
-            # Show all flags
-            all_flags = feature_flags.get_all_flags()
-            print("🔧 IAL Feature Flags:")
-            print("=" * 40)
-            
-            for flag_name, enabled in all_flags.items():
-                status = "ENABLED" if enabled else "DISABLED"
-                cost_info = ""
-                
-                if flag_name == 'SECURITY_SERVICES_ENABLED':
-                    cost_info = " (~$24/month)" if enabled else " (saves $24/month)"
-                
-                print(f"  {flag_name}: {status}{cost_info}")
-    
-    elif args.action == 'reset':
-        print("🔄 Resetting feature flags to defaults...")
-        feature_flags.initialize_defaults()
-        print("✅ Feature flags reset")
 
 def main():
-    parser = argparse.ArgumentParser(description='IAL Configuration Management')
-    subparsers = parser.add_subparsers(dest='action', help='Available actions')
+    """Main configuration handler"""
+    if len(sys.argv) >= 2 and sys.argv[1] == 'set':
+        # ialctl config set KEY=VALUE
+        if len(sys.argv) >= 3:
+            config_arg = sys.argv[2]
+            if '=' in config_arg:
+                key, value = config_arg.split('=', 1)
+                
+                # Handle budget limit
+                if key == 'BUDGET_LIMIT':
+                    try:
+                        budget_value = float(value)
+                        from core.budget_config import budget_config
+                        budget_config.set_phase_limit('00-foundation', budget_value)
+                        print(f"✅ Budget limit set to ${budget_value}/month")
+                    except ValueError:
+                        print(f"❌ Invalid budget value: {value}")
+                        return
+                
+                # Handle feature flags
+                elif key in ['BUDGET_ENFORCEMENT_ENABLED', 'SECURITY_SERVICES_ENABLED']:
+                    flag_value = value.lower() in ['true', '1', 'yes', 'enabled']
+                    from core.feature_flags import feature_flags
+                    
+                    if feature_flags.set_flag(key, flag_value):
+                        print(f"✅ {key} set to {flag_value}")
+                    else:
+                        print(f"❌ Failed to set {key}")
+                else:
+                    print(f"❌ Unknown configuration key: {key}")
+            else:
+                print("❌ Invalid format. Use: ialctl config set KEY=VALUE")
+        else:
+            print("❌ Missing configuration. Use: ialctl config set KEY=VALUE")
     
-    # ialctl config set FLAG=VALUE
-    set_parser = subparsers.add_parser('set', help='Set feature flag')
-    set_parser.add_argument('flag_value', help='FLAG=VALUE (e.g., SECURITY_SERVICES_ENABLED=false)')
-    
-    # ialctl config get [FLAG]
-    get_parser = subparsers.add_parser('get', help='Get feature flag(s)')
-    get_parser.add_argument('flag_name', nargs='?', help='Flag name (optional, shows all if omitted)')
-    
-    # ialctl config reset
-    reset_parser = subparsers.add_parser('reset', help='Reset to defaults')
-    
-    args = parser.parse_args()
-    
-    if not args.action:
-        parser.print_help()
-        return
-    
-    handle_config_command(args)
+    elif len(sys.argv) >= 2 and sys.argv[1] == 'get':
+        # ialctl config get [KEY]
+        if len(sys.argv) >= 3:
+            key = sys.argv[2]
+            if key == 'BUDGET_LIMIT':
+                from core.budget_config import budget_config
+                limit = budget_config.get_phase_limit('00-foundation')
+                print(f"{key}=${limit}")
+            elif key in ['BUDGET_ENFORCEMENT_ENABLED', 'SECURITY_SERVICES_ENABLED']:
+                from core.feature_flags import feature_flags
+                value = feature_flags.get_flag(key)
+                print(f"{key}={value}")
+            else:
+                print(f"❌ Unknown configuration key: {key}")
+        else:
+            # Show all config
+            from core.feature_flags import feature_flags
+            from core.budget_config import budget_config
+            
+            print("📋 IAL Configuration:")
+            print(f"BUDGET_LIMIT=${budget_config.get_phase_limit('00-foundation')}")
+            
+            flags = feature_flags.get_all_flags()
+            for flag, value in flags.items():
+                print(f"{flag}={value}")
+    else:
+        print("Usage:")
+        print("  ialctl config get [KEY]     - Get configuration value(s)")
+        print("  ialctl config set KEY=VALUE - Set configuration value")
+        print("")
+        print("Available keys:")
+        print("  BUDGET_LIMIT               - Monthly budget limit (e.g., 100.0)")
+        print("  BUDGET_ENFORCEMENT_ENABLED - Enable/disable budget enforcement")
+        print("  SECURITY_SERVICES_ENABLED  - Enable/disable security services")
 
 if __name__ == '__main__':
     main()

@@ -307,15 +307,17 @@ class FoundationDeployer:
             
             # Check budget before deployment
             try:
-                from mcp.finops.server import FinOpsMCP
-                finops = FinOpsMCP()
-                budget_result = finops.check_budget('00-foundation', budget_limit)
+                from mcp.finops import finops_manager
                 
-                if not budget_result['within_budget']:
-                    print(f"❌ BUDGET EXCEEDED!")
-                    print(f"   Estimated: ${budget_result['estimated_cost']:.2f}/month")
-                    print(f"   Limit: ${budget_result['budget_limit']:.2f}/month")
-                    print(f"   Overage: ${budget_result['overage']:.2f}/month")
+                # Get budget compliance
+                compliance = finops_manager.validate_budget_compliance(budget_limit=budget_limit)
+                
+                if compliance['compliant']:
+                    print(f"✅ Budget OK: ${compliance['current_spend']:.2f} < ${compliance['budget_limit']:.2f}")
+                    print(f"   💰 Remaining: ${compliance['remaining']:.2f} ({100-compliance['utilization_percent']:.1f}% available)")
+                else:
+                    print(f"❌ Budget EXCEEDED: ${compliance['current_spend']:.2f} > ${compliance['budget_limit']:.2f}")
+                    print(f"   ⚠️ Over budget by: ${abs(compliance['remaining']):.2f}")
                     print(f"")
                     print(f"   To proceed anyway: ialctl config set BUDGET_ENFORCEMENT_ENABLED=false")
                     
@@ -324,11 +326,12 @@ class FoundationDeployer:
                         'failed_deployments': 1,
                         'error': 'Budget exceeded',
                         'budget_blocked': True,
-                        'estimated_cost': budget_result['estimated_cost'],
-                        'budget_limit': budget_result['budget_limit']
+                        'estimated_cost': compliance['current_spend'],
+                        'budget_limit': compliance['budget_limit']
                     }
-                else:
-                    print(f"✅ Budget OK: ${budget_result['estimated_cost']:.2f} < ${budget_result['budget_limit']:.2f}")
+                    
+                if 'warning' in compliance:
+                    print(f"   ⚠️ {compliance['warning']}")
                     
             except Exception as e:
                 print(f"⚠️ Budget check failed: {e}")
