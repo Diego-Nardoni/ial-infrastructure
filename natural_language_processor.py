@@ -393,6 +393,9 @@ class IaLNaturalProcessor:
                 elif result.get('status') == 'similar_phases_found':
                     # Similar phases found - show suggestions
                     return result.get('response', '🤔 Phases similares encontradas - veja as sugestões acima')
+                elif result.get('status') == 'new_phase_detected':
+                    # New phase detected - show creation options
+                    return result.get('response', '🆕 Phase nova detectada - veja as opções acima')
                 else:
                     print(f"⚠️ Intelligent Router falhou: {result.get('error')}, tentando fallback")
                     

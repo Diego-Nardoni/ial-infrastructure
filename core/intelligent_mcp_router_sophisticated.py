@@ -65,15 +65,23 @@ class IntelligentMCPRouterSophisticated:
                         'phase_name': phase_detection.get('phase_name'),
                         'execution_time': time.time() - start_time
                     }
-                else:
-                    # Phase doesn't exist but similar ones might
-                    if phase_detection.get('suggestion_type') == 'similar_phases':
-                        suggestions = phase_detector.format_phase_suggestions(phase_detection)
-                        return {
-                            'status': 'similar_phases_found',
-                            'response': suggestions,
-                            'execution_time': time.time() - start_time
-                        }
+                elif phase_detection.get('suggestion_type') == 'similar_phases':
+                    # Similar phases found - show suggestions
+                    suggestions = phase_detector.format_phase_suggestions(phase_detection)
+                    return {
+                        'status': 'similar_phases_found',
+                        'response': suggestions,
+                        'execution_time': time.time() - start_time
+                    }
+                elif phase_detection.get('suggestion_type') == 'new_phase':
+                    # New phase - show creation options
+                    suggestions = phase_detector.format_phase_suggestions(phase_detection)
+                    return {
+                        'status': 'new_phase_detected',
+                        'response': suggestions,
+                        'phase_name': phase_detection.get('phase_name'),
+                        'execution_time': time.time() - start_time
+                    }
         except Exception as e:
             print(f"⚠️ Phase detection error: {e}")
         
