@@ -48,11 +48,13 @@ SOLICITAÇÃO DO USUÁRIO: {user_request}
     async def analyze_and_clarify(self, user_request: str) -> Dict[str, Any]:
         """Usa LLM para analisar requisitos e gerar perguntas inteligentes"""
         
-        print(f"🔍 DEBUG: Iniciando análise de clarificação para: {user_request}")
+        # Debug disabled in production
+        # print(f"🔍 DEBUG: Iniciando análise de clarificação para: {user_request}")
         
         # BYPASS: Comandos específicos que não precisam clarificação
         if self._has_sufficient_details(user_request):
-            print(f"🔍 DEBUG: Comando tem detalhes suficientes, bypass de clarificação")
+            # Debug disabled in production
+            # print(f"🔍 DEBUG: Comando tem detalhes suficientes, bypass de clarificação")
             return {
                 'status': 'ready_to_generate',
                 'confidence': 0.9,
